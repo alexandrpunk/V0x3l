@@ -19,17 +19,17 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 echo ""
 echo -e "\033[1;36m"
 cat <<'ASCII'
- /$$    /$$          /$$       /$$ /$$$$$$$$                                                    /$$      
-| $$   | $$         |__/      | $$| $$_____/                                                   | $$      
-| $$   | $$ /$$$$$$  /$$  /$$$$$$$| $$     /$$$$$$   /$$$$$$   /$$$$$$   /$$$$$$       /$$$$$$$| $$$$$$$ 
+ /$$    /$$          /$$       /$$ /$$$$$$$$                                                    /$$
+| $$   | $$         |__/      | $$| $$_____/                                                   | $$
+| $$   | $$ /$$$$$$  /$$  /$$$$$$$| $$     /$$$$$$   /$$$$$$   /$$$$$$   /$$$$$$       /$$$$$$$| $$$$$$$
 |  $$ / $$//$$__  $$| $$ /$$__  $$| $$$$$ /$$__  $$ /$$__  $$ /$$__  $$ /$$__  $$     /$$_____/| $$__  $$
  \  $$ $$/| $$  \ $$| $$| $$  | $$| $$__/| $$  \ $$| $$  \__/| $$  \ $$| $$$$$$$$    |  $$$$$$ | $$  \ $$
   \  $$$/ | $$  | $$| $$| $$  | $$| $$   | $$  | $$| $$      | $$  | $$| $$_____/     \____  $$| $$  | $$
    \  $/  |  $$$$$$/| $$|  $$$$$$$| $$   |  $$$$$$/| $$      |  $$$$$$$|  $$$$$$$ /$$ /$$$$$$$/| $$  | $$
     \_/    \______/ |__/ \_______/|__/    \______/ |__/       \____  $$ \_______/|__/|_______/ |__/  |__/
-                                                                  /$$  \ $$                                  
-                                                                 |  $$$$$$/                                  
-                                                                  \______/                                   
+                                                                  /$$  \ $$
+                                                                 |  $$$$$$/
+                                                                  \______/
 ASCII
 echo -e "\033[0m"
 echo -e "\033[3;37m         Tu sistema. Tus reglas. Tu forja.\033[0m"
@@ -165,7 +165,7 @@ echo "📦 [7/14] Instalando y configurando Flatpak..."
 nala install --no-install-recommends -y flatpak
 flatpak remote-add --if-not-exists flathub https://dl.flathub.org/repo/flathub.flatpakrepo
 
-flatpak install --system -y flathub org.gnome.Papers org.gnome.Resources org.gnome.Showtime
+flatpak install --system -y flathub org.gnome.Papers net.nokyan.Resources org.gnome.Showtime
 
 FLATPAK_OVERRIDE="/etc/flatpak/overrides/global"
 if [ ! -f "$FLATPAK_OVERRIDE" ]; then
