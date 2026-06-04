@@ -49,16 +49,33 @@ apt update && apt install -y nala wget tar unzip file zsh git curl ca-certificat
 
 # 1. Agregar ButterRepo y Actualización base
 echo "📦 [1/14] Agregando ButterRepo y actualizando sistema..."
-curl -fsSL https://justaguylinux.codeberg.page/butterrepo/key.asc | gpg --dearmor -o /usr/share/keyrings/butterrepo.gpg
-echo "deb [arch=amd64 signed-by=/usr/share/keyrings/butterrepo.gpg] https://justaguylinux.codeberg.page/butterrepo stable main" | tee /etc/apt/sources.list.d/butterrepo.list
+
+if [ ! -f /etc/apt/sources.list.d/butterrepo.list ]; then
+    curl -fsSL https://justaguylinux.codeberg.page/butterrepo/key.asc | gpg --dearmor -o /usr/share/keyrings/butterrepo.gpg
+    echo "deb [arch=amd64 signed-by=/usr/share/keyrings/butterrepo.gpg] https://justaguylinux.codeberg.page/butterrepo stable main" | tee /etc/apt/sources.list.d/butterrepo.list
+    echo "   ✅ ButterRepo agregado."
+else
+    echo "   ⏭️ ButterRepo ya existe, omitiendo."
+fi
+
 nala update && nala upgrade -y
 usermod -aG video,render,audio,plugdev,netdev "$REAL_USER"
 
-timedatectl set-timezone America/Mazatlan
+if [ "$(timedatectl show -p Timezone --value)" != "America/Mazatlan" ]; then
+    timedatectl set-timezone America/Mazatlan
+    echo "   ✅ Zona horaria configurada."
+else
+    echo "   ⏭️ Zona horaria ya configurada."
+fi
+
 nala install --no-install-recommends -y locales
-sed -i 's/^# *es_MX\.UTF-8 UTF-8/es_MX.UTF-8 UTF-8/' /etc/locale.gen
-locale-gen
-update-locale LANG=es_MX.UTF-8
+if ! locale -a | grep -q "es_MX.utf8"; then
+    sed -i 's/^# *es_MX\.UTF-8 UTF-8/es_MX.UTF-8 UTF-8/' /etc/locale.gen
+    locale-gen
+fi
+if [ "$(cat /etc/default/locale | grep ^LANG= | cut -d= -f2)" != "es_MX.UTF-8" ]; then
+    update-locale LANG=es_MX.UTF-8
+fi
 
 # 2. Stack Wayland y gráficos mínimos
 echo "🖥️ [2/14] Instalando stack Wayland y drivers gráficos..."
@@ -72,8 +89,10 @@ nala install --no-install-recommends -y \
     nautilus gvfs-backends gvfs-fuse udisks2 polkitd \
     ntfs-3g exfatprogs libglib2.0-bin
 
-mkdir -p /etc/polkit-1/rules.d
-cat > /etc/polkit-1/rules.d/90-udisks2-automount.rules <<'POLKIT'
+POLKIT_RULE="/etc/polkit-1/rules.d/90-udisks2-automount.rules"
+if [ ! -f "$POLKIT_RULE" ]; then
+    mkdir -p /etc/polkit-1/rules.d
+    cat > "$POLKIT_RULE" <<'POLKIT'
 polkit.addRule(function(action, subject) {
     if ((action.id == "org.freedesktop.udisks2.filesystem-mount" ||
          action.id == "org.freedesktop.udisks2.filesystem-mount-system") &&
@@ -82,6 +101,10 @@ polkit.addRule(function(action, subject) {
     }
 });
 POLKIT
+    echo "   ✅ Regla polkit creada."
+else
+    echo "   ⏭️ Regla polkit ya existe."
+fi
 
 # 4. Paquetes adicionales (nala)
 echo "📦 [4/14] Instalando paquetes adicionales..."
@@ -90,11 +113,18 @@ nala install --no-install-recommends -y \
     neovim zen-browser tmux fastfetch geany nwg-look \
     libheif-plugin-libde265 ufw gnome-sushi xdg-user-dirs
 
-sudo -u "$REAL_USER" xdg-user-dirs-update
+if [ ! -d "$HOME_DIR/Documentos" ] && [ ! -d "$HOME_DIR/Documents" ]; then
+    sudo -u "$REAL_USER" xdg-user-dirs-update
+fi
 
-ufw default deny incoming
-ufw default allow outgoing
-echo "y" | ufw enable
+if ! ufw status | grep -q "Status: active"; then
+    ufw default deny incoming
+    ufw default allow outgoing
+    echo "y" | ufw enable
+    echo "   ✅ UFW habilitado."
+else
+    echo "   ⏭️ UFW ya está activo."
+fi
 
 # 5. Audio, Red (NetworkManager), Bluetooth y CORRECCIÓN DE TIEMPO DE ARRANQUE
 echo "🔊 [5/14] Configurando audio, red, bluetooth y optimizando el inicio..."
@@ -107,17 +137,22 @@ nala install --no-install-recommends -y \
 systemctl enable --now bluetooth.service
 
 echo "   🚀 Optimizando Netplan para evitar bloqueos de 5 minutos..."
-systemctl disable systemd-networkd-wait-online.service
-systemctl mask systemd-networkd-wait-online.service
+if ! systemctl is-masked systemd-networkd-wait-online.service >/dev/null 2>&1; then
+    systemctl disable systemd-networkd-wait-online.service
+    systemctl mask systemd-networkd-wait-online.service
+fi
 
 NETPLAN_DIR="/etc/netplan"
-rm -f "$NETPLAN_DIR"/*.yaml.bak
-cat > "$NETPLAN_DIR/01-netcfg.yaml" <<'NETPLAN'
+NETPLAN_FILE="$NETPLAN_DIR/01-netcfg.yaml"
+if [ ! -f "$NETPLAN_FILE" ] || ! grep -q "NetworkManager" "$NETPLAN_FILE"; then
+    rm -f "$NETPLAN_DIR"/*.yaml.bak
+    cat > "$NETPLAN_FILE" <<'NETPLAN'
 network:
   version: 2
   renderer: NetworkManager
 NETPLAN
-netplan apply
+    netplan apply
+fi
 
 # 6. Códecs multimedia completos
 echo "🎬 [6/14] Instalando códecs multimedia y thumbnails..."
@@ -132,11 +167,14 @@ flatpak remote-add --if-not-exists flathub https://dl.flathub.org/repo/flathub.f
 
 flatpak install --system -y flathub org.gnome.Papers org.gnome.Resources org.gnome.Showtime
 
-mkdir -p /etc/flatpak/overrides
-cat > /etc/flatpak/overrides/global <<'FLATPAK'
+FLATPAK_OVERRIDE="/etc/flatpak/overrides/global"
+if [ ! -f "$FLATPAK_OVERRIDE" ]; then
+    mkdir -p /etc/flatpak/overrides
+    cat > "$FLATPAK_OVERRIDE" <<'FLATPAK'
 [Context]
 filesystems=xdg-run/gvfs:host;host:ro;
 FLATPAK
+fi
 
 # 8. Habilitar servicios y variables de entorno
 echo "⚙️ [8/14] Habilitando servicios y configurando entorno Wayland..."
@@ -148,8 +186,9 @@ sudo -u "$REAL_USER" bash -c '
 '
 
 ENV_FILE="$HOME_DIR/.config/environment.d/wayland.conf"
-sudo -u "$REAL_USER" mkdir -p "$HOME_DIR/.config/environment.d"
-sudo -u "$REAL_USER" tee "$ENV_FILE" > /dev/null <<'ENV'
+if [ ! -f "$ENV_FILE" ]; then
+    sudo -u "$REAL_USER" mkdir -p "$HOME_DIR/.config/environment.d"
+    sudo -u "$REAL_USER" tee "$ENV_FILE" > /dev/null <<'ENV'
 GDK_BACKEND=wayland
 QT_QPA_PLATFORM=wayland
 SDL_VIDEODRIVER=wayland
@@ -157,13 +196,16 @@ MOZ_ENABLE_WAYLAND=1
 XDG_CURRENT_DESKTOP=niri
 XDG_SESSION_TYPE=wayland
 ENV
+fi
 
 # 9. Optimización energética para laptops
 echo "🔋 [9/14] Configurando optimización energética..."
 
 nala install --no-install-recommends -y tlp tlp-rdw
 
-cat > /etc/tlp.d/01-voidforge.conf <<'TLP'
+TLP_CONF="/etc/tlp.d/01-voidforge.conf"
+if [ ! -f "$TLP_CONF" ]; then
+    cat > "$TLP_CONF" <<'TLP'
 TLP_ENABLE=1
 CPU_SCALING_GOVERNOR_ON_AC=powersave
 CPU_SCALING_GOVERNOR_ON_BAT=powersave
@@ -197,22 +239,35 @@ NATACPI_ENABLE=1
 TPACPI_ENABLE=1
 TPSMAPI_ENABLE=1
 TLP
+    echo "   ✅ Configuración TLP creada."
+else
+    echo "   ⏭️ Configuración TLP ya existe."
+fi
+
 systemctl enable tlp
 
-sed -i 's/^#HandleLidSwitch=.*/HandleLidSwitch=suspend/' /etc/systemd/logind.conf
-sed -i 's/^#HandleLidSwitchExternalPower=.*/HandleLidSwitchExternalPower=suspend/' /etc/systemd/logind.conf
-sed -i 's/^#HandleLidSwitchDocked=.*/HandleLidSwitchDocked=ignore/' /etc/systemd/logind.conf
-sed -i 's/^#PowerKeyAction=.*/PowerKeyAction=poweroff/' /etc/systemd/logind.conf
+LOGIND="/etc/systemd/logind.conf"
+grep -q "^HandleLidSwitch=suspend$" "$LOGIND" || sed -i 's/^#HandleLidSwitch=.*/HandleLidSwitch=suspend/' "$LOGIND"
+grep -q "^HandleLidSwitchExternalPower=suspend$" "$LOGIND" || sed -i 's/^#HandleLidSwitchExternalPower=.*/HandleLidSwitchExternalPower=suspend/' "$LOGIND"
+grep -q "^HandleLidSwitchDocked=ignore$" "$LOGIND" || sed -i 's/^#HandleLidSwitchDocked=.*/HandleLidSwitchDocked=ignore/' "$LOGIND"
+grep -q "^PowerKeyAction=poweroff$" "$LOGIND" || sed -i 's/^#PowerKeyAction=.*/PowerKeyAction=poweroff/' "$LOGIND"
 
 # 10. Oh My Zsh + Nerd Fonts
 echo "🐚 [10/14] Instalando Oh My Zsh, tema agnoster y Nerd Fonts..."
 
-chsh -s "$(which zsh)" "$REAL_USER"
+if [ "$(getent passwd "$REAL_USER" | cut -d: -f7)" != "$(which zsh)" ]; then
+    chsh -s "$(which zsh)" "$REAL_USER"
+fi
 
-sudo -u "$REAL_USER" bash -c '
-    sh -c "$(curl -fsSL https://raw.githubusercontent.com/ohmyzsh/ohmyzsh/master/tools/install.sh)" "" --unattended
-    sed -i "s/^ZSH_THEME=.*/ZSH_THEME=\"agnoster\"/" "$HOME/.zshrc"
-'
+if [ ! -d "$HOME_DIR/.oh-my-zsh" ]; then
+    sudo -u "$REAL_USER" bash -c '
+        sh -c "$(curl -fsSL https://raw.githubusercontent.com/ohmyzsh/ohmyzsh/master/tools/install.sh)" "" --unattended
+        sed -i "s/^ZSH_THEME=.*/ZSH_THEME=\"agnoster\"/" "$HOME/.zshrc"
+    '
+else
+    echo "   ⏭️ Oh My Zsh ya instalado."
+    sudo -u "$REAL_USER" sed -i "s/^ZSH_THEME=.*/ZSH_THEME=\"agnoster\"/" "$HOME_DIR/.zshrc"
+fi
 
 nala install --no-install-recommends -y \
     fonts-cascadia-code-nerd fonts-firacode-nerd fonts-hack-nerd \
@@ -223,18 +278,26 @@ nala install --no-install-recommends -y \
 # 11. Tema GTK MacTahoe
 echo "🎨 [11/14] Instalando tema GTK MacTahoe..."
 
-GTK_TMP_DIR="$(mktemp --directory)"
-git clone --depth 1 https://github.com/vinceliuice/MacTahoe-gtk-theme.git "$GTK_TMP_DIR"
-"$GTK_TMP_DIR/install.sh"
-rm -rf "$GTK_TMP_DIR"
+if [ ! -d /usr/share/themes/MacTahoe ]; then
+    GTK_TMP_DIR="$(mktemp --directory)"
+    git clone --depth 1 https://github.com/vinceliuice/MacTahoe-gtk-theme.git "$GTK_TMP_DIR"
+    "$GTK_TMP_DIR/install.sh"
+    rm -rf "$GTK_TMP_DIR"
+else
+    echo "   ⏭️ Tema MacTahoe ya instalado."
+fi
 
 # 12. Tema de iconos Colloid
 echo "📦 [12/14] Instalando tema de iconos Colloid..."
 
-ICON_TMP_DIR="$(mktemp --directory)"
-git clone --depth 1 https://github.com/vinceliuice/Colloid-icon-theme.git "$ICON_TMP_DIR"
-"$ICON_TMP_DIR/install.sh" -b -s catppuccin -t green
-rm -rf "$ICON_TMP_DIR"
+if [ ! -d /usr/share/icons/Colloid-catppuccin-green-dark ]; then
+    ICON_TMP_DIR="$(mktemp --directory)"
+    git clone --depth 1 https://github.com/vinceliuice/Colloid-icon-theme.git "$ICON_TMP_DIR"
+    "$ICON_TMP_DIR/install.sh" -b -s catppuccin -t green
+    rm -rf "$ICON_TMP_DIR"
+else
+    echo "   ⏭️ Tema Colloid ya instalado."
+fi
 
 # 13. INSTALAR TEMA PLYMOUTH DESDE ZIP LOCAL
 echo "🎨 [13/14] Instalando tema Plymouth desde archivo local..."
@@ -282,17 +345,20 @@ fi
 
 # Instalar tema GRUB Vimix Very Dark Blue
 GRUB_THEME_INSTALL_PATH=/usr/share/grub/themes/grub-theme-vimix-very-dark-blue
-GRUB_THEME_REPO_URL=https://github.com/trueNAHO/grub2-theme-vimix-very-dark-blue.git
-GRUB_TMP_DIR="$(mktemp --directory)"
-git clone "$GRUB_THEME_REPO_URL" "$GRUB_TMP_DIR"
-install --directory --mode 755 "$GRUB_THEME_INSTALL_PATH"
-cp --no-preserve=ownership --recursive "$GRUB_TMP_DIR/src/." "$GRUB_THEME_INSTALL_PATH"
-rm --force --recursive "$GRUB_TMP_DIR"
+if [ ! -f "$GRUB_THEME_INSTALL_PATH/theme.txt" ]; then
+    GRUB_THEME_REPO_URL=https://github.com/trueNAHO/grub2-theme-vimix-very-dark-blue.git
+    GRUB_TMP_DIR="$(mktemp --directory)"
+    git clone "$GRUB_THEME_REPO_URL" "$GRUB_TMP_DIR"
+    install --directory --mode 755 "$GRUB_THEME_INSTALL_PATH"
+    cp --no-preserve=ownership --recursive "$GRUB_TMP_DIR/src/." "$GRUB_THEME_INSTALL_PATH"
+    rm --force --recursive "$GRUB_TMP_DIR"
+fi
 
-sed -i 's/GRUB_CMDLINE_LINUX_DEFAULT="quiet"/GRUB_CMDLINE_LINUX_DEFAULT="quiet splash"/' /etc/default/grub
-grep -q "^GRUB_THEME=" /etc/default/grub \
-    && sed -i "s|^GRUB_THEME=.*|GRUB_THEME=\"$GRUB_THEME_INSTALL_PATH/theme.txt\"|" /etc/default/grub \
-    || echo "GRUB_THEME=\"$GRUB_THEME_INSTALL_PATH/theme.txt\"" >> /etc/default/grub
+GRUB_CFG="/etc/default/grub"
+grep -q "quiet splash" "$GRUB_CFG" || sed -i 's/GRUB_CMDLINE_LINUX_DEFAULT="quiet"/GRUB_CMDLINE_LINUX_DEFAULT="quiet splash"/' "$GRUB_CFG"
+grep -q "^GRUB_THEME=" "$GRUB_CFG" \
+    && sed -i "s|^GRUB_THEME=.*|GRUB_THEME=\"$GRUB_THEME_INSTALL_PATH/theme.txt\"|" "$GRUB_CFG" \
+    || echo "GRUB_THEME=\"$GRUB_THEME_INSTALL_PATH/theme.txt\"" >> "$GRUB_CFG"
 grub-mkconfig -o /boot/grub/grub.cfg
 update-initramfs -u
 
