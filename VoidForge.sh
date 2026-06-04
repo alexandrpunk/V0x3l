@@ -180,10 +180,9 @@ fi
 echo "⚙️ [8/14] Habilitando servicios y configurando entorno Wayland..."
 systemctl enable --now NetworkManager udisks2.service
 
-sudo -u "$REAL_USER" bash -c '
-    loginctl enable-linger "$USER"
-    systemctl --user enable --now pipewire.socket wireplumber.service
-'
+loginctl enable-linger "$REAL_USER"
+
+sudo -u "$REAL_USER" bash -c 'export XDG_RUNTIME_DIR="/run/user/$(id -u)"; systemctl --user enable pipewire.socket wireplumber.service'
 
 ENV_FILE="$HOME_DIR/.config/environment.d/wayland.conf"
 if [ ! -f "$ENV_FILE" ]; then
