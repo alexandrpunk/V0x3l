@@ -268,11 +268,12 @@ else
     sudo -u "$REAL_USER" sed -i "s/^ZSH_THEME=.*/ZSH_THEME=\"agnoster\"/" "$HOME_DIR/.zshrc"
 fi
 
-nala install --no-install-recommends -y \
-    fonts-cascadia-code-nerd fonts-firacode-nerd fonts-hack-nerd \
+for font in fonts-cascadia-code-nerd fonts-firacode-nerd fonts-hack-nerd \
     fonts-iosevka-nerd fonts-jetbrains-mono-nerd fonts-meslo-lg-nerd \
     fonts-mononoki-nerd fonts-noto-nerd fonts-source-code-pro-nerd \
-    fonts-terminus-nerd fonts-ubuntu-mono-nerd
+    fonts-terminus-nerd fonts-ubuntu-mono-nerd; do
+    nala install --no-install-recommends -y "$font" 2>/dev/null || echo "   ⚠️ $font no encontrado, omitiendo."
+done
 
 # 11. Tema GTK MacTahoe
 echo "🎨 [11/14] Instalando tema GTK MacTahoe..."
