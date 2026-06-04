@@ -63,7 +63,7 @@ update-locale LANG=es_MX.UTF-8
 # 2. Stack Wayland y gráficos mínimos
 echo "🖥️ [2/14] Instalando stack Wayland y drivers gráficos..."
 nala install --no-install-recommends -y \
-    wayland-protocols libwayland-dev libegl1-mesa \
+    wayland-protocols libwayland-dev libegl1 \
     libgl1-mesa-dri mesa-vulkan-drivers xwayland
 
 # 3. Nautilus mínimo + automontaje
