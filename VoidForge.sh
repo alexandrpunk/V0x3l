@@ -44,11 +44,11 @@ echo "📂 Directorio del script detectado: $SCRIPT_DIR"
 PLYMOUTH_ZIP_NAME="ubuntu-mac-style.zip" # Dejar vacío para detectar automáticamente el primer .zip
 
 # 0. Instalar Nala y herramientas de descarga
-echo "🥣 [0/14] Instalando Nala y utilidades..."
+echo "🥣 [0/13] Instalando Nala y utilidades..."
 apt update && apt install -y nala wget tar unzip file zsh git curl ca-certificates
 
 # 1. Agregar ButterRepo y Actualización base
-echo "📦 [1/14] Agregando ButterRepo y actualizando sistema..."
+echo "📦 [1/13] Agregando ButterRepo y actualizando sistema..."
 
 if [ ! -f /etc/apt/sources.list.d/butterrepo.list ]; then
     curl -fsSL https://justaguylinux.codeberg.page/butterrepo/key.asc | gpg --dearmor -o /usr/share/keyrings/butterrepo.gpg
@@ -78,13 +78,13 @@ if [ "$(cat /etc/default/locale | grep ^LANG= | cut -d= -f2)" != "es_MX.UTF-8" ]
 fi
 
 # 2. Stack Wayland y gráficos mínimos
-echo "🖥️ [2/14] Instalando stack Wayland y drivers gráficos..."
+echo "🖥️ [2/13] Instalando stack Wayland y drivers gráficos..."
 nala install --no-install-recommends -y \
     wayland-protocols libwayland-dev libegl1 \
     libgl1-mesa-dri mesa-vulkan-drivers xwayland
 
 # 3. Nautilus mínimo + automontaje
-echo "📁 [3/14] Instalando Nautilus mínimo y backend de montaje..."
+echo "📁 [3/13] Instalando Nautilus mínimo y backend de montaje..."
 nala install --no-install-recommends -y \
     nautilus gvfs-backends gvfs-fuse udisks2 polkitd \
     ntfs-3g exfatprogs libglib2.0-bin
@@ -107,7 +107,7 @@ else
 fi
 
 # 4. Paquetes adicionales (nala)
-echo "📦 [4/14] Instalando paquetes adicionales..."
+echo "📦 [4/13] Instalando paquetes adicionales..."
 
 nala install --no-install-recommends -y \
     neovim zen-browser tmux fastfetch geany nwg-look \
@@ -127,7 +127,7 @@ else
 fi
 
 # 5. Audio, Red (NetworkManager), Bluetooth y CORRECCIÓN DE TIEMPO DE ARRANQUE
-echo "🔊 [5/14] Configurando audio, red, bluetooth y optimizando el inicio..."
+echo "🔊 [5/13] Configurando audio, red, bluetooth y optimizando el inicio..."
 nala install --no-install-recommends -y \
     pipewire wireplumber libpipewire-0.3-0 libwireplumber-0.5-0 \
     dbus-user-session network-manager libnm0 \
@@ -155,13 +155,13 @@ NETPLAN
 fi
 
 # 6. Códecs multimedia completos
-echo "🎬 [6/14] Instalando códecs multimedia y thumbnails..."
+echo "🎬 [6/13] Instalando códecs multimedia y thumbnails..."
 nala install --no-install-recommends -y \
     ubuntu-restricted-extras gstreamer1.0-plugins-bad \
     gstreamer1.0-libav ffmpegthumbnailer
 
 # 7. Flatpak + portal de archivos para Nautilus
-echo "📦 [7/14] Instalando y configurando Flatpak..."
+echo "📦 [7/13] Instalando y configurando Flatpak..."
 nala install --no-install-recommends -y flatpak
 flatpak remote-add --if-not-exists flathub https://dl.flathub.org/repo/flathub.flatpakrepo
 
@@ -177,7 +177,7 @@ FLATPAK
 fi
 
 # 8. Habilitar servicios y variables de entorno
-echo "⚙️ [8/14] Habilitando servicios y configurando entorno Wayland..."
+echo "⚙️ [8/13] Habilitando servicios y configurando entorno Wayland..."
 systemctl enable --now NetworkManager udisks2.service
 
 loginctl enable-linger "$REAL_USER"
@@ -198,7 +198,7 @@ ENV
 fi
 
 # 9. Optimización energética para laptops
-echo "🔋 [9/14] Configurando optimización energética..."
+echo "🔋 [9/13] Configurando optimización energética..."
 
 nala install --no-install-recommends -y tlp tlp-rdw
 
@@ -252,7 +252,7 @@ grep -q "^HandleLidSwitchDocked=ignore$" "$LOGIND" || sed -i 's/^#HandleLidSwitc
 grep -q "^PowerKeyAction=poweroff$" "$LOGIND" || sed -i 's/^#PowerKeyAction=.*/PowerKeyAction=poweroff/' "$LOGIND"
 
 # 10. Oh My Zsh + Nerd Fonts
-echo "🐚 [10/14] Instalando Oh My Zsh, tema agnoster y Nerd Fonts..."
+echo "🐚 [10/13] Instalando Oh My Zsh, tema agnoster y Nerd Fonts..."
 
 if [ "$(getent passwd "$REAL_USER" | cut -d: -f7)" != "$(which zsh)" ]; then
     chsh -s "$(which zsh)" "$REAL_USER"
@@ -268,27 +268,10 @@ else
     sudo -u "$REAL_USER" sed -i "s/^ZSH_THEME=.*/ZSH_THEME=\"agnoster\"/" "$HOME_DIR/.zshrc"
 fi
 
-for font in fonts-cascadia-code-nerd fonts-firacode-nerd fonts-hack-nerd \
-    fonts-iosevka-nerd fonts-jetbrains-mono-nerd fonts-meslo-lg-nerd \
-    fonts-mononoki-nerd fonts-noto-nerd fonts-source-code-pro-nerd \
-    fonts-terminus-nerd fonts-ubuntu-mono-nerd; do
-    nala install --no-install-recommends -y "$font" 2>/dev/null || echo "   ⚠️ $font no encontrado, omitiendo."
-done
+nala install --no-install-recommends -y fonts-powerline
 
-# 11. Tema GTK MacTahoe
-echo "🎨 [11/14] Instalando tema GTK MacTahoe..."
-
-if [ ! -d /usr/share/themes/MacTahoe ]; then
-    GTK_TMP_DIR="$(mktemp --directory)"
-    git clone --depth 1 https://github.com/vinceliuice/MacTahoe-gtk-theme.git "$GTK_TMP_DIR"
-    "$GTK_TMP_DIR/install.sh"
-    rm -rf "$GTK_TMP_DIR"
-else
-    echo "   ⏭️ Tema MacTahoe ya instalado."
-fi
-
-# 12. Tema de iconos Colloid
-echo "📦 [12/14] Instalando tema de iconos Colloid..."
+# 11. Tema de iconos Colloid
+echo "📦 [11/13] Instalando tema de iconos Colloid..."
 
 if [ ! -d /usr/share/icons/Colloid-catppuccin-green-dark ]; then
     ICON_TMP_DIR="$(mktemp --directory)"
@@ -299,8 +282,8 @@ else
     echo "   ⏭️ Tema Colloid ya instalado."
 fi
 
-# 13. INSTALAR TEMA PLYMOUTH DESDE ZIP LOCAL
-echo "🎨 [13/14] Instalando tema Plymouth desde archivo local..."
+# 12. INSTALAR TEMA PLYMOUTH DESDE ZIP LOCAL
+echo "🎨 [12/13] Instalando tema Plymouth desde archivo local..."
 
 nala install --no-install-recommends -y plymouth plymouth-themes
 mkdir -p /usr/share/plymouth/themes
@@ -365,9 +348,9 @@ update-initramfs -u
 nala autoremove -y
 nala clean
 
-# 14. EJECUCIÓN DEL ASISTENTE DANK LINUX
+# 13. EJECUCIÓN DEL ASISTENTE DANK LINUX
 echo ""
-echo "🚀 [14/14] Iniciando asistente de instalación de Dank Material Linux..."
+echo "🚀 [13/13] Iniciando asistente de instalación de Dank Material Linux..."
 sudo -u "$REAL_USER" bash -c 'curl -fsSL https://install.danklinux.com | sh'
 
 echo ""
