@@ -14,7 +14,7 @@ sudo bash VoidForge.sh
 - Uses `$SUDO_USER` to target the real user's home and services — never hardcode a username.
 - Uses `set -euo pipefail` — any unbound variable or failing command aborts the whole script.
 
-## Script structure (12 steps, numbered 0–11)
+## Script structure (15 steps, numbered 0–14)
 
 | Step | What it does |
 |------|-------------|
@@ -27,16 +27,20 @@ sudo bash VoidForge.sh
 | 6 | Multimedia codecs |
 | 7 | Flatpak + Flathub + Nautilus portal override + Flatpak apps (Papers, Resources, Showtime) |
 | 8 | Enables services, writes `~/.config/environment.d/wayland.conf` with Wayland env vars |
-| 9 | Installs Oh My Zsh with agnoster theme, sets zsh as default shell, installs Nerd Fonts |
-| 10 | Plymouth theme from a `.zip` colocated with the script (auto-detected), GRUB theme (Vimix Very Dark Blue from GitHub), updates GRUB and initramfs, `nala autoremove + clean` |
-| 11 | Downloads and pipes an external installer from `install.danklinux.com` (runs last to avoid interference) |
+| 9 | Laptop power optimization: installs TLP with custom config, configures logind (lid switch, power key) |
+| 10 | Installs Oh My Zsh with agnoster theme, sets zsh as default shell, installs Nerd Fonts |
+| 11 | GTK theme MacTahoe (from GitHub) |
+| 12 | Icon theme Colloid with catppuccin green variant (from GitHub) |
+| 13 | Plymouth theme from a `.zip` colocated with the script (auto-detected), GRUB theme (Vimix Very Dark Blue from GitHub), updates GRUB and initramfs, `nala autoremove + clean` |
+| 14 | Downloads and pipes an external installer from `install.danklinux.com` (runs last to avoid interference) |
 
 ## Non-obvious gotchas
 
-- **Plymouth theme detection**: looks for any `*.zip` in the script's own directory (`$SCRIPT_DIR`). If absent, step 10 is silently skipped (warn-only).
+- **Plymouth theme detection**: looks for any `*.zip` in the script's own directory (`$SCRIPT_DIR`). If absent, step 13 is silently skipped (warn-only).
 - **Step 5 critical side-effect**: masks `systemd-networkd-wait-online.service` and overwrites `/etc/netplan/01-netcfg.yaml`. Editing this step requires care on systems that depend on netplan's default renderer.
 - **Step 7 installs Flatpak apps**: the Flatpak apps (Papers, Resources, Showtime) must stay in step 7, AFTER Flathub is added — not earlier.
-- **Step 11 is external**: fetches and runs the Dank Linux installer as the unprivileged user. Runs last to avoid interference with other steps.
+- **Step 9 TLP config**: writes `/etc/tlp.d/01-voidforge.conf` — limits CPU to 80% on battery, PCIe ASPM powersupersave, USB autosuspend, WiFi power save on battery. Also configures logind lid switch behavior.
+- **Step 14 is external**: fetches and runs the Dank Linux installer as the unprivileged user. Runs last to avoid interference with other steps.
 - **GRUB is modified**: `sed` on `/etc/default/grub` adds `splash` and sets `GRUB_THEME` to Vimix Very Dark Blue, then `grub-mkconfig` + `update-initramfs -u` are run. A typo here can break boot visuals.
 - **Polkit rule**: writes `/etc/polkit-1/rules.d/90-udisks2-automount.rules` — grants auto-mount to the `plugdev` group.
 - **UFW is enabled** in step 4 with `deny incoming / allow outgoing`. Adding services later requires opening ports explicitly.
