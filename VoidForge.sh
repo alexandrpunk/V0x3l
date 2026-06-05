@@ -186,22 +186,23 @@ step_1() {
 
 step_2() {
     should_run_step 2 || return 0
-    log_step 2 "$TOTAL_STEPS" "Detectando GPU e instalando Kernel XanMod Edge"
+    log_step 2 "$TOTAL_STEPS" "Instalando Kernel XanMod"
     
     # Agregar repo XanMod
-    if [ ! -f /etc/apt/sources.list.d/xanmod-kernel.list ]; then
-        curl -fsSL https://xanmod.org/keys/xanmod-archive-keyring.asc | gpg --dearmor -o /usr/share/keyrings/xanmod-archive-keyring.gpg
-        echo "deb [signed-by=/usr/share/keyrings/xanmod-archive-keyring.gpg] https://deb.xanmod.org releases main" | tee /etc/apt/sources.list.d/xanmod-kernel.list >/dev/null 2>&1
+    if [ ! -f /etc/apt/sources.list.d/xanmod-release.list ]; then
+        nala install --no-install-recommends -y lsb-release >/dev/null 2>&1
+        wget -qO - https://dl.xanmod.org/archive.key | gpg --dearmor -vo /etc/apt/keyrings/xanmod-archive-keyring.gpg
+        echo "deb [signed-by=/etc/apt/keyrings/xanmod-archive-keyring.gpg] http://deb.xanmod.org $(lsb_release -sc) main non-free" | tee /etc/apt/sources.list.d/xanmod-release.list >/dev/null 2>&1
         log_ok "Repositorio XanMod agregado"
     fi
     
-    # Detectar XanMod actual
     if ! uname -r 2>/dev/null | grep -q "xanmod"; then
         nala update >/dev/null 2>&1
-        nala install -y linux-xanmod-edge-x64 >/dev/null 2>&1
-        log_ok "Kernel XanMod Edge instalado (requiere reinicio para aplicar)"
+        nala install -y linux-xanmod-x64v3 >/dev/null 2>&1
+        nala install --no-install-recommends -y dkms libelf-dev clang lld llvm >/dev/null 2>&1 || true
+        log_ok "Kernel XanMod x64v3 instalado (requiere reinicio para aplicar)"
     else
-        log_skip "XanMod Edge ya instalado"
+        log_skip "XanMod ya instalado"
     fi
     
     save_checkpoint 2
@@ -209,7 +210,7 @@ step_2() {
 
 step_3() {
     should_run_step 3 || return 0
-    log_step 3 "$TOTAL_STEPS" "Detectando GPU NVIDIA y drivers"
+    log_step 3 "$TOTAL_STEPS" "Detectando GPU NVIDIA e instalando drivers"
     
     if command -v lspci >/dev/null 2>&1; then
         HAS_NVIDIA=0
@@ -217,34 +218,31 @@ step_3() {
         lspci -nn 2>/dev/null | grep -qi "nvidia" && HAS_NVIDIA=1
         lspci -nn 2>/dev/null | grep -qi "vga.*intel" && HAS_INTEL=1
         
-        # Detectar versión óptima del driver
-        NVIDIA_VER=$(ubuntu-drivers devices 2>/dev/null | grep -oP 'nvidia-driver-\K\d+' | sort -rn | head -1)
-        NVIDIA_VER=${NVIDIA_VER:-535}  # Fallback
-        
-        if [ "$HAS_NVIDIA" -eq 1 ] && [ "$HAS_INTEL" -eq 1 ]; then
-            log_info "Detectado sistema híbrido (Intel + NVIDIA), driver versión $NVIDIA_VER"
-            nala install -y "nvidia-driver-$NVIDIA_VER" nvidia-prime nvidia-settings >/dev/null 2>&1 || true
-            prime-select on-demand 2>/dev/null || true
-            HAS_NVIDIA_GPU=1
-            log_ok "Drivers NVIDIA + prime instalados (usa 'prime-run <app>' para GPU discreta)"
-        elif [ "$HAS_NVIDIA" -eq 1 ]; then
-            log_info "Detectada solo NVIDIA, driver versión $NVIDIA_VER"
-            nala install -y "nvidia-driver-$NVIDIA_VER" nvidia-settings >/dev/null 2>&1 || true
-            HAS_NVIDIA_GPU=1
-            log_ok "Driver NVIDIA instalado"
-        else
-            log_skip "Sin GPU NVIDIA detectada"
-        fi
-        
-        # Servicios de suspend/resume NVIDIA para laptops
-        if [ "$HAS_NVIDIA_GPU" -eq 1 ]; then
+        if [ "$HAS_NVIDIA" -eq 1 ]; then
+            nala update >/dev/null 2>&1
+            
+            if [ "$HAS_INTEL" -eq 1 ]; then
+                log_info "Detectado sistema hibrido Intel + NVIDIA"
+                nala install -y nvidia-driver-595-open nvidia-prime nvidia-settings >/dev/null 2>&1 || true
+                prime-select on-demand 2>/dev/null || true
+                HAS_NVIDIA_GPU=1
+                log_ok "Driver NVIDIA 595-open + prime instalados (usa prime-run para GPU discreta)"
+            else
+                log_info "Detectada solo NVIDIA"
+                nala install -y nvidia-driver-595-open nvidia-settings >/dev/null 2>&1 || true
+                HAS_NVIDIA_GPU=1
+                log_ok "Driver NVIDIA 595-open instalado"
+            fi
+            
             for svc in nvidia-suspend nvidia-resume nvidia-hibernate; do
                 systemctl enable "$svc" 2>/dev/null || true
             done
             log_ok "Servicios suspend/resume NVIDIA habilitados"
+        else
+            log_skip "Sin GPU NVIDIA detectada"
         fi
     else
-        log_warn "lspci no disponible, omitiendo detección"
+        log_warn "lspci no disponible, omitiendo deteccion"
     fi
     
     save_checkpoint 3
