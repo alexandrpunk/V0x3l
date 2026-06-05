@@ -7,6 +7,8 @@
 
 set -euo pipefail
 
+trap 'nospin 2>/dev/null || true' EXIT
+
 # ============================================================
 # CONFIGURACIÓN Y VARIABLES GLOBALES
 # ============================================================
@@ -97,6 +99,39 @@ log_info() {
     echo -e "${C_GRAY}   ℹ️  $1${C_RESET}"
 }
 
+SPINNER_PID=""
+
+start_spinner() {
+    local msg="${1:-Trabajando...}"
+    local chars="⠋⠙⠹⠸⠼⠴⠦⠧⠇⠏"
+    tput civis 2>/dev/null || true
+    while true; do
+        for ((i=0; i<${#chars}; i++)); do
+            printf "\r   ${chars:$i:1} %s" "$msg"
+            sleep 0.1
+        done
+    done
+}
+
+stop_spinner() {
+    if [ -n "$SPINNER_PID" ]; then
+        kill "$SPINNER_PID" 2>/dev/null || true
+        wait "$SPINNER_PID" 2>/dev/null || true
+        SPINNER_PID=""
+        printf "\r%*s\r" 60 ""
+        tput cnorm 2>/dev/null || true
+    fi
+}
+
+spin() {
+    start_spinner "$1" &
+    SPINNER_PID=$!
+}
+
+nospin() {
+    stop_spinner
+}
+
 save_checkpoint() {
     echo "$1" > "$CHECKPOINT_FILE"
 }
@@ -133,8 +168,9 @@ step_0() {
     should_run_step 0 || return 0
     log_step 0 "$TOTAL_STEPS" "Instalando herramientas base"
     
-    apt update >/dev/null 2>&1
-    apt install -y nala wget tar unzip file zsh git curl ca-certificates pciutils locales >/dev/null 2>&1
+    spin "Instalando herramientas base..."
+    { apt update >/dev/null 2>&1 && apt install -y nala wget tar unzip file zsh git curl ca-certificates pciutils locales >/dev/null 2>&1; } || true
+    nospin
     log_ok "Herramientas base instaladas (nala, wget, git, curl, zsh, pciutils, locales)"
     save_checkpoint 0
 }
@@ -145,16 +181,18 @@ step_1() {
     
     # ButterRepo
     if [ ! -f /etc/apt/sources.list.d/butterrepo.list ]; then
-        curl -fsSL https://justaguylinux.codeberg.page/butterrepo/key.asc | gpg --dearmor -o /usr/share/keyrings/butterrepo.gpg
-        echo "deb [arch=amd64 signed-by=/usr/share/keyrings/butterrepo.gpg] https://justaguylinux.codeberg.page/butterrepo stable main" | tee /etc/apt/sources.list.d/butterrepo.list >/dev/null 2>&1
+        spin "Agregando ButterRepo..."
+        { curl -fsSL https://justaguylinux.codeberg.page/butterrepo/key.asc | gpg --dearmor -o /usr/share/keyrings/butterrepo.gpg && echo "deb [arch=amd64 signed-by=/usr/share/keyrings/butterrepo.gpg] https://justaguylinux.codeberg.page/butterrepo stable main" | tee /etc/apt/sources.list.d/butterrepo.list >/dev/null 2>&1; } || true
+        nospin
         log_ok "ButterRepo agregado"
     else
         log_skip "ButterRepo ya existe"
     fi
     
     # Update y upgrade
-    nala update >/dev/null 2>&1
-    nala upgrade -y >/dev/null 2>&1
+    spin "Actualizando sistema..."
+    { nala update >/dev/null 2>&1 && nala upgrade -y >/dev/null 2>&1; } || true
+    nospin
     log_ok "Sistema actualizado"
     
     # Grupos
@@ -190,16 +228,16 @@ step_2() {
     
     # Agregar repo XanMod
     if [ ! -f /etc/apt/sources.list.d/xanmod-release.list ]; then
-        nala install --no-install-recommends -y lsb-release >/dev/null 2>&1
-        wget -qO - https://dl.xanmod.org/archive.key | gpg --dearmor -vo /etc/apt/keyrings/xanmod-archive-keyring.gpg
-        echo "deb [signed-by=/etc/apt/keyrings/xanmod-archive-keyring.gpg] http://deb.xanmod.org $(lsb_release -sc) main non-free" | tee /etc/apt/sources.list.d/xanmod-release.list >/dev/null 2>&1
+        spin "Agregando repositorio XanMod..."
+        { nala install --no-install-recommends -y lsb-release >/dev/null 2>&1 && wget -qO - https://dl.xanmod.org/archive.key | gpg --dearmor -vo /etc/apt/keyrings/xanmod-archive-keyring.gpg && echo "deb [signed-by=/etc/apt/keyrings/xanmod-archive-keyring.gpg] http://deb.xanmod.org $(lsb_release -sc) main non-free" | tee /etc/apt/sources.list.d/xanmod-release.list >/dev/null 2>&1; } || true
+        nospin
         log_ok "Repositorio XanMod agregado"
     fi
     
     if ! uname -r 2>/dev/null | grep -q "xanmod"; then
-        nala update >/dev/null 2>&1
-        nala install -y linux-xanmod-x64v3 >/dev/null 2>&1
-        nala install --no-install-recommends -y dkms libelf-dev clang lld llvm >/dev/null 2>&1 || true
+        spin "Instalando kernel XanMod x64v3..."
+        { nala update >/dev/null 2>&1 && nala install -y linux-xanmod-x64v3 >/dev/null 2>&1 && nala install --no-install-recommends -y dkms libelf-dev clang lld llvm >/dev/null 2>&1; } || true
+        nospin
         log_ok "Kernel XanMod x64v3 instalado (requiere reinicio para aplicar)"
     else
         log_skip "XanMod ya instalado"
@@ -219,17 +257,23 @@ step_3() {
         lspci -nn 2>/dev/null | grep -qi "vga.*intel" && HAS_INTEL=1
         
         if [ "$HAS_NVIDIA" -eq 1 ]; then
+            spin "Actualizando repositorios..."
             nala update >/dev/null 2>&1
+            nospin
             
             if [ "$HAS_INTEL" -eq 1 ]; then
                 log_info "Detectado sistema hibrido Intel + NVIDIA"
+                spin "Instalando driver NVIDIA 595-open + prime..."
                 nala install -y nvidia-driver-595-open nvidia-prime nvidia-settings >/dev/null 2>&1 || true
+                nospin
                 prime-select on-demand 2>/dev/null || true
                 HAS_NVIDIA_GPU=1
                 log_ok "Driver NVIDIA 595-open + prime instalados (usa prime-run para GPU discreta)"
             else
                 log_info "Detectada solo NVIDIA"
+                spin "Instalando driver NVIDIA 595-open..."
                 nala install -y nvidia-driver-595-open nvidia-settings >/dev/null 2>&1 || true
+                nospin
                 HAS_NVIDIA_GPU=1
                 log_ok "Driver NVIDIA 595-open instalado"
             fi
@@ -253,7 +297,7 @@ step_4() {
     log_step 4 "$TOTAL_STEPS" "Instalando paquetes del sistema (Wayland, Nautilus, Apps, Audio, Codecs, Flatpak, TLP, Fonts)"
     
     # Mega-instalación de todos los paquetes en una sola llamada
-    log_info "Instalando todos los paquetes (esto puede tardar)..."
+    spin "Instalando todos los paquetes (esto puede tardar)..."
     nala install --no-install-recommends -y \
         wayland-protocols libwayland-dev libegl1 \
         libgl1-mesa-dri mesa-vulkan-drivers xwayland \
@@ -268,7 +312,8 @@ step_4() {
         ubuntu-restricted-extras gstreamer1.0-plugins-bad \
         gstreamer1.0-libav ffmpegthumbnailer \
         flatpak tlp tlp-rdw fonts-powerline \
-        >/dev/null 2>&1
+        >/dev/null 2>&1 || true
+    nospin
     
     log_ok "Todos los paquetes instalados"
     save_checkpoint 4
@@ -358,14 +403,20 @@ step_8() {
     log_step 8 "$TOTAL_STEPS" "Configurando Flatpak y aplicaciones"
     
     if ! flatpak remotes 2>/dev/null | grep -q "flathub"; then
-        flatpak remote-add --if-not-exists flathub https://dl.flathub.org/repo/flathub.flatrepo >/dev/null 2>&1
+        spin "Agregando Flathub..."
+        flatpak remote-add --if-not-exists flathub https://dl.flathub.org/repo/flathub.flatrepo >/dev/null 2>&1 || true
+        nospin
         log_ok "Flathub agregado"
     else
         log_skip "Flathub ya existe"
     fi
     
     for app in org.gnome.Papers net.nokyan.Resources org.gnome.Showtime; do
-        flatpak list 2>/dev/null | grep -q "$app" || flatpak install --system -y flathub "$app" >/dev/null 2>&1 || log_warn "$app no instalado"
+        flatpak list 2>/dev/null | grep -q "$app" || {
+            spin "Instalando $app..."
+            flatpak install --system -y flathub "$app" >/dev/null 2>&1 || log_warn "$app no instalado"
+            nospin
+        }
     done
     log_ok "Aplicaciones Flatpak instaladas"
     
@@ -485,11 +536,17 @@ step_11() {
     fi
     
     if [ ! -d "$HOME_DIR/.oh-my-zsh" ]; then
-        sudo -u "$REAL_USER" bash -c '
+        spin "Instalando Oh My Zsh..."
+        if sudo -u "$REAL_USER" bash -c '
             sh -c "$(curl -fsSL https://raw.githubusercontent.com/ohmyzsh/ohmyzsh/master/tools/install.sh)" "" --unattended
             sed -i "s/^ZSH_THEME=.*/ZSH_THEME=\"agnoster\"/" "$HOME/.zshrc"
-        ' >/dev/null 2>&1
-        log_ok "Oh My Zsh instalado, tema: agnoster"
+        ' >/dev/null 2>&1; then
+            nospin
+            log_ok "Oh My Zsh instalado, tema: agnoster"
+        else
+            nospin
+            log_warn "Oh My Zsh no se pudo instalar (sin conexion o error de descarga)"
+        fi
     else
         sudo -u "$REAL_USER" sed -i "s/^ZSH_THEME=.*/ZSH_THEME=\"agnoster\"/" "$HOME_DIR/.zshrc" 2>/dev/null || true
         log_skip "Oh My Zsh ya instalado"
@@ -504,8 +561,12 @@ step_12() {
     
     if [ ! -d /usr/share/icons/Colloid-catppuccin-green-dark ]; then
         ICON_TMP_DIR="$(mktemp --directory)"
-        git clone --depth 1 https://github.com/vinceliuice/Colloid-icon-theme.git "$ICON_TMP_DIR" 2>/dev/null
+        spin "Descargando tema de iconos Colloid..."
+        git clone --depth 1 https://github.com/vinceliuice/Colloid-icon-theme.git "$ICON_TMP_DIR" 2>/dev/null || true
+        nospin
+        spin "Instalando tema Colloid..."
         "$ICON_TMP_DIR/install.sh" -b -s catppuccin -t green >/dev/null 2>&1 || true
+        nospin
         rm -rf "$ICON_TMP_DIR"
         log_ok "Tema Colloid (catppuccin green) instalado"
     else
@@ -520,7 +581,9 @@ step_13() {
     log_step 13 "$TOTAL_STEPS" "Configurando Plymouth y GRUB"
     
     # Plymouth theme desde ZIP
-    nala install -y plymouth plymouth-themes >/dev/null 2>&1
+    spin "Instalando Plymouth..."
+    nala install -y plymouth plymouth-themes >/dev/null 2>&1 || true
+    nospin
     mkdir -p /usr/share/plymouth/themes
     
     PLYMOUTH_ZIP_PATH=""
@@ -530,34 +593,55 @@ step_13() {
         PLYMOUTH_ZIP_PATH="$SCRIPT_DIR/$PLYMOUTH_ZIP_NAME"
     fi
     
+    PLYMOUTH_THEME_SET=false
     if [ -n "$PLYMOUTH_ZIP_PATH" ] && [ -f "$PLYMOUTH_ZIP_PATH" ]; then
         THEME_NAME=$(basename "$PLYMOUTH_ZIP_PATH" .zip)
-        if [ ! -d "/usr/share/plymouth/themes/$THEME_NAME" ]; then
+        PLYMOUTH_THEME_DIR="/usr/share/plymouth/themes/$THEME_NAME"
+        PLYMOUTH_FILE="$PLYMOUTH_THEME_DIR/$THEME_NAME.plymouth"
+        
+        if [ ! -f "$PLYMOUTH_FILE" ]; then
             TEMP_DIR=$(mktemp -d)
-            unzip -q "$PLYMOUTH_ZIP_PATH" -d "$TEMP_DIR" 2>/dev/null
-            THEME_FOLDER=$(find "$TEMP_DIR" -maxdepth 1 -type d ! -name "$TEMP_DIR" 2>/dev/null | head -n 1)
-            if [ -n "$THEME_FOLDER" ]; then
-                mv "$THEME_FOLDER" "/usr/share/plymouth/themes/$THEME_NAME" 2>/dev/null || true
-                PLYMOUTH_FILE="/usr/share/plymouth/themes/$THEME_NAME/$THEME_NAME.plymouth"
-                if [ -f "$PLYMOUTH_FILE" ]; then
-                    update-alternatives --install /usr/share/plymouth/themes/default.plymouth default.plymouth "$PLYMOUTH_FILE" 100 >/dev/null 2>&1
-                    update-alternatives --set default.plymouth "$PLYMOUTH_FILE" >/dev/null 2>&1
-                    log_ok "Tema Plymouth: $THEME_NAME"
+            unzip -q "$PLYMOUTH_ZIP_PATH" -d "$TEMP_DIR" 2>/dev/null || true
+            
+            if [ -d "$TEMP_DIR/$THEME_NAME" ]; then
+                cp -r "$TEMP_DIR/$THEME_NAME" "$PLYMOUTH_THEME_DIR" 2>/dev/null || true
+            else
+                EXTRACTED_DIR=$(find "$TEMP_DIR" -maxdepth 1 -type d ! -path "$TEMP_DIR" 2>/dev/null | head -n 1)
+                if [ -n "$EXTRACTED_DIR" ]; then
+                    cp -r "$EXTRACTED_DIR" "$PLYMOUTH_THEME_DIR" 2>/dev/null || true
                 fi
             fi
             rm -rf "$TEMP_DIR"
+        fi
+        
+        if [ -f "$PLYMOUTH_FILE" ]; then
+            update-alternatives --install /usr/share/plymouth/themes/default.plymouth default.plymouth "$PLYMOUTH_FILE" 100 >/dev/null 2>&1 || true
+            update-alternatives --set default.plymouth "$PLYMOUTH_FILE" >/dev/null 2>&1 || true
+            
+            if update-alternatives --query default.plymouth 2>/dev/null | grep -q "Value: $PLYMOUTH_FILE"; then
+                log_ok "Tema Plymouth: $THEME_NAME"
+                PLYMOUTH_THEME_SET=true
+            else
+                log_warn "Tema Plymouth copiado pero update-alternatives fallo"
+            fi
         else
-            log_skip "Tema Plymouth ya instalado"
+            log_warn "Tema Plymouth: no se encontro $THEME_NAME.plymouth en el ZIP"
         fi
     else
-        log_warn "No se encontró tema Plymouth en $SCRIPT_DIR"
+        log_warn "No se encontro tema Plymouth en $SCRIPT_DIR"
+    fi
+    
+    if [ "$PLYMOUTH_THEME_SET" = false ]; then
+        log_info "Plymouth usara tema por defecto del sistema"
     fi
     
     # GRUB theme
     GRUB_THEME_PATH="/usr/share/grub/themes/grub-theme-vimix-very-dark-blue"
     if [ ! -f "$GRUB_THEME_PATH/theme.txt" ]; then
         GRUB_TMP_DIR="$(mktemp --directory)"
-        git clone --depth 1 https://github.com/trueNAHO/grub2-theme-vimix-very-dark-blue.git "$GRUB_TMP_DIR" 2>/dev/null
+        spin "Descargando tema GRUB Vimix..."
+        git clone --depth 1 https://github.com/trueNAHO/grub2-theme-vimix-very-dark-blue.git "$GRUB_TMP_DIR" 2>/dev/null || true
+        nospin
         install --directory --mode 755 "$GRUB_THEME_PATH"
         cp --no-preserve=ownership --recursive "$GRUB_TMP_DIR/src/." "$GRUB_THEME_PATH"
         rm -rf "$GRUB_TMP_DIR"
@@ -602,8 +686,9 @@ step_13() {
         echo "drm" >> /etc/initramfs-tools/modules 2>/dev/null || true
     fi
     
-    grub-mkconfig -o /boot/grub/grub.cfg >/dev/null 2>&1
-    update-initramfs -u >/dev/null 2>&1
+    spin "Regenerando GRUB e initramfs..."
+    { grub-mkconfig -o /boot/grub/grub.cfg >/dev/null 2>&1 && update-initramfs -u >/dev/null 2>&1; } || true
+    nospin
     log_ok "GRUB e initramfs regenerados"
     
     save_checkpoint 13
@@ -613,8 +698,9 @@ step_14() {
     should_run_step 14 || return 0
     log_step 14 "$TOTAL_STEPS" "Limpieza de paquetes huerfanos"
     
-    nala autoremove -y >/dev/null 2>&1
-    nala clean >/dev/null 2>&1
+    spin "Limpiando paquetes huerfanos..."
+    { nala autoremove -y >/dev/null 2>&1 && nala clean >/dev/null 2>&1; } || true
+    nospin
     log_ok "Paquetes huérfanos eliminados, caché limpiada"
     
     save_checkpoint 14
@@ -625,7 +711,9 @@ step_15() {
     log_step 15 "$TOTAL_STEPS" "Ejecutando asistente Dank Linux"
     
     echo -e "\n${C_CYAN}Iniciando instalador Dank Linux...${C_RESET}\n"
-    sudo -u "$REAL_USER" bash -c 'curl -fsSL https://install.danklinux.com | sh'
+    spin "Ejecutando asistente Dank Linux..."
+    sudo -u "$REAL_USER" bash -c 'curl -fsSL https://install.danklinux.com | sh' || true
+    nospin
     
     log_ok "Asistente Dank Linux completado"
     clear_checkpoint
