@@ -613,7 +613,7 @@ step_13() {
 
 step_14() {
     should_run_step 14 || return 0
-    log_step 14 "$TOTAL_STEPS "Limpieza de paquetes huérfanos"
+    log_step 14 "$TOTAL_STEPS" "Limpieza de paquetes huerfanos"
     
     nala autoremove -y >/dev/null 2>&1
     nala clean >/dev/null 2>&1
@@ -662,13 +662,13 @@ print_summary() {
     echo -e "${C_WHITE}Cambios realizados:${C_RESET}"
     echo -e "  • Kernel: XanMod Edge"
     echo -e "  • Wayland + Nautilus + PipeWire"
-    echo -e "  • Flatpak con Flathub + Apps (Papers, Resources, Showtime)"
+    echo -e "  • Flatpak con Flathub + Apps Papers, Resources, Showtime"
     echo -e "  • Oh My Zsh + tema agnoster"
-    echo -e "  • Nerd Fonts (fonts-powerline)"
-    echo -e "  • Iconos: Colloid (catppuccin green)"
+    echo -e "  • Nerd Fonts: fonts-powerline"
+    echo -e "  • Iconos: Colloid catppuccin green"
     echo -e "  • Temas: Plymouth + GRUB Vimix"
-    echo -e "  • Firewall: UFW activo (deny incoming)"
-    echo -e "  • TLP configurado (laptops)"
+    echo -e "  • Firewall: UFW activo deny incoming"
+    echo -e "  • TLP configurado para laptops"
     
     if [ "$HAS_NVIDIA_GPU" -eq 1 ]; then
         echo -e "  • Drivers NVIDIA + parámetros kernel DRM/KMS"
@@ -679,7 +679,7 @@ print_summary() {
     echo -e "  • Si se instalaron drivers NVIDIA, ${C_RED}requiere reiniciar${C_RESET} para aplicar DRM/KMS"
     echo -e "\n${C_WHITE}Comandos útiles:${C_RESET}"
     echo -e "  ${C_GRAY}sudo reboot${C_RESET}              — Reiniciar para aplicar cambios"
-    echo -e "  ${C_GRAY}prime-run <app>${C_RESET}         — Usar GPU NVIDIA (si es sistema híbrido)"
+    echo -e "  ${C_GRAY}prime-run <app>${C_RESET}         — Usar GPU NVIDIA en sistema hibrido"
     echo -e "  ${C_GRAY}tlp start${C_RESET}               — Iniciar TLP manualmente"
     echo -e "  ${C_GRAY}tlp-stat${C_RESET}                — Ver estado de ahorro de energía"
     echo -e "  ${C_GRAY}ufw status${C_RESET}               — Ver estado del firewall"
@@ -695,14 +695,14 @@ show_menu() {
     clear
     print_banner
     
-    echo -e "${C_WHITE}  ${C_CYAN}[1]${C_RESET}  Instalación completa (pasos 0-15)"
+    echo -e "${C_WHITE}  ${C_CYAN}[1]${C_RESET}  Instalacion completa pasos 0-15"
     echo -e "${C_WHITE}  ${C_CYAN}[2]${C_RESET}  Reanudar desde último checkpoint"
     echo -e "${C_WHITE}  ${C_CYAN}[3]${C_RESET}  Ejecutar paso específico"
     echo -e "${C_WHITE}  ${C_CYAN}[4]${C_RESET}  Ejecutar rango de pasos"
     echo -e "${C_WHITE}  ${C_CYAN}[5]${C_RESET}  Ver estado actual"
     echo -e "${C_WHITE}  ${C_CYAN}[6]${C_RESET}  Salir"
     echo ""
-    echo -ne "${C_WHITE}  Selecciona una opción [1-6]: ${C_RESET}"
+    echo -ne "${C_WHITE}  Selecciona una opcion [1-6]: ${C_RESET}"
 }
 
 handle_menu_choice() {
@@ -724,12 +724,12 @@ handle_menu_choice() {
             fi
             ;;
         3)
-            echo -ne "${C_WHITE}  Número de paso (0-15): ${C_RESET}"
+            echo -ne "${C_WHITE}  Numero de paso 0-15: ${C_RESET}"
             read -r step
             run_step "$step"
             ;;
         4)
-            echo -ne "${C_WHITE}  Rango (ej: 5-10): ${C_RESET}"
+            echo -ne "${C_WHITE}  Rango ej: 5-10: ${C_RESET}"
             read -r range
             start=$(echo "$range" | cut -d- -f1)
             end=$(echo "$range" | cut -d- -f2)
@@ -818,7 +818,7 @@ parse_args() {
 main() {
     # Verificar root
     if [[ $EUID -ne 0 ]]; then
-        echo -e "${C_RED}❌ Este script debe ejecutarse como root (sudo).${C_RESET}"
+        echo -e "${C_RED}Este script debe ejecutarse como root - sudo.${C_RESET}"
         exit 1
     fi
     
