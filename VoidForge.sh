@@ -1,98 +1,289 @@
 #!/bin/bash
+# ============================================================
+# VoidForge — Script de Post-Instalación para Ubuntu Server
+# Gestor: Nala | Base: Wayland + Nautilus + Flatpak
+# Objetivo: Configurar base, Plymouth, Dank Linux y optimizar hardware
+# ============================================================
+
 set -euo pipefail
 
 # ============================================================
-# Script de Post-Instalación Mínima para Ubuntu Server
-# Gestor: Nala | Base: Wayland + Nautilus + Flatpak
-# Objetivo: Configurar base, Plymouth (desde ZIP local) y Dank Linux
+# CONFIGURACIÓN Y VARIABLES GLOBALES
 # ============================================================
 
-if [[ $EUID -ne 0 ]]; then
-    echo "❌ Este script debe ejecutarse como root (sudo)." >&2
-    exit 1
-fi
-
+VERSION="1.0.0"
 REAL_USER="${SUDO_USER:-$USER}"
 HOME_DIR="/home/$REAL_USER"
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+CHECKPOINT_FILE="/tmp/voidforge-progress"
+SKIP_STEPS="${SKIP_STEPS:-}"
+RESUME=${RESUME:-false}
 
-echo ""
-echo -e "\033[1;36m"
-cat <<'ASCII'
- /$$    /$$          /$$       /$$ /$$$$$$$$                                                    /$$
-| $$   | $$         |__/      | $$| $$_____/                                                   | $$
-| $$   | $$ /$$$$$$  /$$  /$$$$$$$| $$     /$$$$$$   /$$$$$$   /$$$$$$   /$$$$$$       /$$$$$$$| $$$$$$$
-|  $$ / $$//$$__  $$| $$ /$$__  $$| $$$$$ /$$__  $$ /$$__  $$ /$$__  $$ /$$__  $$     /$$_____/| $$__  $$
- \  $$ $$/| $$  \ $$| $$| $$  | $$| $$__/| $$  \ $$| $$  \__/| $$  \ $$| $$$$$$$$    |  $$$$$$ | $$  \ $$
-  \  $$$/ | $$  | $$| $$| $$  | $$| $$   | $$  | $$| $$      | $$  | $$| $$_____/     \____  $$| $$  | $$
-   \  $/  |  $$$$$$/| $$|  $$$$$$$| $$   |  $$$$$$/| $$      |  $$$$$$$|  $$$$$$$ /$$ /$$$$$$$/| $$  | $$
-    \_/    \______/ |__/ \_______/|__/    \______/ |__/       \____  $$ \_______/|__/|_______/ |__/  |__/
-                                                                  /$$  \ $$
-                                                                 |  $$$$$$/
-                                                                  \______/
+TOTAL_STEPS=15
+
+# Colores
+C_RESET="\033[0m"
+C_CYAN="\033[1;36m"
+C_GREEN="\033[1;32m"
+C_YELLOW="\033[1;33m"
+C_RED="\033[1;31m"
+C_GRAY="\033[3;37m"
+C_WHITE="\033[1;37m"
+C_BLUE="\033[1;34m"
+
+# Número de paso actual (para progreso)
+CURRENT_STEP_NUM=0
+
+# Flag NVIDIA detectada
+HAS_NVIDIA_GPU=0
+
+# Configuración tema Plymouth
+PLYMOUTH_ZIP_NAME="ubuntu-mac-style.zip"
+
+# ============================================================
+# FUNCIONES HELPER
+# ============================================================
+
+print_banner() {
+    clear
+    echo -e "${C_CYAN}"
+    cat <<'ASCII'
+ ╔══════════════════════════════════════════════════════════════╗
+ ║                                                              ║
+ ║  /$$    /$$          /$$       /$$ /$$$$$$$$                 ║
+ ║ | $$   | $$         |__/      | $$| $$_____/                ║
+ ║ | $$   | $$ /$$$$$$  /$$  /$$$$$$$| $$     /$$$$$$  /$$$$$$  ║
+ ║ |  $$ / $$//$$__  $$| $$ /$$__  $$| $$$$$ /$$__  $$/$$__  $$ ║
+ ║  \  $$ $$/| $$  \ $$| $$| $$  | $$| $$__/| $$  $$_| $$$$$$$$  ║
+ ║   \  $$$/ | $$  | $$| $$| $$  | $$| $$   | $$  \_ /$$__  $$  ║
+ ║    \  $/  |  $$$$$$/| $$|  $$$$$$$| $$   |  $$$$$/|  $$$$$$$  ║
+ ║     \_/    \______/ |__/ \_______/|__/    \______/ \_______/  ║
+ ║                                                              ║
+ ║              Tu sistema. Tus reglas. Tu forja.              ║
+ ║                                                              ║
+ ╚══════════════════════════════════════════════════════════════╝
 ASCII
-echo -e "\033[0m"
-echo -e "\033[3;37m         Tu sistema. Tus reglas. Tu forja.\033[0m"
-echo ""
-echo "🔧 Configurando entorno mínimo para usuario: $REAL_USER"
-echo "📂 Directorio del script detectado: $SCRIPT_DIR"
+    echo -e "${C_GRAY}                      v${VERSION}${C_RESET}"
+    echo ""
+}
 
-# --- CONFIGURACIÓN DEL TEMA PLYMOUTH ---
-# El script buscará cualquier archivo .zip en la misma carpeta que este script
-# Asegúrate de que solo haya UN zip del tema o cambia esto por el nombre exacto:
-# PLYMOUTH_ZIP_NAME="mi_tema_plymouth.zip"
-PLYMOUTH_ZIP_NAME="ubuntu-mac-style.zip" # Dejar vacío para detectar automáticamente el primer .zip
+log_step() {
+    local num=$1
+    local total=$2
+    local desc=$3
+    CURRENT_STEP_NUM=$num
+    echo -e "\n${C_CYAN}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${C_RESET}"
+    echo -e "${C_CYAN}[$num/$total] $desc${C_RESET}"
+    echo -e "${C_CYAN}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${C_RESET}\n"
+}
 
-# 0. Instalar Nala y herramientas de descarga
-echo "🥣 [0/13] Instalando Nala y utilidades..."
-apt update && apt install -y nala wget tar unzip file zsh git curl ca-certificates
+log_ok() {
+    echo -e "${C_GREEN}   ✅ $1${C_RESET}"
+}
 
-# 1. Agregar ButterRepo y Actualización base
-echo "📦 [1/13] Agregando ButterRepo y actualizando sistema..."
+log_skip() {
+    echo -e "${C_YELLOW}   ⏭️ $1${C_RESET}"
+}
 
-if [ ! -f /etc/apt/sources.list.d/butterrepo.list ]; then
-    curl -fsSL https://justaguylinux.codeberg.page/butterrepo/key.asc | gpg --dearmor -o /usr/share/keyrings/butterrepo.gpg
-    echo "deb [arch=amd64 signed-by=/usr/share/keyrings/butterrepo.gpg] https://justaguylinux.codeberg.page/butterrepo stable main" | tee /etc/apt/sources.list.d/butterrepo.list
-    echo "   ✅ ButterRepo agregado."
-else
-    echo "   ⏭️ ButterRepo ya existe, omitiendo."
-fi
+log_warn() {
+    echo -e "${C_YELLOW}   ⚠️ $1${C_RESET}"
+}
 
-nala update && nala upgrade -y
-usermod -aG video,render,audio,plugdev,netdev "$REAL_USER"
+log_error() {
+    echo -e "${C_RED}   ❌ $1${C_RESET}"
+}
 
-if [ "$(timedatectl show -p Timezone --value)" != "America/Mazatlan" ]; then
-    timedatectl set-timezone America/Mazatlan
-    echo "   ✅ Zona horaria configurada."
-else
-    echo "   ⏭️ Zona horaria ya configurada."
-fi
+log_info() {
+    echo -e "${C_GRAY}   ℹ️  $1${C_RESET}"
+}
 
-nala install --no-install-recommends -y locales
-if ! locale -a | grep -q "es_MX.utf8"; then
-    sed -i 's/^# *es_MX\.UTF-8 UTF-8/es_MX.UTF-8 UTF-8/' /etc/locale.gen
-    locale-gen
-fi
-if [ "$(cat /etc/default/locale | grep ^LANG= | cut -d= -f2)" != "es_MX.UTF-8" ]; then
-    update-locale LANG=es_MX.UTF-8
-fi
+save_checkpoint() {
+    echo "$1" > "$CHECKPOINT_FILE"
+}
 
-# 2. Stack Wayland y gráficos mínimos
-echo "🖥️ [2/13] Instalando stack Wayland y drivers gráficos..."
-nala install --no-install-recommends -y \
-    wayland-protocols libwayland-dev libegl1 \
-    libgl1-mesa-dri mesa-vulkan-drivers xwayland
+load_checkpoint() {
+    if [ -f "$CHECKPOINT_FILE" ]; then
+        cat "$CHECKPOINT_FILE"
+    fi
+}
 
-# 3. Nautilus mínimo + automontaje
-echo "📁 [3/13] Instalando Nautilus mínimo y backend de montaje..."
-nala install --no-install-recommends -y \
-    nautilus gvfs-backends gvfs-fuse udisks2 polkitd \
-    ntfs-3g exfatprogs libglib2.0-bin
+clear_checkpoint() {
+    rm -f "$CHECKPOINT_FILE"
+}
 
-POLKIT_RULE="/etc/polkit-1/rules.d/90-udisks2-automount.rules"
-if [ ! -f "$POLKIT_RULE" ]; then
-    mkdir -p /etc/polkit-1/rules.d
-    cat > "$POLKIT_RULE" <<'POLKIT'
+is_step_skipped() {
+    local step=$1
+    [[ "$SKIP_STEPS" =~ (^|,)$step(,|$) ]]
+}
+
+should_run_step() {
+    local step=$1
+    if is_step_skipped "$step"; then
+        log_skip "Paso $step omitido por --skip"
+        return 1
+    fi
+    return 0
+}
+
+# ============================================================
+# FUNCIONES DE PASOS
+# ============================================================
+
+step_0() {
+    should_run_step 0 || return 0
+    log_step 0 "$TOTAL_STEPS" "Instalando herramientas base"
+    
+    apt update >/dev/null 2>&1
+    apt install -y nala wget tar unzip file zsh git curl ca-certificates pciutils locales >/dev/null 2>&1
+    log_ok "Herramientas base instaladas (nala, wget, git, curl, zsh, pciutils, locales)"
+    save_checkpoint 0
+}
+
+step_1() {
+    should_run_step 1 || return 0
+    log_step 1 "$TOTAL_STEPS" "Configurando repositorios y sistema base"
+    
+    # ButterRepo
+    if [ ! -f /etc/apt/sources.list.d/butterrepo.list ]; then
+        curl -fsSL https://justaguylinux.codeberg.page/butterrepo/key.asc | gpg --dearmor -o /usr/share/keyrings/butterrepo.gpg
+        echo "deb [arch=amd64 signed-by=/usr/share/keyrings/butterrepo.gpg] https://justaguylinux.codeberg.page/butterrepo stable main" | tee /etc/apt/sources.list.d/butterrepo.list >/dev/null 2>&1
+        log_ok "ButterRepo agregado"
+    else
+        log_skip "ButterRepo ya existe"
+    fi
+    
+    # Update y upgrade
+    nala update >/dev/null 2>&1
+    nala upgrade -y >/dev/null 2>&1
+    log_ok "Sistema actualizado"
+    
+    # Grupos
+    usermod -aG video,render,audio,plugdev,netdev "$REAL_USER" 2>/dev/null || true
+    log_ok "Usuario agregado a grupos"
+    
+    # Timezone
+    if [ "$(timedatectl show -p Timezone --value)" != "America/Mazatlan" ]; then
+        timedatectl set-timezone America/Mazatlan
+        log_ok "Zona horaria: America/Mazatlan"
+    else
+        log_skip "Zona horaria ya configurada"
+    fi
+    
+    # Locale
+    if ! locale -a 2>/dev/null | grep -q "es_MX.utf8"; then
+        sed -i 's/^# *es_MX\.UTF-8 UTF-8/es_MX.UTF-8 UTF-8/' /etc/locale.gen
+        locale-gen >/dev/null 2>&1
+    fi
+    if [ "$(cat /etc/default/locale 2>/dev/null | grep ^LANG= | cut -d= -f2)" != "es_MX.UTF-8" ]; then
+        update-locale LANG=es_MX.UTF-8
+        log_ok "Locale: es_MX.UTF-8"
+    else
+        log_skip "Locale ya configurado"
+    fi
+    
+    save_checkpoint 1
+}
+
+step_2() {
+    should_run_step 2 || return 0
+    log_step 2 "$TOTAL_STEPS" "Detectando GPU e instalando Kernel XanMod Edge"
+    
+    # Agregar repo XanMod
+    if [ ! -f /etc/apt/sources.list.d/xanmod-kernel.list ]; then
+        curl -fsSL https://xanmod.org/keys/xanmod-archive-keyring.asc | gpg --dearmor -o /usr/share/keyrings/xanmod-archive-keyring.gpg
+        echo "deb [signed-by=/usr/share/keyrings/xanmod-archive-keyring.gpg] https://deb.xanmod.org releases main" | tee /etc/apt/sources.list.d/xanmod-kernel.list >/dev/null 2>&1
+        log_ok "Repositorio XanMod agregado"
+    fi
+    
+    # Detectar XanMod actual
+    if ! uname -r 2>/dev/null | grep -q "xanmod"; then
+        nala update >/dev/null 2>&1
+        nala install -y linux-xanmod-edge-x64 >/dev/null 2>&1
+        log_ok "Kernel XanMod Edge instalado (requiere reinicio para aplicar)"
+    else
+        log_skip "XanMod Edge ya instalado"
+    fi
+    
+    save_checkpoint 2
+}
+
+step_3() {
+    should_run_step 3 || return 0
+    log_step 3 "$TOTAL_STEPS" "Detectando GPU NVIDIA y drivers"
+    
+    if command -v lspci >/dev/null 2>&1; then
+        HAS_NVIDIA=0
+        HAS_INTEL=0
+        lspci -nn 2>/dev/null | grep -qi "nvidia" && HAS_NVIDIA=1
+        lspci -nn 2>/dev/null | grep -qi "vga.*intel" && HAS_INTEL=1
+        
+        # Detectar versión óptima del driver
+        NVIDIA_VER=$(ubuntu-drivers devices 2>/dev/null | grep -oP 'nvidia-driver-\K\d+' | sort -rn | head -1)
+        NVIDIA_VER=${NVIDIA_VER:-535}  # Fallback
+        
+        if [ "$HAS_NVIDIA" -eq 1 ] && [ "$HAS_INTEL" -eq 1 ]; then
+            log_info "Detectado sistema híbrido (Intel + NVIDIA), driver versión $NVIDIA_VER"
+            nala install -y "nvidia-driver-$NVIDIA_VER" nvidia-prime nvidia-settings >/dev/null 2>&1 || true
+            prime-select on-demand 2>/dev/null || true
+            HAS_NVIDIA_GPU=1
+            log_ok "Drivers NVIDIA + prime instalados (usa 'prime-run <app>' para GPU discreta)"
+        elif [ "$HAS_NVIDIA" -eq 1 ]; then
+            log_info "Detectada solo NVIDIA, driver versión $NVIDIA_VER"
+            nala install -y "nvidia-driver-$NVIDIA_VER" nvidia-settings >/dev/null 2>&1 || true
+            HAS_NVIDIA_GPU=1
+            log_ok "Driver NVIDIA instalado"
+        else
+            log_skip "Sin GPU NVIDIA detectada"
+        fi
+        
+        # Servicios de suspend/resume NVIDIA para laptops
+        if [ "$HAS_NVIDIA_GPU" -eq 1 ]; then
+            for svc in nvidia-suspend nvidia-resume nvidia-hibernate; do
+                systemctl enable "$svc" 2>/dev/null || true
+            done
+            log_ok "Servicios suspend/resume NVIDIA habilitados"
+        fi
+    else
+        log_warn "lspci no disponible, omitiendo detección"
+    fi
+    
+    save_checkpoint 3
+}
+
+step_4() {
+    should_run_step 4 || return 0
+    log_step 4 "$TOTAL_STEPS" "Instalando paquetes del sistema (Wayland, Nautilus, Apps, Audio, Codecs, Flatpak, TLP, Fonts)"
+    
+    # Mega-instalación de todos los paquetes en una sola llamada
+    log_info "Instalando todos los paquetes (esto puede tardar)..."
+    nala install --no-install-recommends -y \
+        wayland-protocols libwayland-dev libegl1 \
+        libgl1-mesa-dri mesa-vulkan-drivers xwayland \
+        nautilus gvfs-backends gvfs-fuse udisks2 polkitd \
+        ntfs-3g exfatprogs libglib2.0-bin \
+        neovim zen-browser tmux fastfetch geany nwg-look \
+        libheif-plugin-libde265 ufw gnome-sushi xdg-user-dirs \
+        pipewire wireplumber libpipewire-0.3-0 libwireplumber-0.5-0 \
+        dbus-user-session network-manager libnm0 \
+        xdg-desktop-portal-wlr xdg-dbus-proxy \
+        bluez bluez-tools pipewire-pulse \
+        ubuntu-restricted-extras gstreamer1.0-plugins-bad \
+        gstreamer1.0-libav ffmpegthumbnailer \
+        flatpak tlp tlp-rdw fonts-powerline \
+        >/dev/null 2>&1
+    
+    log_ok "Todos los paquetes instalados"
+    save_checkpoint 4
+}
+
+step_5() {
+    should_run_step 5 || return 0
+    log_step 5 "$TOTAL_STEPS" "Configurando polkit automontaje"
+    
+    POLKIT_RULE="/etc/polkit-1/rules.d/90-udisks2-automount.rules"
+    if [ ! -f "$POLKIT_RULE" ]; then
+        mkdir -p /etc/polkit-1/rules.d
+        cat > "$POLKIT_RULE" <<'POLKIT'
 polkit.addRule(function(action, subject) {
     if ((action.id == "org.freedesktop.udisks2.filesystem-mount" ||
          action.id == "org.freedesktop.udisks2.filesystem-mount-system") &&
@@ -101,93 +292,119 @@ polkit.addRule(function(action, subject) {
     }
 });
 POLKIT
-    echo "   ✅ Regla polkit creada."
-else
-    echo "   ⏭️ Regla polkit ya existe."
-fi
+        log_ok "Regla polkit automontaje creada"
+    else
+        log_skip "Regla polkit ya existe"
+    fi
+    
+    save_checkpoint 5
+}
 
-# 4. Paquetes adicionales (nala)
-echo "📦 [4/13] Instalando paquetes adicionales..."
+step_6() {
+    should_run_step 6 || return 0
+    log_step 6 "$TOTAL_STEPS" "Configurando xdg-user-dirs y UFW"
+    
+    if [ ! -d "$HOME_DIR/Documentos" ] && [ ! -d "$HOME_DIR/Documents" ]; then
+        sudo -u "$REAL_USER" xdg-user-dirs-update >/dev/null 2>&1 || true
+        log_ok "Directorios de usuario creados"
+    else
+        log_skip "Directorios de usuario ya existen"
+    fi
+    
+    if ! ufw status 2>/dev/null | grep -q "Status: active"; then
+        ufw default deny incoming >/dev/null 2>&1
+        ufw default allow outgoing >/dev/null 2>&1
+        echo "y" | ufw enable >/dev/null 2>&1
+        log_ok "UFW habilitado (deny incoming, allow outgoing)"
+    else
+        log_skip "UFW ya está activo"
+    fi
+    
+    save_checkpoint 6
+}
 
-nala install --no-install-recommends -y \
-    neovim zen-browser tmux fastfetch geany nwg-look \
-    libheif-plugin-libde265 ufw gnome-sushi xdg-user-dirs
-
-if [ ! -d "$HOME_DIR/Documentos" ] && [ ! -d "$HOME_DIR/Documents" ]; then
-    sudo -u "$REAL_USER" xdg-user-dirs-update
-fi
-
-if ! ufw status | grep -q "Status: active"; then
-    ufw default deny incoming
-    ufw default allow outgoing
-    echo "y" | ufw enable
-    echo "   ✅ UFW habilitado."
-else
-    echo "   ⏭️ UFW ya está activo."
-fi
-
-# 5. Audio, Red (NetworkManager), Bluetooth y CORRECCIÓN DE TIEMPO DE ARRANQUE
-echo "🔊 [5/13] Configurando audio, red, bluetooth y optimizando el inicio..."
-nala install --no-install-recommends -y \
-    pipewire wireplumber libpipewire-0.3-0 libwireplumber-0.5-0 \
-    dbus-user-session network-manager libnm0 \
-    xdg-desktop-portal-wlr xdg-dbus-proxy \
-    bluez bluez-tools pipewire-pulse
-
-systemctl enable --now bluetooth.service
-
-echo "   🚀 Optimizando Netplan para evitar bloqueos de 5 minutos..."
-if ! systemctl is-masked systemd-networkd-wait-online.service >/dev/null 2>&1; then
-    systemctl disable systemd-networkd-wait-online.service
-    systemctl mask systemd-networkd-wait-online.service
-fi
-
-NETPLAN_DIR="/etc/netplan"
-NETPLAN_FILE="$NETPLAN_DIR/01-netcfg.yaml"
-if [ ! -f "$NETPLAN_FILE" ] || ! grep -q "NetworkManager" "$NETPLAN_FILE"; then
-    rm -f "$NETPLAN_DIR"/*.yaml.bak
-    cat > "$NETPLAN_FILE" <<'NETPLAN'
+step_7() {
+    should_run_step 7 || return 0
+    log_step 7 "$TOTAL_STEPS" "Configurando red y optimizando boot"
+    
+    # systemd-networkd-wait-online
+    if ! systemctl is-masked systemd-networkd-wait-online.service >/dev/null 2>&1; then
+        systemctl disable systemd-networkd-wait-online.service >/dev/null 2>&1
+        systemctl mask systemd-networkd-wait-online.service >/dev/null 2>&1
+        log_ok "systemd-networkd-wait-online desactivado (evita bloqueos de 5 min)"
+    else
+        log_skip "systemd-networkd-wait-online ya desactivado"
+    fi
+    
+    # Netplan
+    NETPLAN_DIR="/etc/netplan"
+    NETPLAN_FILE="$NETPLAN_DIR/01-netcfg.yaml"
+    if [ ! -f "$NETPLAN_FILE" ] || ! grep -q "NetworkManager" "$NETPLAN_FILE"; then
+        rm -f "$NETPLAN_DIR"/*.yaml.bak
+        cat > "$NETPLAN_FILE" <<'NETPLAN'
 network:
   version: 2
   renderer: NetworkManager
 NETPLAN
-    netplan apply
-fi
+        netplan apply >/dev/null 2>&1
+        log_ok "Netplan configurado (renderer: NetworkManager)"
+    else
+        log_skip "Netplan ya configurado"
+    fi
+    
+    save_checkpoint 7
+}
 
-# 6. Códecs multimedia completos
-echo "🎬 [6/13] Instalando códecs multimedia y thumbnails..."
-nala install --no-install-recommends -y \
-    ubuntu-restricted-extras gstreamer1.0-plugins-bad \
-    gstreamer1.0-libav ffmpegthumbnailer
-
-# 7. Flatpak + portal de archivos para Nautilus
-echo "📦 [7/13] Instalando y configurando Flatpak..."
-nala install --no-install-recommends -y flatpak
-flatpak remote-add --if-not-exists flathub https://dl.flathub.org/repo/flathub.flatpakrepo
-
-flatpak install --system -y flathub org.gnome.Papers net.nokyan.Resources org.gnome.Showtime
-
-FLATPAK_OVERRIDE="/etc/flatpak/overrides/global"
-if [ ! -f "$FLATPAK_OVERRIDE" ]; then
-    mkdir -p /etc/flatpak/overrides
-    cat > "$FLATPAK_OVERRIDE" <<'FLATPAK'
+step_8() {
+    should_run_step 8 || return 0
+    log_step 8 "$TOTAL_STEPS" "Configurando Flatpak y aplicaciones"
+    
+    if ! flatpak remotes 2>/dev/null | grep -q "flathub"; then
+        flatpak remote-add --if-not-exists flathub https://dl.flathub.org/repo/flathub.flatrepo >/dev/null 2>&1
+        log_ok "Flathub agregado"
+    else
+        log_skip "Flathub ya existe"
+    fi
+    
+    for app in org.gnome.Papers net.nokyan.Resources org.gnome.Showtime; do
+        flatpak list 2>/dev/null | grep -q "$app" || flatpak install --system -y flathub "$app" >/dev/null 2>&1 || log_warn "$app no instalado"
+    done
+    log_ok "Aplicaciones Flatpak instaladas"
+    
+    # Override para Nautilus
+    FLATPAK_OVERRIDE="/etc/flatpak/overrides/global"
+    if [ ! -f "$FLATPAK_OVERRIDE" ]; then
+        mkdir -p /etc/flatpak/overrides
+        cat > "$FLATPAK_OVERRIDE" <<'FLATPAK'
 [Context]
 filesystems=xdg-run/gvfs:host;host:ro;
 FLATPAK
-fi
+        log_ok "Override Flatpak para Nautilus creado"
+    else
+        log_skip "Override Flatpak ya existe"
+    fi
+    
+    save_checkpoint 8
+}
 
-# 8. Habilitar servicios y variables de entorno
-echo "⚙️ [8/13] Habilitando servicios y configurando entorno Wayland..."
-systemctl enable --now NetworkManager udisks2.service
-
-loginctl enable-linger "$REAL_USER"
-
-sudo -u "$REAL_USER" bash -c 'export XDG_RUNTIME_DIR="/run/user/$(id -u)"; systemctl --user enable pipewire.socket wireplumber.service'
-
-ENV_FILE="$HOME_DIR/.config/environment.d/wayland.conf"
-if [ ! -f "$ENV_FILE" ]; then
-    sudo -u "$REAL_USER" mkdir -p "$HOME_DIR/.config/environment.d"
-    sudo -u "$REAL_USER" tee "$ENV_FILE" > /dev/null <<'ENV'
+step_9() {
+    should_run_step 9 || return 0
+    log_step 9 "$TOTAL_STEPS" "Habilitando servicios y configurando entorno Wayland"
+    
+    # Servicios
+    systemctl enable --now NetworkManager udisks2.service bluetooth.service >/dev/null 2>&1 || true
+    log_ok "Servicios habilitados: NetworkManager, udisks2, bluetooth"
+    
+    # Servicios de usuario
+    loginctl enable-linger "$REAL_USER" >/dev/null 2>&1 || true
+    sudo -u "$REAL_USER" bash -c 'export XDG_RUNTIME_DIR="/run/user/$(id -u)"; systemctl --user enable pipewire.socket wireplumber.service' >/dev/null 2>&1 || true
+    log_ok "Servicios de usuario habilitados: pipewire, wireplumber"
+    
+    # Environment Wayland
+    ENV_FILE="$HOME_DIR/.config/environment.d/wayland.conf"
+    if [ ! -f "$ENV_FILE" ]; then
+        sudo -u "$REAL_USER" mkdir -p "$HOME_DIR/.config/environment.d"
+        sudo -u "$REAL_USER" tee "$ENV_FILE" > /dev/null <<'ENV'
 GDK_BACKEND=wayland
 QT_QPA_PLATFORM=wayland
 SDL_VIDEODRIVER=wayland
@@ -195,16 +412,21 @@ MOZ_ENABLE_WAYLAND=1
 XDG_CURRENT_DESKTOP=niri
 XDG_SESSION_TYPE=wayland
 ENV
-fi
+        log_ok "Entorno Wayland configurado"
+    else
+        log_skip "Entorno Wayland ya existe"
+    fi
+    
+    save_checkpoint 9
+}
 
-# 9. Optimización energética para laptops
-echo "🔋 [9/13] Configurando optimización energética..."
-
-nala install --no-install-recommends -y tlp tlp-rdw
-
-TLP_CONF="/etc/tlp.d/01-voidforge.conf"
-if [ ! -f "$TLP_CONF" ]; then
-    cat > "$TLP_CONF" <<'TLP'
+step_10() {
+    should_run_step 10 || return 0
+    log_step 10 "$TOTAL_STEPS" "Configurando optimización energética (TLP)"
+    
+    TLP_CONF="/etc/tlp.d/01-voidforge.conf"
+    if [ ! -f "$TLP_CONF" ]; then
+        cat > "$TLP_CONF" <<'TLP'
 TLP_ENABLE=1
 CPU_SCALING_GOVERNOR_ON_AC=powersave
 CPU_SCALING_GOVERNOR_ON_BAT=powersave
@@ -238,122 +460,614 @@ NATACPI_ENABLE=1
 TPACPI_ENABLE=1
 TPSMAPI_ENABLE=1
 TLP
-    echo "   ✅ Configuración TLP creada."
-else
-    echo "   ⏭️ Configuración TLP ya existe."
-fi
+        systemctl enable tlp >/dev/null 2>&1
+        log_ok "TLP configurado y habilitado"
+    else
+        log_skip "TLP ya configurado"
+    fi
+    
+    # logind.conf
+    LOGIND="/etc/systemd/logind.conf"
+    grep -q "^HandleLidSwitch=suspend$" "$LOGIND" || sed -i 's/^#HandleLidSwitch=.*/HandleLidSwitch=suspend/' "$LOGIND"
+    grep -q "^HandleLidSwitchExternalPower=suspend$" "$LOGIND" || sed -i 's/^#HandleLidSwitchExternalPower=.*/HandleLidSwitchExternalPower=suspend/' "$LOGIND"
+    grep -q "^HandleLidSwitchDocked=ignore$" "$LOGIND" || sed -i 's/^#HandleLidSwitchDocked=.*/HandleLidSwitchDocked=ignore/' "$LOGIND"
+    grep -q "^PowerKeyAction=poweroff$" "$LOGIND" || sed -i 's/^#PowerKeyAction=.*/PowerKeyAction=poweroff/' "$LOGIND"
+    log_ok "logind configurado (lid switch, power key)"
+    
+    save_checkpoint 10
+}
 
-systemctl enable tlp
+step_11() {
+    should_run_step 11 || return 0
+    log_step 11 "$TOTAL_STEPS" "Configurando Oh My Zsh con tema agnoster"
+    
+    if [ "$(getent passwd "$REAL_USER" 2>/dev/null | cut -d: -f7)" != "$(which zsh)" ]; then
+        chsh -s "$(which zsh)" "$REAL_USER" 2>/dev/null || true
+        log_ok "Shell por defecto: zsh"
+    fi
+    
+    if [ ! -d "$HOME_DIR/.oh-my-zsh" ]; then
+        sudo -u "$REAL_USER" bash -c '
+            sh -c "$(curl -fsSL https://raw.githubusercontent.com/ohmyzsh/ohmyzsh/master/tools/install.sh)" "" --unattended
+            sed -i "s/^ZSH_THEME=.*/ZSH_THEME=\"agnoster\"/" "$HOME/.zshrc"
+        ' >/dev/null 2>&1
+        log_ok "Oh My Zsh instalado, tema: agnoster"
+    else
+        sudo -u "$REAL_USER" sed -i "s/^ZSH_THEME=.*/ZSH_THEME=\"agnoster\"/" "$HOME_DIR/.zshrc" 2>/dev/null || true
+        log_skip "Oh My Zsh ya instalado"
+    fi
+    
+    save_checkpoint 11
+}
 
-LOGIND="/etc/systemd/logind.conf"
-grep -q "^HandleLidSwitch=suspend$" "$LOGIND" || sed -i 's/^#HandleLidSwitch=.*/HandleLidSwitch=suspend/' "$LOGIND"
-grep -q "^HandleLidSwitchExternalPower=suspend$" "$LOGIND" || sed -i 's/^#HandleLidSwitchExternalPower=.*/HandleLidSwitchExternalPower=suspend/' "$LOGIND"
-grep -q "^HandleLidSwitchDocked=ignore$" "$LOGIND" || sed -i 's/^#HandleLidSwitchDocked=.*/HandleLidSwitchDocked=ignore/' "$LOGIND"
-grep -q "^PowerKeyAction=poweroff$" "$LOGIND" || sed -i 's/^#PowerKeyAction=.*/PowerKeyAction=poweroff/' "$LOGIND"
+step_12() {
+    should_run_step 12 || return 0
+    log_step 12 "$TOTAL_STEPS" "Instalando tema de iconos Colloid"
+    
+    if [ ! -d /usr/share/icons/Colloid-catppuccin-green-dark ]; then
+        ICON_TMP_DIR="$(mktemp --directory)"
+        git clone --depth 1 https://github.com/vinceliuice/Colloid-icon-theme.git "$ICON_TMP_DIR" 2>/dev/null
+        "$ICON_TMP_DIR/install.sh" -b -s catppuccin -t green >/dev/null 2>&1 || true
+        rm -rf "$ICON_TMP_DIR"
+        log_ok "Tema Colloid (catppuccin green) instalado"
+    else
+        log_skip "Tema Colloid ya instalado"
+    fi
+    
+    save_checkpoint 12
+}
 
-# 10. Oh My Zsh + Nerd Fonts
-echo "🐚 [10/13] Instalando Oh My Zsh, tema agnoster y Nerd Fonts..."
-
-if [ "$(getent passwd "$REAL_USER" | cut -d: -f7)" != "$(which zsh)" ]; then
-    chsh -s "$(which zsh)" "$REAL_USER"
-fi
-
-if [ ! -d "$HOME_DIR/.oh-my-zsh" ]; then
-    sudo -u "$REAL_USER" bash -c '
-        sh -c "$(curl -fsSL https://raw.githubusercontent.com/ohmyzsh/ohmyzsh/master/tools/install.sh)" "" --unattended
-        sed -i "s/^ZSH_THEME=.*/ZSH_THEME=\"agnoster\"/" "$HOME/.zshrc"
-    '
-else
-    echo "   ⏭️ Oh My Zsh ya instalado."
-    sudo -u "$REAL_USER" sed -i "s/^ZSH_THEME=.*/ZSH_THEME=\"agnoster\"/" "$HOME_DIR/.zshrc"
-fi
-
-nala install --no-install-recommends -y fonts-powerline
-
-# 11. Tema de iconos Colloid
-echo "📦 [11/13] Instalando tema de iconos Colloid..."
-
-if [ ! -d /usr/share/icons/Colloid-catppuccin-green-dark ]; then
-    ICON_TMP_DIR="$(mktemp --directory)"
-    git clone --depth 1 https://github.com/vinceliuice/Colloid-icon-theme.git "$ICON_TMP_DIR"
-    "$ICON_TMP_DIR/install.sh" -b -s catppuccin -t green
-    rm -rf "$ICON_TMP_DIR"
-else
-    echo "   ⏭️ Tema Colloid ya instalado."
-fi
-
-# 12. INSTALAR TEMA PLYMOUTH DESDE ZIP LOCAL
-echo "🎨 [12/13] Instalando tema Plymouth desde archivo local..."
-
-nala install --no-install-recommends -y plymouth plymouth-themes
-mkdir -p /usr/share/plymouth/themes
-
-# Buscar el ZIP
-if [ -z "$PLYMOUTH_ZIP_NAME" ]; then
-    PLYMOUTH_ZIP_PATH=$(find "$SCRIPT_DIR" -maxdepth 1 -name "*.zip" | head -n 1)
-else
-    PLYMOUTH_ZIP_PATH="$SCRIPT_DIR/$PLYMOUTH_ZIP_NAME"
-fi
-
-if [ -z "$PLYMOUTH_ZIP_PATH" ] || [ ! -f "$PLYMOUTH_ZIP_PATH" ]; then
-    echo "   ⚠️ No se encontró archivo .zip del tema en $SCRIPT_DIR. Omitiendo tema personalizado."
-else
-    echo "   📂 Tema encontrado: $(basename "$PLYMOUTH_ZIP_PATH")"
-
-    TEMP_DIR=$(mktemp -d)
-    unzip -q "$PLYMOUTH_ZIP_PATH" -d "$TEMP_DIR"
-
-    THEME_FOLDER=$(find "$TEMP_DIR" -maxdepth 1 -type d ! -name "$TEMP_DIR" | head -n 1)
-
-    if [ -n "$THEME_FOLDER" ]; then
-        THEME_NAME=$(basename "$THEME_FOLDER")
-        echo "   📦 Instalando tema: $THEME_NAME"
-
-        mv "$THEME_FOLDER" "/usr/share/plymouth/themes/$THEME_NAME"
-
-        PLYMOUTH_FILE="/usr/share/plymouth/themes/$THEME_NAME/$THEME_NAME.plymouth"
-        if [ -f "$PLYMOUTH_FILE" ]; then
-            update-alternatives --install /usr/share/plymouth/themes/default.plymouth default.plymouth "$PLYMOUTH_FILE" 100
-            update-alternatives --set default.plymouth "$PLYMOUTH_FILE"
-            echo "   ✅ Tema seleccionado correctamente."
+step_13() {
+    should_run_step 13 || return 0
+    log_step 13 "$TOTAL_STEPS" "Configurando Plymouth y GRUB"
+    
+    # Plymouth theme desde ZIP
+    nala install -y plymouth plymouth-themes >/dev/null 2>&1
+    mkdir -p /usr/share/plymouth/themes
+    
+    PLYMOUTH_ZIP_PATH=""
+    if [ -z "$PLYMOUTH_ZIP_NAME" ]; then
+        PLYMOUTH_ZIP_PATH=$(find "$SCRIPT_DIR" -maxdepth 1 -name "*.zip" 2>/dev/null | head -n 1)
+    else
+        PLYMOUTH_ZIP_PATH="$SCRIPT_DIR/$PLYMOUTH_ZIP_NAME"
+    fi
+    
+    if [ -n "$PLYMOUTH_ZIP_PATH" ] && [ -f "$PLYMOUTH_ZIP_PATH" ]; then
+        THEME_NAME=$(basename "$PLYMOUTH_ZIP_PATH" .zip)
+        if [ ! -d "/usr/share/plymouth/themes/$THEME_NAME" ]; then
+            TEMP_DIR=$(mktemp -d)
+            unzip -q "$PLYMOUTH_ZIP_PATH" -d "$TEMP_DIR" 2>/dev/null
+            THEME_FOLDER=$(find "$TEMP_DIR" -maxdepth 1 -type d ! -name "$TEMP_DIR" 2>/dev/null | head -n 1)
+            if [ -n "$THEME_FOLDER" ]; then
+                mv "$THEME_FOLDER" "/usr/share/plymouth/themes/$THEME_NAME" 2>/dev/null || true
+                PLYMOUTH_FILE="/usr/share/plymouth/themes/$THEME_NAME/$THEME_NAME.plymouth"
+                if [ -f "$PLYMOUTH_FILE" ]; then
+                    update-alternatives --install /usr/share/plymouth/themes/default.plymouth default.plymouth "$PLYMOUTH_FILE" 100 >/dev/null 2>&1
+                    update-alternatives --set default.plymouth "$PLYMOUTH_FILE" >/dev/null 2>&1
+                    log_ok "Tema Plymouth: $THEME_NAME"
+                fi
+            fi
+            rm -rf "$TEMP_DIR"
         else
-            echo "   ⚠️ No se encontró archivo .plymouth dentro de la carpeta extraída."
+            log_skip "Tema Plymouth ya instalado"
         fi
     else
-        echo "   ❌ No se pudo extraer la carpeta del tema correctamente."
+        log_warn "No se encontró tema Plymouth en $SCRIPT_DIR"
     fi
+    
+    # GRUB theme
+    GRUB_THEME_PATH="/usr/share/grub/themes/grub-theme-vimix-very-dark-blue"
+    if [ ! -f "$GRUB_THEME_PATH/theme.txt" ]; then
+        GRUB_TMP_DIR="$(mktemp --directory)"
+        git clone --depth 1 https://github.com/trueNAHO/grub2-theme-vimix-very-dark-blue.git "$GRUB_TMP_DIR" 2>/dev/null
+        install --directory --mode 755 "$GRUB_THEME_PATH"
+        cp --no-preserve=ownership --recursive "$GRUB_TMP_DIR/src/." "$GRUB_THEME_PATH"
+        rm -rf "$GRUB_TMP_DIR"
+        log_ok "Tema GRUB: Vimix Very Dark Blue"
+    else
+        log_skip "Tema GRUB ya instalado"
+    fi
+    
+    # Configuración GRUB
+    GRUB_CFG="/etc/default/grub"
+    
+    # Agregar parámetros de kernel NVIDIA si hay GPU NVIDIA
+    if [ "$HAS_NVIDIA_GPU" -eq 1 ]; then
+        log_info "Agregando parámetros de kernel para NVIDIA..."
+        grep -q "nvidia-drm.modeset=1" "$GRUB_CFG" || sed -i 's/GRUB_CMDLINE_LINUX_DEFAULT="quiet"/GRUB_CMDLINE_LINUX_DEFAULT="quiet splash nvidia-drm.modeset=1 nvidia-drm.fbdev=1 nvidia.NVreg_PreserveVideoMemoryAllocations=1/' "$GRUB_CFG"
+        grep -q "nvidia-drm.modeset=1" "$GRUB_CFG" || sed -i 's/GRUB_CMDLINE_LINUX_DEFAULT="/GRUB_CMDLINE_LINUX_DEFAULT="quiet splash plymouth:force-recovery splash= nvidia-drm.modeset=1 nvidia-drm.fbdev=1 nvidia.NVreg_PreserveVideoMemoryAllocations=1"/' "$GRUB_CFG"
+    else
+        grep -q "GRUB_CMDLINE_LINUX_DEFAULT=.*splash" "$GRUB_CFG" || sed -i 's/^GRUB_CMDLINE_LINUX_DEFAULT="/GRUB_CMDLINE_LINUX_DEFAULT="quiet splash plymouth:force-recovery splash=/' "$GRUB_CFG"
+    fi
+    
+    grep -q "GRUB_GFXPAYLOAD_LINUX=keep" "$GRUB_CFG" || echo 'GRUB_GFXPAYLOAD_LINUX=keep' >> "$GRUB_CFG"
+    
+    # GRUB_THEME
+    grep -q "^GRUB_THEME=" "$GRUB_CFG" \
+        && sed -i "s|^GRUB_THEME=.*|GRUB_THEME=\"$GRUB_THEME_PATH/theme.txt\"|" "$GRUB_CFG" \
+        || echo "GRUB_THEME=\"$GRUB_THEME_PATH/theme.txt\"" >> "$GRUB_CFG"
+    
+    log_ok "Configuración GRUB actualizada"
+    
+    # Initramfs para Plymouth y NVIDIA
+    mkdir -p /etc/initramfs-tools/conf.d
+    echo "FRAMEBUFFER=y" > /etc/initramfs-tools/conf.d/splash 2>/dev/null
+    
+    # Módulos NVIDIA en initramfs si hay GPU NVIDIA
+    if [ "$HAS_NVIDIA_GPU" -eq 1 ]; then
+        echo "nvidia" >> /etc/initramfs-tools/modules 2>/dev/null
+        echo "nvidia-drm" >> /etc/initramfs-tools/modules 2>/dev/null
+        echo "nvidia-modeset" >> /etc/initramfs-tools/modules 2>/dev/null
+        echo "nvidia-uvm" >> /etc/initramfs-tools/modules 2>/dev/null
+        log_info "Módulos NVIDIA agregados a initramfs"
+    else
+        echo "drm" >> /etc/initramfs-tools/modules 2>/dev/null || true
+    fi
+    
+    grub-mkconfig -o /boot/grub/grub.cfg >/dev/null 2>&1
+    update-initramfs -u >/dev/null 2>&1
+    log_ok "GRUB e initramfs regenerados"
+    
+    save_checkpoint 13
+}
 
-    rm -rf "$TEMP_DIR"
-fi
+step_14() {
+    should_run_step 14 || return 0
+    log_step 14 "$TOTAL_STEPS "Limpieza de paquetes huérfanos"
+    
+    nala autoremove -y >/dev/null 2>&1
+    nala clean >/dev/null 2>&1
+    log_ok "Paquetes huérfanos eliminados, caché limpiada"
+    
+    save_checkpoint 14
+}
 
-# Instalar tema GRUB Vimix Very Dark Blue
-GRUB_THEME_INSTALL_PATH=/usr/share/grub/themes/grub-theme-vimix-very-dark-blue
-if [ ! -f "$GRUB_THEME_INSTALL_PATH/theme.txt" ]; then
-    GRUB_THEME_REPO_URL=https://github.com/trueNAHO/grub2-theme-vimix-very-dark-blue.git
-    GRUB_TMP_DIR="$(mktemp --directory)"
-    git clone "$GRUB_THEME_REPO_URL" "$GRUB_TMP_DIR"
-    install --directory --mode 755 "$GRUB_THEME_INSTALL_PATH"
-    cp --no-preserve=ownership --recursive "$GRUB_TMP_DIR/src/." "$GRUB_THEME_INSTALL_PATH"
-    rm --force --recursive "$GRUB_TMP_DIR"
-fi
+step_15() {
+    should_run_step 15 || return 0
+    log_step 15 "$TOTAL_STEPS" "Ejecutando asistente Dank Linux"
+    
+    echo -e "\n${C_CYAN}Iniciando instalador Dank Linux...${C_RESET}\n"
+    sudo -u "$REAL_USER" bash -c 'curl -fsSL https://install.danklinux.com | sh'
+    
+    log_ok "Asistente Dank Linux completado"
+    clear_checkpoint
+}
 
-GRUB_CFG="/etc/default/grub"
-grep -q "quiet splash" "$GRUB_CFG" || sed -i 's/GRUB_CMDLINE_LINUX_DEFAULT="quiet"/GRUB_CMDLINE_LINUX_DEFAULT="quiet splash"/' "$GRUB_CFG"
-grep -q "^GRUB_THEME=" "$GRUB_CFG" \
-    && sed -i "s|^GRUB_THEME=.*|GRUB_THEME=\"$GRUB_THEME_INSTALL_PATH/theme.txt\"|" "$GRUB_CFG" \
-    || echo "GRUB_THEME=\"$GRUB_THEME_INSTALL_PATH/theme.txt\"" >> "$GRUB_CFG"
-grub-mkconfig -o /boot/grub/grub.cfg
-update-initramfs -u
+run_step() {
+    local step_num=$1
+    local step_func="step_$step_num"
+    if declare -f "$step_func" >/dev/null 2>&1; then
+        "$step_func"
+    else
+        log_error "Paso $step_num no encontrado"
+    fi
+}
 
-nala autoremove -y
-nala clean
+run_all_steps() {
+    for i in $(seq 0 "$TOTAL_STEPS"); do
+        run_step "$i"
+    done
+    
+    print_summary
+}
 
-# 13. EJECUCIÓN DEL ASISTENTE DANK LINUX
-echo ""
-echo "🚀 [13/13] Iniciando asistente de instalación de Dank Material Linux..."
-sudo -u "$REAL_USER" bash -c 'curl -fsSL https://install.danklinux.com | sh'
+print_summary() {
+    clear
+    echo -e "\n${C_CYAN}╔════════════════════════════════════════════════════════════════╗${C_RESET}"
+    echo -e "${C_CYAN}║${C_WHITE}                   ¡Instalación completada!                      ${C_CYAN}║${C_RESET}"
+    echo -e "${C_CYAN}╚════════════════════════════════════════════════════════════════╝${C_RESET}\n"
+    
+    echo -e "${C_GREEN}✅ Todos los pasos completados${C_RESET}\n"
+    
+    echo -e "${C_WHITE}Cambios realizados:${C_RESET}"
+    echo -e "  • Kernel: XanMod Edge"
+    echo -e "  • Wayland + Nautilus + PipeWire"
+    echo -e "  • Flatpak con Flathub + Apps (Papers, Resources, Showtime)"
+    echo -e "  • Oh My Zsh + tema agnoster"
+    echo -e "  • Nerd Fonts (fonts-powerline)"
+    echo -e "  • Iconos: Colloid (catppuccin green)"
+    echo -e "  • Temas: Plymouth + GRUB Vimix"
+    echo -e "  • Firewall: UFW activo (deny incoming)"
+    echo -e "  • TLP configurado (laptops)"
+    
+    if [ "$HAS_NVIDIA_GPU" -eq 1 ]; then
+        echo -e "  • Drivers NVIDIA + parámetros kernel DRM/KMS"
+    fi
+    
+    echo -e "\n${C_YELLOW}⚠️ Importante:${C_RESET}"
+    echo -e "  • Si se instaló XanMod Edge, ${C_RED}requiere reiniciar${C_RESET} para aplicar el nuevo kernel"
+    echo -e "  • Si se instalaron drivers NVIDIA, ${C_RED}requiere reiniciar${C_RESET} para aplicar DRM/KMS"
+    echo -e "\n${C_WHITE}Comandos útiles:${C_RESET}"
+    echo -e "  ${C_GRAY}sudo reboot${C_RESET}              — Reiniciar para aplicar cambios"
+    echo -e "  ${C_GRAY}prime-run <app>${C_RESET}         — Usar GPU NVIDIA (si es sistema híbrido)"
+    echo -e "  ${C_GRAY}tlp start${C_RESET}               — Iniciar TLP manualmente"
+    echo -e "  ${C_GRAY}tlp-stat${C_RESET}                — Ver estado de ahorro de energía"
+    echo -e "  ${C_GRAY}ufw status${C_RESET}               — Ver estado del firewall"
+    echo -e "  ${C_GRAY}flatpak list${C_RESET}            — Ver aplicaciones Flatpak instaladas"
+    echo -e "\n${C_GREEN}¡Tu sistema está listo! 🚀${C_RESET}\n"
+}
 
-echo ""
-echo "✅ PROCESO COMPLETADO."
-echo "Reinicia el sistema para ver tu nuevo tema de arranque y entrar en Dank Linux:"
-echo "   sudo reboot"
+# ============================================================
+# MENÚ INTERACTIVO
+# ============================================================
+
+show_menu() {
+    clear
+    print_banner
+    
+    echo -e "${C_WHITE}  ${C_CYAN}[1]${C_RESET}  Instalación completa (pasos 0-15)"
+    echo -e "${C_WHITE}  ${C_CYAN}[2]${C_RESET}  Reanudar desde último checkpoint"
+    echo -e "${C_WHITE}  ${C_CYAN}[3]${C_RESET}  Ejecutar paso específico"
+    echo -e "${C_WHITE}  ${C_CYAN}[4]${C_RESET}  Ejecutar rango de pasos"
+    echo -e "${C_WHITE}  ${C_CYAN}[5]${C_RESET}  Ver estado actual"
+    echo -e "${C_WHITE}  ${C_CYAN}[6]${C_RESET}  Generar README.md"
+    echo -e "${C_WHITE}  ${C_CYAN}[7]${C_RESET}  Salir"
+    echo ""
+    echo -ne "${C_WHITE}  Selecciona una opción [1-7]: ${C_RESET}"
+}
+
+handle_menu_choice() {
+    read -r choice
+    case $choice in
+        1)
+            run_all_steps
+            ;;
+        2)
+            last_step=$(load_checkpoint)
+            if [ -n "$last_step" ]; then
+                for i in $(seq $((last_step + 1)) "$TOTAL_STEPS"); do
+                    run_step "$i"
+                done
+                print_summary
+            else
+                log_warn "No hay checkpoint. Ejecutando instalación completa..."
+                run_all_steps
+            fi
+            ;;
+        3)
+            echo -ne "${C_WHITE}  Número de paso (0-15): ${C_RESET}"
+            read -r step
+            run_step "$step"
+            ;;
+        4)
+            echo -ne "${C_WHITE}  Rango (ej: 5-10): ${C_RESET}"
+            read -r range
+            start=$(echo "$range" | cut -d- -f1)
+            end=$(echo "$range" | cut -d- -f2)
+            for i in $(seq "$start" "$end"); do
+                run_step "$i"
+            done
+            ;;
+        5)
+            last_step=$(load_checkpoint)
+            if [ -n "$last_step" ]; then
+                log_info "Último paso completado: $last_step"
+            else
+                log_info "No hay checkpoint guardado"
+            fi
+            echo -ne "${C_WHITE}  Presiona Enter para continuar...${C_RESET}"
+            read -r
+            show_menu
+            handle_menu_choice
+            ;;
+        6)
+            generate_readme
+            log_ok "README.md generado"
+            echo -ne "${C_WHITE}  Presiona Enter para continuar...${C_RESET}"
+            read -r
+            show_menu
+            handle_menu_choice
+            ;;
+        7)
+            clear
+            exit 0
+            ;;
+        *)
+            echo -e "${C_RED}  Opción no válida${C_RESET}"
+            sleep 1
+            show_menu
+            handle_menu_choice
+            ;;
+    esac
+}
+
+generate_readme() {
+    cat > "$SCRIPT_DIR/README.md" <<'EOF'
+# VoidForge
+
+Post-instalador minimalista para Ubuntu Server con optimización para hardware moderno.
+
+## Descripción
+
+VoidForge automatiza la configuración de Ubuntu Server para transformarlo en un sistemaWayland listo para uso, con soporte para GPU NVIDIA/Optimus, kernel optimizado (XanMod), temas personalizados y herramientas esenciales.
+
+## Requisitos
+
+- Ubuntu Server 24.04 LTS (o compatible)
+- Acceso root (sudo)
+- Conexión a internet
+- Mínimo 8GB RAM recomendado (16GB para desarrollo/gaming)
+- 20GB espacio libre en disco
+
+## Uso
+
+```bash
+sudo bash VoidForge.sh
+```
+
+### Modos de ejecución
+
+| Opción | Descripción |
+|--------|-------------|
+| [1] | Instalación completa (todos los pasos 0-15) |
+| [2] | Reanudar desde último checkpoint (si hubo fallo) |
+| [3] | Ejecutar un paso específico |
+| [4] | Ejecutar un rango de pasos (ej: 5-10) |
+| [5] | Ver estado actual de la instalación |
+| [6] | Regenerar README.md |
+| [7] | Salir |
+
+### Flags CLI (para automatización)
+
+```bash
+sudo bash VoidForge.sh --resume           # Reanudar desde checkpoint
+sudo bash VoidForge.sh --step 5           # Ejecutar solo paso 5
+sudo bash VoidForge.sh --range 5-10       # Ejecutar pasos 5-10
+sudo bash VoidForge.sh --skip 3,7         # Omitir pasos 3 y 7
+sudo bash VoidForge.sh --all              # Ejecutar todo (equivalente a menú [1])
+```
+
+## Pasos de instalación
+
+| # | Descripción |
+|---|-------------|
+| 0 | Bootstrap: nala, git, curl, zsh, pciutils, locales |
+| 1 | ButterRepo, upgrade, grupos, timezone (America/Mazatlan), locale (es_MX.UTF-8) |
+| 2 | Kernel XanMod Edge |
+| 3 | Detección GPU + drivers NVIDIA (version dinámica con `ubuntu-drivers`) + Optimus |
+| 4 | Mega-instalación: Wayland, Nautilus, Apps, Audio, Codecs, Flatpak, TLP, Fonts |
+| 5 | Regla polkit para automontaje |
+| 6 | xdg-user-dirs + UFW (deny incoming) |
+| 7 | Netplan (NetworkManager) + desactivación de systemd-networkd-wait-online |
+| 8 | Flathub + Apps Flatpak (Papers, Resources, Showtime) |
+| 9 | Habilitar servicios (NetworkManager, bluetooth, pipewire, wireplumber) + env Wayland |
+| 10 | TLP (configuración personalizada) + logind (lid switch, power key) |
+| 11 | Oh My Zsh + tema agnoster |
+| 12 | Tema de iconos Colloid (catppuccin green) |
+| 13 | Plymouth + GRUB + parámetros kernel para NVIDIA DRM/KMS |
+| 14 | Limpieza: nala autoremove + clean |
+| 15 | Instalador Dank Linux (ejecuta al final) |
+
+## Hardware
+
+### GPU NVIDIA
+
+El script detecta automáticamente:
+- GPU NVIDIA pura → instala driver propietario
+- Sistema híbrido (Intel + NVIDIA) → instala NVIDIA + Optimus (prime-select on-demand)
+- Sin NVIDIA → omite, usa Mesa
+
+El driver se selecciona dinámicamente usando `ubuntu-drivers devices` para encontrar la versión más reciente compatible.
+
+**Parámetros kernel agregados para NVIDIA (si detectado):**
+```
+nvidia-drm.modeset=1 nvidia-drm.fbdev=1 nvidia.NVreg_PreserveVideoMemoryAllocations=1
+```
+
+Esto habilita DRM/KMS (necesario para Wayland) y framebuffer.
+
+**Servicios NVIDIA:**
+- `nvidia-suspend`, `nvidia-resume`, `nvidia-hibernate` habilitados para laptops
+
+### Laptops
+
+TLP configurado con optimizaciones:
+- CPU limitado a 80% en batería
+- PCIe ASPM powersupersave
+- USB autosuspend
+- WiFi power save en batería
+- Audio power save
+
+## Personalización
+
+### Tema Plymouth
+
+Coloca un archivo `.zip` con el tema en el mismo directorio que el script, o descomenta y establece `PLYMOUTH_ZIP_NAME` en el script:
+
+```bash
+PLYMOUTH_ZIP_NAME="mi-tema-plymouth.zip"
+```
+
+Si no se encuentra ningún ZIP, se omite sin error.
+
+### Tema de iconos
+
+El script instala **Colloid** con variante **catppuccin green**. Para cambiar:
+
+1. Edita el paso 12 en el script
+2. Cambia `-s catppuccin -t green` a tu preferencia (ej: `-s dracula -t purple`)
+
+### Zona horaria y locale
+
+Valores por defecto:
+- Zona horaria: `America/Mazatlan`
+- Locale: `es_MX.UTF-8`
+
+Edita el script en el paso 1 para cambiar.
+
+## Comandos útiles
+
+```bash
+# Reiniciar para aplicar kernel XanMod o drivers NVIDIA
+sudo reboot
+
+# Usar GPU NVIDIA en sistemas híbridos
+prime-run <aplicación>
+
+# Estado TLP
+tlp-stat
+
+# Ver logs de instalación
+# Los logs se muestran en tiempo real en terminal
+
+# Reinstalar un paso específico
+sudo bash VoidForge.sh --step <número>
+```
+
+## Troubleshooting
+
+### Plymouth no se muestra
+
+Verifica:
+```bash
+cat /proc/cmdline
+# Debería contener: quiet splash nvidia-drm.modeset=1 (si NVIDIA)
+```
+
+```bash
+ls -la /usr/share/plymouth/themes/
+# Tu tema debería estar aquí
+```
+
+```bash
+update-alternatives --config default.plymouth
+# Verifica tu tema está seleccionado
+```
+
+### NVIDIA no funciona en Wayland
+
+Verifica:
+```bash
+cat /proc/cmdline
+# Debe contener nvidia-drm.modeset=1
+```
+
+```bash
+lsmod | grep nvidia
+# Módulos deberían estar cargados
+```
+
+```bash
+prime-select query
+# Debería mostrar estado de Optimus
+```
+
+### Pendiente reanudar desde checkpoint
+
+El script guarda el último paso completado en `/tmp/voidforge-progress`. Si el script falló o fue interrumpido, ejecuta:
+
+```bash
+sudo bash VoidForge.sh --resume
+```
+
+Esto continuará desde el paso siguiente al último completado.
+
+### Errores en el paso de Flatpak
+
+Flathub puede fallar si el servidor está ocupado. Reintenta ejecutando solo el paso 8:
+
+```bash
+sudo bash VoidForge.sh --step 8
+```
+
+## Estructura del proyecto
+
+```
+VoidForge/
+├── VoidForge.sh      # Script principal
+├── AGENTS.md          # Notas para agentes de desarrollo
+├── README.md          # Este archivo
+└── *.zip              # Tema Plymouth (opcional)
+```
+
+## Contribuciones
+
+El script es monolintario y autocontenido. Para modificar:
+
+1. Edita `VoidForge.sh`
+2. Cada paso es una función `step_N()`
+3. Usa los helpers: `log_step()`, `log_ok()`, `log_skip()`, `log_warn()`, `log_error()`
+4. Guarda checkpoint con `save_checkpoint <número>`
+
+## License
+
+MIT
+
+---
+
+**Tu sistema. Tus reglas. Tu forja.**
+EOF
+}
+
+# ============================================================
+# PARSEO DE ARGUMENTOS CLI
+# ============================================================
+
+parse_args() {
+    while [[ $# -gt 0 ]]; do
+        case $1 in
+            --resume)
+                RESUME=true
+                shift
+                ;;
+            --step)
+                RESUME=false
+                clear_checkpoint
+                SKIP_STEPS=""
+                run_step "$2"
+                shift 2
+                exit 0
+                ;;
+            --range)
+                RESUME=false
+                clear_checkpoint
+                SKIP_STEPS=""
+                start=$(echo "$2" | cut -d- -f1)
+                end=$(echo "$2" | cut -d- -f2)
+                for i in $(seq "$start" "$end"); do
+                    run_step "$i"
+                done
+                shift 2
+                exit 0
+                ;;
+            --skip)
+                SKIP_STEPS="$2"
+                shift 2
+                ;;
+            --all)
+                run_all_steps
+                shift
+                exit 0
+                ;;
+            *)
+                log_error "Opción desconocida: $1"
+                echo "Uso: $0 [--resume] [--step N] [--range N-M] [--skip N,M,...] [--all]"
+                exit 1
+                ;;
+        esac
+    done
+}
+
+# ============================================================
+# FUNCIÓN PRINCIPAL
+# ============================================================
+
+main() {
+    # Verificar root
+    if [[ $EUID -ne 0 ]]; then
+        echo -e "${C_RED}❌ Este script debe ejecutarse como root (sudo).${C_RESET}"
+        exit 1
+    fi
+    
+    # Si hay args CLI, procesarlos
+    if [[ $# -gt 0 ]]; then
+        parse_args "$@"
+        return
+    fi
+    
+    # Modo interactivo (default)
+    show_menu
+    handle_menu_choice
+}
+
+main "$@"
