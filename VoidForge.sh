@@ -2,7 +2,7 @@
 # ============================================================
 # VoidForge — Script de Post-Instalación para Ubuntu Server
 # Gestor: Nala | Base: Wayland + Nautilus + Flatpak
-# Objetivo: Configurar base, Plymouth, Dank Linux y optimizar hardware
+# Objetivo: Configurar base, Plymouth, DMS y optimizar hardware
 # ============================================================
 #
 # Instalación desde GitHub:
@@ -20,13 +20,13 @@ set -euo pipefail
 VERSION="1.0.0"
 REAL_USER="${SUDO_USER:-$USER}"
 HOME_DIR="/home/$REAL_USER"
-SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]:-.}")" 2>/dev/null && pwd)" || SCRIPT_DIR="$(pwd)"
 CHECKPOINT_FILE="/tmp/voidforge-progress"
 LOG_FILE="/tmp/voidforge.log"
 SKIP_STEPS="${SKIP_STEPS:-}"
-RESUME=${RESUME:-false}
+RESUME="${RESUME:-false}"
 
-TOTAL_STEPS=15
+TOTAL_STEPS=14
 
 # Colores
 C_RESET="\033[0m"
@@ -212,7 +212,7 @@ step_0() {
 
     spin "Instalando herramientas base..."
     run_cmd "apt update" apt update || true
-    run_cmd "apt install base" apt install -y nala wget tar unzip file zsh git curl ca-certificates pciutils locales || true
+    run_cmd "apt install base" apt install -y nala wget tar unzip file zsh git curl ca-certificates pciutils locales gnupg software-properties-common || true
     nospin
     log_ok "Herramientas base instaladas (nala, wget, git, curl, zsh, pciutils, locales)"
     save_checkpoint 0
@@ -232,7 +232,16 @@ step_1() {
     else
         log_skip "ButterRepo ya existe"
     fi
-
+    
+    # PPAs de Dank Linux (DMS)
+    if ! grep -qr "avengemedia" /etc/apt/sources.list.d/ 2>/dev/null; then
+        echo -e "y" | add-apt-repository ppa:avengemedia/danklinux >>"$LOG_FILE" 2>&1 || true
+        echo -e "y" | add-apt-repository ppa:avengemedia/dms >>"$LOG_FILE" 2>&1 || true
+        log_ok "PPAs de Dank Linux agregados"
+    else
+        log_skip "PPAs de Dank Linux ya existen"
+    fi
+    
     # Update y upgrade
     spin "Actualizando sistema..."
     run_cmd "nala update" nala update || true
@@ -276,7 +285,7 @@ step_2() {
         spin "Agregando repositorio XanMod..."
         run_cmd "nala install lsb-release" nala install --no-install-recommends -y lsb-release || true
         wget -qO - https://dl.xanmod.org/archive.key | gpg --dearmor -vo /etc/apt/keyrings/xanmod-archive-keyring.gpg >>"$LOG_FILE" 2>&1
-        echo "deb [signed-by=/etc/apt/keyrings/xanmod-archive-keyring.gpg] http://deb.xanmod.org $(lsb_release -sc) main non-free" | tee /etc/apt/sources.list.d/xanmod-release.list >>"$LOG_FILE" 2>&1
+        echo "deb [signed-by=/etc/apt/keyrings/xanmod-archive-keyring.gpg] https://deb.xanmod.org $(lsb_release -sc) main non-free" | tee /etc/apt/sources.list.d/xanmod-release.list >>"$LOG_FILE" 2>&1
         nospin
         log_ok "Repositorio XanMod agregado"
     fi
@@ -351,7 +360,7 @@ step_4() {
         libgl1-mesa-dri mesa-vulkan-drivers xwayland \
         nautilus gvfs-backends gvfs-fuse udisks2 polkitd \
         ntfs-3g exfatprogs libglib2.0-bin \
-        neovim zen-browser tmux fastfetch geany nwg-look foot \
+        neovim zen-browser tmux fastfetch geany nwg-look foot dms \
         libheif-plugin-libde265 ufw gnome-sushi xdg-user-dirs \
         pipewire wireplumber libpipewire-0.3-0 libwireplumber-0.5-0 \
         dbus-user-session network-manager libnm0 \
@@ -869,19 +878,6 @@ step_14() {
     save_checkpoint 14
 }
 
-step_15() {
-    should_run_step 15 || return 0
-    log_step 15 "$TOTAL_STEPS" "Ejecutando asistente Dank Linux"
-
-    echo -e "\n${C_CYAN}Iniciando instalador Dank Linux...${C_RESET}\n"
-    spin "Ejecutando asistente Dank Linux..."
-    sudo -u "$REAL_USER" bash -c 'curl -fsSL https://install.danklinux.com | sh' >>"$LOG_FILE" 2>&1 || true
-    nospin
-
-    log_ok "Asistente Dank Linux completado"
-    clear_checkpoint
-}
-
 run_step() {
     local step_num=$1
     local step_func="step_$step_num"
@@ -896,7 +892,8 @@ run_all_steps() {
     for i in $(seq 0 "$TOTAL_STEPS"); do
         run_step "$i"
     done
-
+    
+    clear_checkpoint
     print_summary
 }
 
@@ -918,6 +915,7 @@ print_summary() {
     echo -e "  • Temas: Plymouth + GRUB Vimix"
     echo -e "  • Firewall: UFW activo deny incoming"
     echo -e "  • TLP configurado para laptops"
+    echo -e "  • DMS (Dank Linux)"
 
     if [ "$HAS_NVIDIA_GPU" -eq 1 ]; then
         echo -e "  • Drivers NVIDIA + parámetros kernel DRM/KMS"
@@ -945,7 +943,7 @@ show_menu() {
     clear
     print_banner
 
-    echo -e "${C_WHITE}  ${C_CYAN}[1]${C_RESET}  Instalacion completa pasos 0-15"
+    echo -e "${C_WHITE}  ${C_CYAN}[1]${C_RESET}  Instalacion completa pasos 0-14"
     echo -e "${C_WHITE}  ${C_CYAN}[2]${C_RESET}  Reanudar desde último checkpoint"
     echo -e "${C_WHITE}  ${C_CYAN}[3]${C_RESET}  Ejecutar paso específico"
     echo -e "${C_WHITE}  ${C_CYAN}[4]${C_RESET}  Ejecutar rango de pasos"
@@ -974,7 +972,7 @@ handle_menu_choice() {
             fi
             ;;
         3)
-            echo -ne "${C_WHITE}  Numero de paso 0-15: ${C_RESET}"
+            echo -ne "${C_WHITE}  Numero de paso 0-14: ${C_RESET}"
             read -r step
             run_step "$step"
             ;;
@@ -1118,6 +1116,11 @@ reexec_as_root() {
 # ============================================================
 
 main() {
+    # Inicializar log
+    echo "=== VoidForge v${VERSION} - $(date) ===" > "$LOG_FILE"
+    echo "Usuario: $REAL_USER | Home: $HOME_DIR | Script: $SCRIPT_DIR" >> "$LOG_FILE"
+    log_info "Log de la sesion: $LOG_FILE"
+    
     # Verificar sistema primero (antes de pedir sudo)
     if ! check_system; then
         exit 1
@@ -1127,11 +1130,6 @@ main() {
     if [[ $EUID -ne 0 ]]; then
         reexec_as_root
     fi
-
-    # Inicializar log
-    echo "=== VoidForge v${VERSION} - $(date) ===" > "$LOG_FILE"
-    echo "Usuario: $REAL_USER | Home: $HOME_DIR | Script: $SCRIPT_DIR" >> "$LOG_FILE"
-    log_info "Log de la sesion: $LOG_FILE"
 
     # Si hay args CLI, procesarlos
     if [[ $# -gt 0 ]]; then
