@@ -235,8 +235,8 @@ step_1() {
     # ButterRepo
     if [ ! -f /etc/apt/sources.list.d/butterrepo.list ]; then
         spin "Agregando ButterRepo..."
-        curl -fsSL https://justaguylinux.codeberg.page/butterrepo/key.asc | root gpg --dearmor -o /usr/share/keyrings/butterrepo.gpg >>"$LOG_FILE" 2>&1
-        echo "deb [arch=amd64 signed-by=/usr/share/keyrings/butterrepo.gpg] https://justaguylinux.codeberg.page/butterrepo stable main" | root tee /etc/apt/sources.list.d/butterrepo.list >>"$LOG_FILE" 2>&1
+        curl -fsSL https://justaguylinux.codeberg.page/butterrepo/key.asc | root gpg --dearmor -o /usr/share/keyrings/butterrepo.gpg >>"$LOG_FILE" 2>&1 || true
+        echo "deb [arch=amd64 signed-by=/usr/share/keyrings/butterrepo.gpg] https://justaguylinux.codeberg.page/butterrepo stable main" | root tee /etc/apt/sources.list.d/butterrepo.list >>"$LOG_FILE" 2>&1 || true
         nospin
         log_ok "ButterRepo agregado"
     else
@@ -265,7 +265,7 @@ step_1() {
 
     # Timezone
     if [ "$(timedatectl show -p Timezone --value)" != "America/Mazatlan" ]; then
-        root timedatectl set-timezone America/Mazatlan
+        root timedatectl set-timezone America/Mazatlan || true
         log_ok "Zona horaria: America/Mazatlan"
     else
         log_skip "Zona horaria ya configurada"
@@ -273,11 +273,11 @@ step_1() {
 
     # Locale
     if ! locale -a 2>/dev/null | grep -q "es_MX.utf8"; then
-        root sed -i 's/^# *es_MX\.UTF-8 UTF-8/es_MX.UTF-8 UTF-8/' /etc/locale.gen
+        root sed -i 's/^# *es_MX\.UTF-8 UTF-8/es_MX.UTF-8 UTF-8/' /etc/locale.gen || true
         run_cmd "locale-gen" root locale-gen || true
     fi
     if [ "$(grep ^LANG= /etc/default/locale 2>/dev/null | cut -d= -f2)" != "es_MX.UTF-8" ]; then
-        root update-locale LANG=es_MX.UTF-8
+        root update-locale LANG=es_MX.UTF-8 || true
         log_ok "Locale: es_MX.UTF-8"
     else
         log_skip "Locale ya configurado"
@@ -294,8 +294,8 @@ step_2() {
     if [ ! -f /etc/apt/sources.list.d/xanmod-release.list ]; then
         spin "Agregando repositorio XanMod..."
         run_cmd "nala install lsb-release" root nala install --no-install-recommends -y lsb-release || true
-        wget -qO - https://dl.xanmod.org/archive.key | root gpg --dearmor -vo /etc/apt/keyrings/xanmod-archive-keyring.gpg >>"$LOG_FILE" 2>&1
-        echo "deb [signed-by=/etc/apt/keyrings/xanmod-archive-keyring.gpg] https://deb.xanmod.org $(lsb_release -sc) main non-free" | root tee /etc/apt/sources.list.d/xanmod-release.list >>"$LOG_FILE" 2>&1
+        wget -qO - https://dl.xanmod.org/archive.key | root gpg --dearmor -vo /etc/apt/keyrings/xanmod-archive-keyring.gpg >>"$LOG_FILE" 2>&1 || true
+        echo "deb [signed-by=/etc/apt/keyrings/xanmod-archive-keyring.gpg] https://deb.xanmod.org $(lsb_release -sc) main non-free" | root tee /etc/apt/sources.list.d/xanmod-release.list >>"$LOG_FILE" 2>&1 || true
         nospin
         log_ok "Repositorio XanMod agregado"
     fi
@@ -391,8 +391,8 @@ step_5() {
 
     POLKIT_RULE="/etc/polkit-1/rules.d/90-udisks2-automount.rules"
     if [ ! -f "$POLKIT_RULE" ]; then
-        root mkdir -p /etc/polkit-1/rules.d
-        root tee "$POLKIT_RULE" > /dev/null <<'POLKIT'
+        root mkdir -p /etc/polkit-1/rules.d || true
+        root tee "$POLKIT_RULE" > /dev/null <<'POLKIT' || true
 polkit.addRule(function(action, subject) {
     if ((action.id == "org.freedesktop.udisks2.filesystem-mount" ||
          action.id == "org.freedesktop.udisks2.filesystem-mount-system") &&
@@ -507,14 +507,14 @@ step_7() {
         root rm -f "$NETPLAN_DIR"/*.yaml.bak 2>/dev/null || true
 
         # Escribir nuevo netplan con interfaz detectada
-        root tee "$NETPLAN_FILE" > /dev/null <<NETPLAN
+        root tee "$NETPLAN_FILE" > /dev/null <<NETPLAN || true
 network:
   version: 2
   renderer: NetworkManager
 NETPLAN
 
         if [ -n "$ACTIVE_IFACE" ]; then
-            root tee -a "$NETPLAN_FILE" > /dev/null <<NETPLAN
+            root tee -a "$NETPLAN_FILE" > /dev/null <<NETPLAN || true
   ethernets:
     $ACTIVE_IFACE:
       dhcp4: true
@@ -579,8 +579,8 @@ step_8() {
     # Override para Nautilus
     FLATPAK_OVERRIDE="/etc/flatpak/overrides/global"
     if [ ! -f "$FLATPAK_OVERRIDE" ]; then
-        root mkdir -p /etc/flatpak/overrides
-        root tee "$FLATPAK_OVERRIDE" > /dev/null <<'FLATPAK'
+        root mkdir -p /etc/flatpak/overrides || true
+        root tee "$FLATPAK_OVERRIDE" > /dev/null <<'FLATPAK' || true
 [Context]
 filesystems=xdg-run/gvfs:host;host:ro;
 FLATPAK
@@ -596,19 +596,16 @@ step_9() {
     should_run_step 9 || return 0
     log_step 9 "$TOTAL_STEPS" "Habilitando servicios y configurando entorno Wayland"
 
-    # Servicios
     run_cmd "enable services" root systemctl enable --now udisks2.service bluetooth.service || true
     if ! systemctl is-active NetworkManager >/dev/null 2>&1; then
         run_cmd "enable NetworkManager" root systemctl enable --now NetworkManager || true
     fi
     log_ok "Servicios habilitados: NetworkManager, udisks2, bluetooth"
 
-    # Servicios de usuario
     root loginctl enable-linger "$REAL_USER" >>"$LOG_FILE" 2>&1 || true
     sudo -u "$REAL_USER" bash -c 'export XDG_RUNTIME_DIR="/run/user/$(id -u)"; systemctl --user enable pipewire.socket wireplumber.service' >>"$LOG_FILE" 2>&1 || true
     log_ok "Servicios de usuario habilitados: pipewire, wireplumber"
 
-    # Environment Wayland
     ENV_FILE="$HOME_DIR/.config/environment.d/wayland.conf"
     if [ ! -f "$ENV_FILE" ]; then
         sudo -u "$REAL_USER" mkdir -p "$HOME_DIR/.config/environment.d"
@@ -634,8 +631,8 @@ step_10() {
 
     TLP_CONF="/etc/tlp.d/01-voidforge.conf"
     if [ ! -f "$TLP_CONF" ]; then
-        root mkdir -p /etc/tlp.d
-        root tee "$TLP_CONF" > /dev/null <<'TLP'
+        root mkdir -p /etc/tlp.d || true
+        root tee "$TLP_CONF" > /dev/null <<'TLP' || true
 TLP_ENABLE=1
 CPU_SCALING_GOVERNOR_ON_AC=powersave
 CPU_SCALING_GOVERNOR_ON_BAT=powersave
@@ -677,10 +674,10 @@ TLP
 
     # logind.conf
     LOGIND="/etc/systemd/logind.conf"
-    grep -q "^HandleLidSwitch=suspend$" "$LOGIND" || root sed -i 's/^#HandleLidSwitch=.*/HandleLidSwitch=suspend/' "$LOGIND"
-    grep -q "^HandleLidSwitchExternalPower=suspend$" "$LOGIND" || root sed -i 's/^#HandleLidSwitchExternalPower=.*/HandleLidSwitchExternalPower=suspend/' "$LOGIND"
-    grep -q "^HandleLidSwitchDocked=ignore$" "$LOGIND" || root sed -i 's/^#HandleLidSwitchDocked=.*/HandleLidSwitchDocked=ignore/' "$LOGIND"
-    grep -q "^PowerKeyAction=poweroff$" "$LOGIND" || root sed -i 's/^#PowerKeyAction=.*/PowerKeyAction=poweroff/' "$LOGIND"
+    grep -q "^HandleLidSwitch=suspend$" "$LOGIND" || root sed -i 's/^#HandleLidSwitch=.*/HandleLidSwitch=suspend/' "$LOGIND" || true
+    grep -q "^HandleLidSwitchExternalPower=suspend$" "$LOGIND" || root sed -i 's/^#HandleLidSwitchExternalPower=.*/HandleLidSwitchExternalPower=suspend/' "$LOGIND" || true
+    grep -q "^HandleLidSwitchDocked=ignore$" "$LOGIND" || root sed -i 's/^#HandleLidSwitchDocked=.*/HandleLidSwitchDocked=ignore/' "$LOGIND" || true
+    grep -q "^PowerKeyAction=poweroff$" "$LOGIND" || root sed -i 's/^#PowerKeyAction=.*/PowerKeyAction=poweroff/' "$LOGIND" || true
     log_ok "logind configurado (lid switch, power key)"
 
     save_checkpoint 10
@@ -804,7 +801,7 @@ step_14() {
     spin "Instalando Plymouth..."
     run_cmd "nala install plymouth" root nala install -y plymouth plymouth-themes || true
     nospin
-    root mkdir -p /usr/share/plymouth/themes
+    root mkdir -p /usr/share/plymouth/themes || true
 
     PLYMOUTH_ZIP_PATH=""
     if [ -z "$PLYMOUTH_ZIP_NAME" ]; then
@@ -862,8 +859,8 @@ step_14() {
         spin "Descargando tema GRUB Vimix..."
         run_cmd "git clone GRUB theme" git clone --depth 1 https://github.com/trueNAHO/grub2-theme-vimix-very-dark-blue.git "$GRUB_TMP_DIR" || true
         nospin
-        root install --directory --mode 755 "$GRUB_THEME_PATH"
-        root cp --no-preserve=ownership --recursive "$GRUB_TMP_DIR/src/." "$GRUB_THEME_PATH"
+        root install --directory --mode 755 "$GRUB_THEME_PATH" || true
+        root cp --no-preserve=ownership --recursive "$GRUB_TMP_DIR/src/." "$GRUB_THEME_PATH" || true
         rm -rf "$GRUB_TMP_DIR"
         log_ok "Tema GRUB: Vimix Very Dark Blue"
     else
@@ -876,31 +873,31 @@ step_14() {
     # Agregar parámetros de kernel NVIDIA si hay GPU NVIDIA
     if [ "$HAS_NVIDIA_GPU" -eq 1 ]; then
         log_info "Agregando parámetros de kernel para NVIDIA..."
-        grep -q "nvidia-drm.modeset=1" "$GRUB_CFG" || root sed -i 's/GRUB_CMDLINE_LINUX_DEFAULT="quiet"/GRUB_CMDLINE_LINUX_DEFAULT="quiet splash nvidia-drm.modeset=1 nvidia-drm.fbdev=1 nvidia.NVreg_PreserveVideoMemoryAllocations=1/' "$GRUB_CFG"
-        grep -q "nvidia-drm.modeset=1" "$GRUB_CFG" || root sed -i 's/GRUB_CMDLINE_LINUX_DEFAULT="/GRUB_CMDLINE_LINUX_DEFAULT="quiet splash plymouth:force-recovery splash= nvidia-drm.modeset=1 nvidia-drm.fbdev=1 nvidia.NVreg_PreserveVideoMemoryAllocations=1"/' "$GRUB_CFG"
+        grep -q "nvidia-drm.modeset=1" "$GRUB_CFG" || root sed -i 's/GRUB_CMDLINE_LINUX_DEFAULT="quiet"/GRUB_CMDLINE_LINUX_DEFAULT="quiet splash nvidia-drm.modeset=1 nvidia-drm.fbdev=1 nvidia.NVreg_PreserveVideoMemoryAllocations=1/' "$GRUB_CFG" || true
+        grep -q "nvidia-drm.modeset=1" "$GRUB_CFG" || root sed -i 's/GRUB_CMDLINE_LINUX_DEFAULT="/GRUB_CMDLINE_LINUX_DEFAULT="quiet splash plymouth:force-recovery splash= nvidia-drm.modeset=1 nvidia-drm.fbdev=1 nvidia.NVreg_PreserveVideoMemoryAllocations=1"/' "$GRUB_CFG" || true
     else
-        grep -q "GRUB_CMDLINE_LINUX_DEFAULT=.*splash" "$GRUB_CFG" || root sed -i 's/^GRUB_CMDLINE_LINUX_DEFAULT="/GRUB_CMDLINE_LINUX_DEFAULT="quiet splash plymouth:force-recovery splash=/' "$GRUB_CFG"
+        grep -q "GRUB_CMDLINE_LINUX_DEFAULT=.*splash" "$GRUB_CFG" || root sed -i 's/^GRUB_CMDLINE_LINUX_DEFAULT="/GRUB_CMDLINE_LINUX_DEFAULT="quiet splash plymouth:force-recovery splash=/' "$GRUB_CFG" || true
     fi
 
-    grep -q "GRUB_GFXPAYLOAD_LINUX=keep" "$GRUB_CFG" || root sh -c "echo 'GRUB_GFXPAYLOAD_LINUX=keep' >> \"$GRUB_CFG\""
+    grep -q "GRUB_GFXPAYLOAD_LINUX=keep" "$GRUB_CFG" || root sh -c "echo 'GRUB_GFXPAYLOAD_LINUX=keep' >> \"$GRUB_CFG\"" 2>/dev/null || true
 
     # GRUB_THEME
-    grep -q "^GRUB_THEME=" "$GRUB_CFG" \
+    { grep -q "^GRUB_THEME=" "$GRUB_CFG" \
         && root sed -i "s|^GRUB_THEME=.*|GRUB_THEME=\"$GRUB_THEME_PATH/theme.txt\"|" "$GRUB_CFG" \
-        || root sh -c "echo \"GRUB_THEME=\\\"$GRUB_THEME_PATH/theme.txt\\\"\" >> \"$GRUB_CFG\""
+        || root sh -c "echo \"GRUB_THEME=\\\"$GRUB_THEME_PATH/theme.txt\\\"\" >> \"$GRUB_CFG\""; } || true
 
     log_ok "Configuración GRUB actualizada"
 
     # Initramfs para Plymouth y NVIDIA
-    root mkdir -p /etc/initramfs-tools/conf.d
-    root sh -c "echo 'FRAMEBUFFER=y' > /etc/initramfs-tools/conf.d/splash" 2>/dev/null
+    root mkdir -p /etc/initramfs-tools/conf.d || true
+    root sh -c "echo 'FRAMEBUFFER=y' > /etc/initramfs-tools/conf.d/splash" 2>/dev/null || true
 
     # Módulos NVIDIA en initramfs si hay GPU NVIDIA
     if [ "$HAS_NVIDIA_GPU" -eq 1 ]; then
-        root sh -c "echo 'nvidia' >> /etc/initramfs-tools/modules" 2>/dev/null
-        root sh -c "echo 'nvidia-drm' >> /etc/initramfs-tools/modules" 2>/dev/null
-        root sh -c "echo 'nvidia-modeset' >> /etc/initramfs-tools/modules" 2>/dev/null
-        root sh -c "echo 'nvidia-uvm' >> /etc/initramfs-tools/modules" 2>/dev/null
+        root sh -c "echo 'nvidia' >> /etc/initramfs-tools/modules" 2>/dev/null || true
+        root sh -c "echo 'nvidia-drm' >> /etc/initramfs-tools/modules" 2>/dev/null || true
+        root sh -c "echo 'nvidia-modeset' >> /etc/initramfs-tools/modules" 2>/dev/null || true
+        root sh -c "echo 'nvidia-uvm' >> /etc/initramfs-tools/modules" 2>/dev/null || true
         log_info "Módulos NVIDIA agregados a initramfs"
     else
         root sh -c "echo 'drm' >> /etc/initramfs-tools/modules" 2>/dev/null || true
