@@ -7,8 +7,6 @@
 
 set -euo pipefail
 
-trap 'nospin 2>/dev/null || true' EXIT
-
 # ============================================================
 # CONFIGURACIÓN Y VARIABLES GLOBALES
 # ============================================================
@@ -18,6 +16,7 @@ REAL_USER="${SUDO_USER:-$USER}"
 HOME_DIR="/home/$REAL_USER"
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 CHECKPOINT_FILE="/tmp/voidforge-progress"
+LOG_FILE="/tmp/voidforge.log"
 SKIP_STEPS="${SKIP_STEPS:-}"
 RESUME=${RESUME:-false}
 
@@ -74,42 +73,64 @@ log_step() {
     local total=$2
     local desc=$3
     CURRENT_STEP_NUM=$num
+    log_to_file "=== Paso $num/$total: $desc ==="
     echo -e "\n${C_CYAN}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${C_RESET}"
     echo -e "${C_CYAN}[$num/$total] $desc${C_RESET}"
     echo -e "${C_CYAN}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${C_RESET}\n"
 }
 
 log_ok() {
+    log_to_file "OK: $1"
     echo -e "${C_GREEN}   ✅ $1${C_RESET}"
 }
 
 log_skip() {
+    log_to_file "SKIP: $1"
     echo -e "${C_YELLOW}   ⏭️ $1${C_RESET}"
 }
 
 log_warn() {
+    log_to_file "WARN: $1"
     echo -e "${C_YELLOW}   ⚠️ $1${C_RESET}"
 }
 
 log_error() {
+    log_to_file "ERROR: $1"
     echo -e "${C_RED}   ❌ $1${C_RESET}"
 }
 
 log_info() {
+    log_to_file "INFO: $1"
     echo -e "${C_GRAY}   ℹ️  $1${C_RESET}"
 }
 
+log_to_file() {
+    echo "[$(date '+%Y-%m-%d %H:%M:%S')] $1" >> "$LOG_FILE"
+}
+
+run_cmd() {
+    local desc="$1"
+    shift
+    log_to_file "CMD: $*"
+    "$@" >>"$LOG_FILE" 2>&1
+}
+
 SPINNER_PID=""
+SPINNER_MSG=""
 
 start_spinner() {
-    local msg="${1:-Trabajando...}"
-    local chars="⠋⠙⠹⠸⠼⠴⠦⠧⠇⠏"
+    SPINNER_MSG="${1:-Trabajando...}"
+    local bar_width=20
+    local pos=0
     tput civis 2>/dev/null || true
     while true; do
-        for ((i=0; i<${#chars}; i++)); do
-            printf "\r   ${chars:$i:1} %s" "$msg"
-            sleep 0.1
-        done
+        local filled=""
+        local empty=""
+        for ((j=0; j<pos; j++)); do filled+="="; done
+        for ((j=pos; j<bar_width; j++)); do empty+="-"; done
+        printf "\r   ${C_CYAN}[%s%s]${C_RESET} %s" "$filled" "$empty" "$SPINNER_MSG"
+        pos=$(( (pos + 1) % (bar_width + 1) ))
+        sleep 0.12
     done
 }
 
@@ -118,7 +139,7 @@ stop_spinner() {
         kill "$SPINNER_PID" 2>/dev/null || true
         wait "$SPINNER_PID" 2>/dev/null || true
         SPINNER_PID=""
-        printf "\r%*s\r" 60 ""
+        printf "\r%*s\r" 70 ""
         tput cnorm 2>/dev/null || true
     fi
 }
@@ -131,6 +152,21 @@ spin() {
 nospin() {
     stop_spinner
 }
+
+error_handler() {
+    local exit_code=$1
+    local line_no=$2
+    local command="$3"
+    nospin 2>/dev/null || true
+    log_error "Error en linea $line_no: $command (codigo $exit_code)"
+    log_to_file "FATAL: linea $line_no, comando: $command, exit: $exit_code"
+    log_to_file "Revisa el log completo: $LOG_FILE"
+    echo -e "\n${C_RED}   Log de errores: $LOG_FILE${C_RESET}\n"
+    exit "$exit_code"
+}
+
+trap 'nospin 2>/dev/null || true' EXIT
+trap 'error_handler $? $LINENO "$BASH_COMMAND"' ERR
 
 save_checkpoint() {
     echo "$1" > "$CHECKPOINT_FILE"
@@ -169,7 +205,8 @@ step_0() {
     log_step 0 "$TOTAL_STEPS" "Instalando herramientas base"
     
     spin "Instalando herramientas base..."
-    { apt update >/dev/null 2>&1 && apt install -y nala wget tar unzip file zsh git curl ca-certificates pciutils locales >/dev/null 2>&1; } || true
+    run_cmd "apt update" apt update
+    run_cmd "apt install base" apt install -y nala wget tar unzip file zsh git curl ca-certificates pciutils locales
     nospin
     log_ok "Herramientas base instaladas (nala, wget, git, curl, zsh, pciutils, locales)"
     save_checkpoint 0
@@ -182,7 +219,8 @@ step_1() {
     # ButterRepo
     if [ ! -f /etc/apt/sources.list.d/butterrepo.list ]; then
         spin "Agregando ButterRepo..."
-        { curl -fsSL https://justaguylinux.codeberg.page/butterrepo/key.asc | gpg --dearmor -o /usr/share/keyrings/butterrepo.gpg && echo "deb [arch=amd64 signed-by=/usr/share/keyrings/butterrepo.gpg] https://justaguylinux.codeberg.page/butterrepo stable main" | tee /etc/apt/sources.list.d/butterrepo.list >/dev/null 2>&1; } || true
+        curl -fsSL https://justaguylinux.codeberg.page/butterrepo/key.asc | gpg --dearmor -o /usr/share/keyrings/butterrepo.gpg >>"$LOG_FILE" 2>&1
+        echo "deb [arch=amd64 signed-by=/usr/share/keyrings/butterrepo.gpg] https://justaguylinux.codeberg.page/butterrepo stable main" | tee /etc/apt/sources.list.d/butterrepo.list >>"$LOG_FILE" 2>&1
         nospin
         log_ok "ButterRepo agregado"
     else
@@ -191,12 +229,13 @@ step_1() {
     
     # Update y upgrade
     spin "Actualizando sistema..."
-    { nala update >/dev/null 2>&1 && nala upgrade -y >/dev/null 2>&1; } || true
+    run_cmd "nala update" nala update
+    run_cmd "nala upgrade" nala upgrade -y
     nospin
     log_ok "Sistema actualizado"
     
     # Grupos
-    usermod -aG video,render,audio,plugdev,netdev "$REAL_USER" 2>/dev/null || true
+    usermod -aG video,render,audio,plugdev,netdev "$REAL_USER" >>"$LOG_FILE" 2>&1 || true
     log_ok "Usuario agregado a grupos"
     
     # Timezone
@@ -210,9 +249,9 @@ step_1() {
     # Locale
     if ! locale -a 2>/dev/null | grep -q "es_MX.utf8"; then
         sed -i 's/^# *es_MX\.UTF-8 UTF-8/es_MX.UTF-8 UTF-8/' /etc/locale.gen
-        locale-gen >/dev/null 2>&1
+        run_cmd "locale-gen" locale-gen
     fi
-    if [ "$(cat /etc/default/locale 2>/dev/null | grep ^LANG= | cut -d= -f2)" != "es_MX.UTF-8" ]; then
+    if [ "$(grep ^LANG= /etc/default/locale 2>/dev/null | cut -d= -f2)" != "es_MX.UTF-8" ]; then
         update-locale LANG=es_MX.UTF-8
         log_ok "Locale: es_MX.UTF-8"
     else
@@ -229,14 +268,18 @@ step_2() {
     # Agregar repo XanMod
     if [ ! -f /etc/apt/sources.list.d/xanmod-release.list ]; then
         spin "Agregando repositorio XanMod..."
-        { nala install --no-install-recommends -y lsb-release >/dev/null 2>&1 && wget -qO - https://dl.xanmod.org/archive.key | gpg --dearmor -vo /etc/apt/keyrings/xanmod-archive-keyring.gpg && echo "deb [signed-by=/etc/apt/keyrings/xanmod-archive-keyring.gpg] http://deb.xanmod.org $(lsb_release -sc) main non-free" | tee /etc/apt/sources.list.d/xanmod-release.list >/dev/null 2>&1; } || true
+        run_cmd "nala install lsb-release" nala install --no-install-recommends -y lsb-release
+        wget -qO - https://dl.xanmod.org/archive.key | gpg --dearmor -vo /etc/apt/keyrings/xanmod-archive-keyring.gpg >>"$LOG_FILE" 2>&1
+        echo "deb [signed-by=/etc/apt/keyrings/xanmod-archive-keyring.gpg] http://deb.xanmod.org $(lsb_release -sc) main non-free" | tee /etc/apt/sources.list.d/xanmod-release.list >>"$LOG_FILE" 2>&1
         nospin
         log_ok "Repositorio XanMod agregado"
     fi
     
     if ! uname -r 2>/dev/null | grep -q "xanmod"; then
         spin "Instalando kernel XanMod x64v3..."
-        { nala update >/dev/null 2>&1 && nala install -y linux-xanmod-x64v3 >/dev/null 2>&1 && nala install --no-install-recommends -y dkms libelf-dev clang lld llvm >/dev/null 2>&1; } || true
+        run_cmd "nala update" nala update
+        run_cmd "nala install xanmod" nala install -y linux-xanmod-x64v3
+        run_cmd "nala install dkms" nala install --no-install-recommends -y dkms libelf-dev clang lld llvm || true
         nospin
         log_ok "Kernel XanMod x64v3 instalado (requiere reinicio para aplicar)"
     else
@@ -258,28 +301,28 @@ step_3() {
         
         if [ "$HAS_NVIDIA" -eq 1 ]; then
             spin "Actualizando repositorios..."
-            nala update >/dev/null 2>&1
+            run_cmd "nala update" nala update
             nospin
             
             if [ "$HAS_INTEL" -eq 1 ]; then
                 log_info "Detectado sistema hibrido Intel + NVIDIA"
                 spin "Instalando driver NVIDIA 595-open + prime..."
-                nala install -y nvidia-driver-595-open nvidia-prime nvidia-settings >/dev/null 2>&1 || true
+                run_cmd "nala install nvidia+prime" nala install -y nvidia-driver-595-open nvidia-prime nvidia-settings || true
                 nospin
-                prime-select on-demand 2>/dev/null || true
+                prime-select on-demand >>"$LOG_FILE" 2>&1 || true
                 HAS_NVIDIA_GPU=1
                 log_ok "Driver NVIDIA 595-open + prime instalados (usa prime-run para GPU discreta)"
             else
                 log_info "Detectada solo NVIDIA"
                 spin "Instalando driver NVIDIA 595-open..."
-                nala install -y nvidia-driver-595-open nvidia-settings >/dev/null 2>&1 || true
+                run_cmd "nala install nvidia" nala install -y nvidia-driver-595-open nvidia-settings || true
                 nospin
                 HAS_NVIDIA_GPU=1
                 log_ok "Driver NVIDIA 595-open instalado"
             fi
             
             for svc in nvidia-suspend nvidia-resume nvidia-hibernate; do
-                systemctl enable "$svc" 2>/dev/null || true
+                systemctl enable "$svc" >>"$LOG_FILE" 2>&1 || true
             done
             log_ok "Servicios suspend/resume NVIDIA habilitados"
         else
@@ -296,9 +339,8 @@ step_4() {
     should_run_step 4 || return 0
     log_step 4 "$TOTAL_STEPS" "Instalando paquetes del sistema (Wayland, Nautilus, Apps, Audio, Codecs, Flatpak, TLP, Fonts)"
     
-    # Mega-instalación de todos los paquetes en una sola llamada
     spin "Instalando todos los paquetes (esto puede tardar)..."
-    nala install --no-install-recommends -y \
+    run_cmd "mega-install" nala install --no-install-recommends -y \
         wayland-protocols libwayland-dev libegl1 \
         libgl1-mesa-dri mesa-vulkan-drivers xwayland \
         nautilus gvfs-backends gvfs-fuse udisks2 polkitd \
@@ -311,8 +353,7 @@ step_4() {
         bluez bluez-tools pipewire-pulse \
         ubuntu-restricted-extras gstreamer1.0-plugins-bad \
         gstreamer1.0-libav ffmpegthumbnailer \
-        flatpak tlp tlp-rdw fonts-powerline \
-        >/dev/null 2>&1 || true
+        flatpak tlp tlp-rdw fonts-powerline || true
     nospin
     
     log_ok "Todos los paquetes instalados"
@@ -347,17 +388,37 @@ step_6() {
     should_run_step 6 || return 0
     log_step 6 "$TOTAL_STEPS" "Configurando xdg-user-dirs y UFW"
     
-    if [ ! -d "$HOME_DIR/Documentos" ] && [ ! -d "$HOME_DIR/Documents" ]; then
-        sudo -u "$REAL_USER" xdg-user-dirs-update >/dev/null 2>&1 || true
-        log_ok "Directorios de usuario creados"
+    if [ -d "$HOME_DIR/Documentos" ] || [ -d "$HOME_DIR/Documents" ]; then
+        echo -e "${C_YELLOW}   Los directorios de usuario ya existen.${C_RESET}"
+        echo -ne "${C_WHITE}   ¿Recrearlos? [s/N]: ${C_RESET}"
+        read -r respuesta
+        if [[ "$respuesta" =~ ^[Ss]$ ]]; then
+            spin "Recreando directorios de usuario..."
+            sudo -u "$REAL_USER" rm -rf "$HOME_DIR/Documentos" "$HOME_DIR/Documents" \
+                "$HOME_DIR/Descargas" "$HOME_DIR/Downloads" \
+                "$HOME_DIR/Escritorio" "$HOME_DIR/Desktop" \
+                "$HOME_DIR/Imágenes" "$HOME_DIR/Pictures" \
+                "$HOME_DIR/Música" "$HOME_DIR/Music" \
+                "$HOME_DIR/Vídeos" "$HOME_DIR/Videos" \
+                "$HOME_DIR/Plantillas" "$HOME_DIR/Templates" \
+                "$HOME_DIR/Público" "$HOME_DIR/Public" 2>/dev/null || true
+            run_cmd "xdg-user-dirs-update" sudo -u "$REAL_USER" xdg-user-dirs-update
+            nospin
+            log_ok "Directorios de usuario recreados"
+        else
+            log_skip "Directorios de usuario conservados"
+        fi
     else
-        log_skip "Directorios de usuario ya existen"
+        spin "Creando directorios de usuario..."
+        run_cmd "xdg-user-dirs-update" sudo -u "$REAL_USER" xdg-user-dirs-update
+        nospin
+        log_ok "Directorios de usuario creados"
     fi
     
     if ! ufw status 2>/dev/null | grep -q "Status: active"; then
-        ufw default deny incoming >/dev/null 2>&1
-        ufw default allow outgoing >/dev/null 2>&1
-        echo "y" | ufw enable >/dev/null 2>&1
+        run_cmd "ufw default deny" ufw default deny incoming
+        run_cmd "ufw default allow" ufw default allow outgoing
+        echo "y" | run_cmd "ufw enable" ufw enable
         log_ok "UFW habilitado (deny incoming, allow outgoing)"
     else
         log_skip "UFW ya está activo"
@@ -371,9 +432,9 @@ step_7() {
     log_step 7 "$TOTAL_STEPS" "Configurando red y optimizando boot"
     
     # systemd-networkd-wait-online
-    if ! systemctl is-masked systemd-networkd-wait-online.service >/dev/null 2>&1; then
-        systemctl disable systemd-networkd-wait-online.service >/dev/null 2>&1
-        systemctl mask systemd-networkd-wait-online.service >/dev/null 2>&1
+    if ! systemctl is-masked systemd-networkd-wait-online.service 2>/dev/null; then
+        run_cmd "disable wait-online" systemctl disable systemd-networkd-wait-online.service
+        run_cmd "mask wait-online" systemctl mask systemd-networkd-wait-online.service
         log_ok "systemd-networkd-wait-online desactivado (evita bloqueos de 5 min)"
     else
         log_skip "systemd-networkd-wait-online ya desactivado"
@@ -389,7 +450,7 @@ network:
   version: 2
   renderer: NetworkManager
 NETPLAN
-        netplan apply >/dev/null 2>&1
+        run_cmd "netplan apply" netplan apply
         log_ok "Netplan configurado (renderer: NetworkManager)"
     else
         log_skip "Netplan ya configurado"
@@ -404,7 +465,7 @@ step_8() {
     
     if ! flatpak remotes 2>/dev/null | grep -q "flathub"; then
         spin "Agregando Flathub..."
-        flatpak remote-add --if-not-exists flathub https://dl.flathub.org/repo/flathub.flatrepo >/dev/null 2>&1 || true
+        run_cmd "flatpak remote-add" flatpak remote-add --if-not-exists flathub https://dl.flathub.org/repo/flathub.flatrepo || true
         nospin
         log_ok "Flathub agregado"
     else
@@ -414,7 +475,7 @@ step_8() {
     for app in org.gnome.Papers net.nokyan.Resources org.gnome.Showtime; do
         flatpak list 2>/dev/null | grep -q "$app" || {
             spin "Instalando $app..."
-            flatpak install --system -y flathub "$app" >/dev/null 2>&1 || log_warn "$app no instalado"
+            run_cmd "flatpak install $app" flatpak install --system -y flathub "$app" || log_warn "$app no instalado"
             nospin
         }
     done
@@ -441,12 +502,12 @@ step_9() {
     log_step 9 "$TOTAL_STEPS" "Habilitando servicios y configurando entorno Wayland"
     
     # Servicios
-    systemctl enable --now NetworkManager udisks2.service bluetooth.service >/dev/null 2>&1 || true
+    run_cmd "enable services" systemctl enable --now NetworkManager udisks2.service bluetooth.service || true
     log_ok "Servicios habilitados: NetworkManager, udisks2, bluetooth"
     
     # Servicios de usuario
-    loginctl enable-linger "$REAL_USER" >/dev/null 2>&1 || true
-    sudo -u "$REAL_USER" bash -c 'export XDG_RUNTIME_DIR="/run/user/$(id -u)"; systemctl --user enable pipewire.socket wireplumber.service' >/dev/null 2>&1 || true
+    loginctl enable-linger "$REAL_USER" >>"$LOG_FILE" 2>&1 || true
+    sudo -u "$REAL_USER" bash -c 'export XDG_RUNTIME_DIR="/run/user/$(id -u)"; systemctl --user enable pipewire.socket wireplumber.service' >>"$LOG_FILE" 2>&1 || true
     log_ok "Servicios de usuario habilitados: pipewire, wireplumber"
     
     # Environment Wayland
@@ -509,7 +570,7 @@ NATACPI_ENABLE=1
 TPACPI_ENABLE=1
 TPSMAPI_ENABLE=1
 TLP
-        systemctl enable tlp >/dev/null 2>&1
+        run_cmd "enable tlp" systemctl enable tlp
         log_ok "TLP configurado y habilitado"
     else
         log_skip "TLP ya configurado"
@@ -531,7 +592,7 @@ step_11() {
     log_step 11 "$TOTAL_STEPS" "Configurando Oh My Zsh con tema agnoster"
     
     if [ "$(getent passwd "$REAL_USER" 2>/dev/null | cut -d: -f7)" != "$(which zsh)" ]; then
-        chsh -s "$(which zsh)" "$REAL_USER" 2>/dev/null || true
+        chsh -s "$(which zsh)" "$REAL_USER" >>"$LOG_FILE" 2>&1 || true
         log_ok "Shell por defecto: zsh"
     fi
     
@@ -540,7 +601,7 @@ step_11() {
         if sudo -u "$REAL_USER" bash -c '
             sh -c "$(curl -fsSL https://raw.githubusercontent.com/ohmyzsh/ohmyzsh/master/tools/install.sh)" "" --unattended
             sed -i "s/^ZSH_THEME=.*/ZSH_THEME=\"agnoster\"/" "$HOME/.zshrc"
-        ' >/dev/null 2>&1; then
+        ' >>"$LOG_FILE" 2>&1; then
             nospin
             log_ok "Oh My Zsh instalado, tema: agnoster"
         else
@@ -548,8 +609,28 @@ step_11() {
             log_warn "Oh My Zsh no se pudo instalar (sin conexion o error de descarga)"
         fi
     else
-        sudo -u "$REAL_USER" sed -i "s/^ZSH_THEME=.*/ZSH_THEME=\"agnoster\"/" "$HOME_DIR/.zshrc" 2>/dev/null || true
-        log_skip "Oh My Zsh ya instalado"
+        if [ -d "$HOME_DIR/.oh-my-zsh" ]; then
+            echo -e "${C_YELLOW}   Oh My Zsh ya esta instalado.${C_RESET}"
+            echo -ne "${C_WHITE}   ¿Reinstalar? [s/N]: ${C_RESET}"
+            read -r respuesta
+            if [[ "$respuesta" =~ ^[Ss]$ ]]; then
+                spin "Reinstalando Oh My Zsh..."
+                sudo -u "$REAL_USER" rm -rf "$HOME_DIR/.oh-my-zsh" 2>/dev/null || true
+                if sudo -u "$REAL_USER" bash -c '
+                    sh -c "$(curl -fsSL https://raw.githubusercontent.com/ohmyzsh/ohmyzsh/master/tools/install.sh)" "" --unattended
+                    sed -i "s/^ZSH_THEME=.*/ZSH_THEME=\"agnoster\"/" "$HOME/.zshrc"
+                ' >>"$LOG_FILE" 2>&1; then
+                    nospin
+                    log_ok "Oh My Zsh reinstalado, tema: agnoster"
+                else
+                    nospin
+                    log_warn "Oh My Zsh no se pudo reinstalar"
+                fi
+            else
+                sudo -u "$REAL_USER" sed -i "s/^ZSH_THEME=.*/ZSH_THEME=\"agnoster\"/" "$HOME_DIR/.zshrc" >>"$LOG_FILE" 2>&1 || true
+                log_skip "Oh My Zsh conservado"
+            fi
+        fi
     fi
     
     save_checkpoint 11
@@ -562,10 +643,10 @@ step_12() {
     if [ ! -d /usr/share/icons/Colloid-catppuccin-green-dark ]; then
         ICON_TMP_DIR="$(mktemp --directory)"
         spin "Descargando tema de iconos Colloid..."
-        git clone --depth 1 https://github.com/vinceliuice/Colloid-icon-theme.git "$ICON_TMP_DIR" 2>/dev/null || true
+        run_cmd "git clone Colloid" git clone --depth 1 https://github.com/vinceliuice/Colloid-icon-theme.git "$ICON_TMP_DIR" || true
         nospin
         spin "Instalando tema Colloid..."
-        "$ICON_TMP_DIR/install.sh" -b -s catppuccin -t green >/dev/null 2>&1 || true
+        run_cmd "Colloid install" "$ICON_TMP_DIR/install.sh" -b -s catppuccin -t green || true
         nospin
         rm -rf "$ICON_TMP_DIR"
         log_ok "Tema Colloid (catppuccin green) instalado"
@@ -582,7 +663,7 @@ step_13() {
     
     # Plymouth theme desde ZIP
     spin "Instalando Plymouth..."
-    nala install -y plymouth plymouth-themes >/dev/null 2>&1 || true
+    run_cmd "nala install plymouth" nala install -y plymouth plymouth-themes || true
     nospin
     mkdir -p /usr/share/plymouth/themes
     
@@ -601,7 +682,7 @@ step_13() {
         
         if [ ! -f "$PLYMOUTH_FILE" ]; then
             TEMP_DIR=$(mktemp -d)
-            unzip -q "$PLYMOUTH_ZIP_PATH" -d "$TEMP_DIR" 2>/dev/null || true
+            run_cmd "unzip plymouth" unzip -q "$PLYMOUTH_ZIP_PATH" -d "$TEMP_DIR" || true
             
             if [ -d "$TEMP_DIR/$THEME_NAME" ]; then
                 cp -r "$TEMP_DIR/$THEME_NAME" "$PLYMOUTH_THEME_DIR" 2>/dev/null || true
@@ -615,8 +696,8 @@ step_13() {
         fi
         
         if [ -f "$PLYMOUTH_FILE" ]; then
-            update-alternatives --install /usr/share/plymouth/themes/default.plymouth default.plymouth "$PLYMOUTH_FILE" 100 >/dev/null 2>&1 || true
-            update-alternatives --set default.plymouth "$PLYMOUTH_FILE" >/dev/null 2>&1 || true
+            run_cmd "update-alternatives install" update-alternatives --install /usr/share/plymouth/themes/default.plymouth default.plymouth "$PLYMOUTH_FILE" 100 || true
+            run_cmd "update-alternatives set" update-alternatives --set default.plymouth "$PLYMOUTH_FILE" || true
             
             if update-alternatives --query default.plymouth 2>/dev/null | grep -q "Value: $PLYMOUTH_FILE"; then
                 log_ok "Tema Plymouth: $THEME_NAME"
@@ -640,7 +721,7 @@ step_13() {
     if [ ! -f "$GRUB_THEME_PATH/theme.txt" ]; then
         GRUB_TMP_DIR="$(mktemp --directory)"
         spin "Descargando tema GRUB Vimix..."
-        git clone --depth 1 https://github.com/trueNAHO/grub2-theme-vimix-very-dark-blue.git "$GRUB_TMP_DIR" 2>/dev/null || true
+        run_cmd "git clone GRUB theme" git clone --depth 1 https://github.com/trueNAHO/grub2-theme-vimix-very-dark-blue.git "$GRUB_TMP_DIR" || true
         nospin
         install --directory --mode 755 "$GRUB_THEME_PATH"
         cp --no-preserve=ownership --recursive "$GRUB_TMP_DIR/src/." "$GRUB_THEME_PATH"
@@ -687,7 +768,8 @@ step_13() {
     fi
     
     spin "Regenerando GRUB e initramfs..."
-    { grub-mkconfig -o /boot/grub/grub.cfg >/dev/null 2>&1 && update-initramfs -u >/dev/null 2>&1; } || true
+    run_cmd "grub-mkconfig" grub-mkconfig -o /boot/grub/grub.cfg
+    run_cmd "update-initramfs" update-initramfs -u
     nospin
     log_ok "GRUB e initramfs regenerados"
     
@@ -699,7 +781,8 @@ step_14() {
     log_step 14 "$TOTAL_STEPS" "Limpieza de paquetes huerfanos"
     
     spin "Limpiando paquetes huerfanos..."
-    { nala autoremove -y >/dev/null 2>&1 && nala clean >/dev/null 2>&1; } || true
+    run_cmd "nala autoremove" nala autoremove -y
+    run_cmd "nala clean" nala clean
     nospin
     log_ok "Paquetes huérfanos eliminados, caché limpiada"
     
@@ -712,7 +795,7 @@ step_15() {
     
     echo -e "\n${C_CYAN}Iniciando instalador Dank Linux...${C_RESET}\n"
     spin "Ejecutando asistente Dank Linux..."
-    sudo -u "$REAL_USER" bash -c 'curl -fsSL https://install.danklinux.com | sh' || true
+    sudo -u "$REAL_USER" bash -c 'curl -fsSL https://install.danklinux.com | sh' >>"$LOG_FILE" 2>&1 || true
     nospin
     
     log_ok "Asistente Dank Linux completado"
@@ -770,6 +853,7 @@ print_summary() {
     echo -e "  ${C_GRAY}tlp-stat${C_RESET}                — Ver estado de ahorro de energía"
     echo -e "  ${C_GRAY}ufw status${C_RESET}               — Ver estado del firewall"
     echo -e "  ${C_GRAY}flatpak list${C_RESET}            — Ver aplicaciones Flatpak instaladas"
+    echo -e "\n${C_GRAY}Log completo: $LOG_FILE${C_RESET}"
     echo -e "\n${C_GREEN}¡Tu sistema está listo! 🚀${C_RESET}\n"
 }
 
@@ -907,6 +991,11 @@ main() {
         echo -e "${C_RED}Este script debe ejecutarse como root - sudo.${C_RESET}"
         exit 1
     fi
+    
+    # Inicializar log
+    echo "=== VoidForge v${VERSION} - $(date) ===" > "$LOG_FILE"
+    echo "Usuario: $REAL_USER | Home: $HOME_DIR | Script: $SCRIPT_DIR" >> "$LOG_FILE"
+    log_info "Log de la sesion: $LOG_FILE"
     
     # Si hay args CLI, procesarlos
     if [[ $# -gt 0 ]]; then
