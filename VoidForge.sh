@@ -205,8 +205,8 @@ step_0() {
     log_step 0 "$TOTAL_STEPS" "Instalando herramientas base"
     
     spin "Instalando herramientas base..."
-    run_cmd "apt update" apt update
-    run_cmd "apt install base" apt install -y nala wget tar unzip file zsh git curl ca-certificates pciutils locales
+    run_cmd "apt update" apt update || true
+    run_cmd "apt install base" apt install -y nala wget tar unzip file zsh git curl ca-certificates pciutils locales || true
     nospin
     log_ok "Herramientas base instaladas (nala, wget, git, curl, zsh, pciutils, locales)"
     save_checkpoint 0
@@ -229,8 +229,8 @@ step_1() {
     
     # Update y upgrade
     spin "Actualizando sistema..."
-    run_cmd "nala update" nala update
-    run_cmd "nala upgrade" nala upgrade -y
+    run_cmd "nala update" nala update || true
+    run_cmd "nala upgrade" nala upgrade -y || true
     nospin
     log_ok "Sistema actualizado"
     
@@ -249,7 +249,7 @@ step_1() {
     # Locale
     if ! locale -a 2>/dev/null | grep -q "es_MX.utf8"; then
         sed -i 's/^# *es_MX\.UTF-8 UTF-8/es_MX.UTF-8 UTF-8/' /etc/locale.gen
-        run_cmd "locale-gen" locale-gen
+        run_cmd "locale-gen" locale-gen || true
     fi
     if [ "$(grep ^LANG= /etc/default/locale 2>/dev/null | cut -d= -f2)" != "es_MX.UTF-8" ]; then
         update-locale LANG=es_MX.UTF-8
@@ -268,7 +268,7 @@ step_2() {
     # Agregar repo XanMod
     if [ ! -f /etc/apt/sources.list.d/xanmod-release.list ]; then
         spin "Agregando repositorio XanMod..."
-        run_cmd "nala install lsb-release" nala install --no-install-recommends -y lsb-release
+        run_cmd "nala install lsb-release" nala install --no-install-recommends -y lsb-release || true
         wget -qO - https://dl.xanmod.org/archive.key | gpg --dearmor -vo /etc/apt/keyrings/xanmod-archive-keyring.gpg >>"$LOG_FILE" 2>&1
         echo "deb [signed-by=/etc/apt/keyrings/xanmod-archive-keyring.gpg] http://deb.xanmod.org $(lsb_release -sc) main non-free" | tee /etc/apt/sources.list.d/xanmod-release.list >>"$LOG_FILE" 2>&1
         nospin
@@ -277,8 +277,8 @@ step_2() {
     
     if ! uname -r 2>/dev/null | grep -q "xanmod"; then
         spin "Instalando kernel XanMod x64v3..."
-        run_cmd "nala update" nala update
-        run_cmd "nala install xanmod" nala install -y linux-xanmod-x64v3
+        run_cmd "nala update" nala update || true
+        run_cmd "nala install xanmod" nala install -y linux-xanmod-x64v3 || true
         run_cmd "nala install dkms" nala install --no-install-recommends -y dkms libelf-dev clang lld llvm || true
         nospin
         log_ok "Kernel XanMod x64v3 instalado (requiere reinicio para aplicar)"
@@ -301,7 +301,7 @@ step_3() {
         
         if [ "$HAS_NVIDIA" -eq 1 ]; then
             spin "Actualizando repositorios..."
-            run_cmd "nala update" nala update
+            run_cmd "nala update" nala update || true
             nospin
             
             if [ "$HAS_INTEL" -eq 1 ]; then
@@ -345,7 +345,7 @@ step_4() {
         libgl1-mesa-dri mesa-vulkan-drivers xwayland \
         nautilus gvfs-backends gvfs-fuse udisks2 polkitd \
         ntfs-3g exfatprogs libglib2.0-bin \
-        neovim zen-browser tmux fastfetch geany nwg-look \
+        neovim zen-browser tmux fastfetch geany nwg-look foot \
         libheif-plugin-libde265 ufw gnome-sushi xdg-user-dirs \
         pipewire wireplumber libpipewire-0.3-0 libwireplumber-0.5-0 \
         dbus-user-session network-manager libnm0 \
@@ -402,7 +402,7 @@ step_6() {
                 "$HOME_DIR/Vídeos" "$HOME_DIR/Videos" \
                 "$HOME_DIR/Plantillas" "$HOME_DIR/Templates" \
                 "$HOME_DIR/Público" "$HOME_DIR/Public" 2>/dev/null || true
-            run_cmd "xdg-user-dirs-update" sudo -u "$REAL_USER" xdg-user-dirs-update
+            sudo -u "$REAL_USER" xdg-user-dirs-update >>"$LOG_FILE" 2>&1 || log_warn "xdg-user-dirs-update fallo"
             nospin
             log_ok "Directorios de usuario recreados"
         else
@@ -410,18 +410,24 @@ step_6() {
         fi
     else
         spin "Creando directorios de usuario..."
-        run_cmd "xdg-user-dirs-update" sudo -u "$REAL_USER" xdg-user-dirs-update
+        sudo -u "$REAL_USER" xdg-user-dirs-update >>"$LOG_FILE" 2>&1 || log_warn "xdg-user-dirs-update fallo"
         nospin
         log_ok "Directorios de usuario creados"
     fi
     
     if ! ufw status 2>/dev/null | grep -q "Status: active"; then
-        run_cmd "ufw default deny" ufw default deny incoming
-        run_cmd "ufw default allow" ufw default allow outgoing
-        echo "y" | run_cmd "ufw enable" ufw enable
-        log_ok "UFW habilitado (deny incoming, allow outgoing)"
+        ufw default deny incoming >>"$LOG_FILE" 2>&1 || true
+        ufw default allow outgoing >>"$LOG_FILE" 2>&1 || true
+        echo "y" | ufw enable >>"$LOG_FILE" 2>&1 || true
+        ufw allow ssh >>"$LOG_FILE" 2>&1 || true
+        log_ok "UFW habilitado (deny incoming, allow outgoing, SSH permitido)"
     else
-        log_skip "UFW ya está activo"
+        if ! ufw status 2>/dev/null | grep -q "22/tcp"; then
+            ufw allow ssh >>"$LOG_FILE" 2>&1 || true
+            log_ok "Regla SSH agregada a UFW"
+        else
+            log_skip "UFW ya está activo con SSH"
+        fi
     fi
     
     save_checkpoint 6
@@ -433,8 +439,8 @@ step_7() {
     
     # systemd-networkd-wait-online
     if ! systemctl is-masked systemd-networkd-wait-online.service 2>/dev/null; then
-        run_cmd "disable wait-online" systemctl disable systemd-networkd-wait-online.service
-        run_cmd "mask wait-online" systemctl mask systemd-networkd-wait-online.service
+        run_cmd "disable wait-online" systemctl disable systemd-networkd-wait-online.service || true
+        run_cmd "mask wait-online" systemctl mask systemd-networkd-wait-online.service || true
         log_ok "systemd-networkd-wait-online desactivado (evita bloqueos de 5 min)"
     else
         log_skip "systemd-networkd-wait-online ya desactivado"
@@ -450,7 +456,7 @@ network:
   version: 2
   renderer: NetworkManager
 NETPLAN
-        run_cmd "netplan apply" netplan apply
+        run_cmd "netplan apply" netplan apply || true
         log_ok "Netplan configurado (renderer: NetworkManager)"
     else
         log_skip "Netplan ya configurado"
@@ -463,23 +469,39 @@ step_8() {
     should_run_step 8 || return 0
     log_step 8 "$TOTAL_STEPS" "Configurando Flatpak y aplicaciones"
     
+    FLATHUB_OK=false
     if ! flatpak remotes 2>/dev/null | grep -q "flathub"; then
         spin "Agregando Flathub..."
-        run_cmd "flatpak remote-add" flatpak remote-add --if-not-exists flathub https://dl.flathub.org/repo/flathub.flatrepo || true
-        nospin
-        log_ok "Flathub agregado"
+        if run_cmd "flatpak remote-add" flatpak remote-add --if-not-exists flathub https://dl.flathub.org/repo/flathub.flatpakrepo; then
+            nospin
+            log_ok "Flathub agregado"
+            FLATHUB_OK=true
+        else
+            nospin
+            log_warn "No se pudo agregar Flathub, se omitiran las aplicaciones Flatpak"
+        fi
     else
         log_skip "Flathub ya existe"
+        FLATHUB_OK=true
     fi
     
-    for app in org.gnome.Papers net.nokyan.Resources org.gnome.Showtime; do
-        flatpak list 2>/dev/null | grep -q "$app" || {
-            spin "Instalando $app..."
-            run_cmd "flatpak install $app" flatpak install --system -y flathub "$app" || log_warn "$app no instalado"
-            nospin
-        }
-    done
-    log_ok "Aplicaciones Flatpak instaladas"
+    if [ "$FLATHUB_OK" = true ]; then
+        for app in org.gnome.Papers net.nokyan.Resources org.gnome.Showtime; do
+            if flatpak list --app 2>/dev/null | grep -q "$app"; then
+                log_skip "$app ya instalado"
+            else
+                spin "Instalando $app..."
+                if run_cmd "flatpak install $app" flatpak install --system -y flathub "$app"; then
+                    nospin
+                    log_ok "$app instalado"
+                else
+                    nospin
+                    log_warn "$app no se pudo instalar"
+                fi
+            fi
+        done
+    fi
+    log_ok "Paso Flatpak completado"
     
     # Override para Nautilus
     FLATPAK_OVERRIDE="/etc/flatpak/overrides/global"
@@ -570,7 +592,7 @@ NATACPI_ENABLE=1
 TPACPI_ENABLE=1
 TPSMAPI_ENABLE=1
 TLP
-        run_cmd "enable tlp" systemctl enable tlp
+        run_cmd "enable tlp" systemctl enable tlp || true
         log_ok "TLP configurado y habilitado"
     else
         log_skip "TLP ya configurado"
@@ -768,8 +790,8 @@ step_13() {
     fi
     
     spin "Regenerando GRUB e initramfs..."
-    run_cmd "grub-mkconfig" grub-mkconfig -o /boot/grub/grub.cfg
-    run_cmd "update-initramfs" update-initramfs -u
+    run_cmd "grub-mkconfig" grub-mkconfig -o /boot/grub/grub.cfg || true
+    run_cmd "update-initramfs" update-initramfs -u || true
     nospin
     log_ok "GRUB e initramfs regenerados"
     
@@ -781,8 +803,8 @@ step_14() {
     log_step 14 "$TOTAL_STEPS" "Limpieza de paquetes huerfanos"
     
     spin "Limpiando paquetes huerfanos..."
-    run_cmd "nala autoremove" nala autoremove -y
-    run_cmd "nala clean" nala clean
+    run_cmd "nala autoremove" nala autoremove -y || true
+    run_cmd "nala clean" nala clean || true
     nospin
     log_ok "Paquetes huérfanos eliminados, caché limpiada"
     
