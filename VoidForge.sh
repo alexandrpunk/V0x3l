@@ -48,6 +48,7 @@ HAS_NVIDIA_GPU=0
 
 # Configuración tema Plymouth
 PLYMOUTH_ZIP_NAME="ubuntu-mac-style.zip"
+PLYMOUTH_ZIP_URL="https://github.com/navisjayaseelan/apple-mac-plymouth/archive/refs/heads/main.zip"
 
 # ============================================================
 # FUNCIONES HELPER
@@ -799,7 +800,7 @@ step_14() {
     should_run_step 14 || return 0
     log_step 14 "$TOTAL_STEPS" "Configurando Plymouth y GRUB"
 
-    # Plymouth theme desde ZIP
+    # Plymouth theme desde ZIP o URL
     spin "Instalando Plymouth..."
     run_cmd "nala install plymouth" root nala install -y plymouth plymouth-themes || true
     nospin
@@ -812,42 +813,52 @@ step_14() {
         PLYMOUTH_ZIP_PATH="$SCRIPT_DIR/$PLYMOUTH_ZIP_NAME"
     fi
 
+    # Descargar desde URL si no existe localmente
+    if [ ! -f "$PLYMOUTH_ZIP_PATH" ] && [ -n "$PLYMOUTH_ZIP_URL" ]; then
+        log_info "Descargando tema Plymouth..."
+        if command -v curl &>/dev/null; then
+            run_cmd "curl plymouth" curl -fsSL -o "/tmp/$PLYMOUTH_ZIP_NAME" "$PLYMOUTH_ZIP_URL" || true
+        elif command -v wget &>/dev/null; then
+            run_cmd "wget plymouth" wget -q -O "/tmp/$PLYMOUTH_ZIP_NAME" "$PLYMOUTH_ZIP_URL" || true
+        fi
+        if [ -f "/tmp/$PLYMOUTH_ZIP_NAME" ]; then
+            PLYMOUTH_ZIP_PATH="/tmp/$PLYMOUTH_ZIP_NAME"
+        fi
+    fi
+
     PLYMOUTH_THEME_SET=false
     if [ -n "$PLYMOUTH_ZIP_PATH" ] && [ -f "$PLYMOUTH_ZIP_PATH" ]; then
-        THEME_NAME=$(basename "$PLYMOUTH_ZIP_PATH" .zip)
-        PLYMOUTH_THEME_DIR="/usr/share/plymouth/themes/$THEME_NAME"
-        PLYMOUTH_FILE="$PLYMOUTH_THEME_DIR/$THEME_NAME.plymouth"
+        TEMP_DIR=$(mktemp -d)
+        run_cmd "unzip plymouth" unzip -q "$PLYMOUTH_ZIP_PATH" -d "$TEMP_DIR" || true
 
-        if [ ! -f "$PLYMOUTH_FILE" ]; then
-            TEMP_DIR=$(mktemp -d)
-            run_cmd "unzip plymouth" unzip -q "$PLYMOUTH_ZIP_PATH" -d "$TEMP_DIR" || true
+        PLYMOUTH_FILE=$(find "$TEMP_DIR" -name "*.plymouth" -type f 2>/dev/null | head -n 1)
 
-            if [ -d "$TEMP_DIR/$THEME_NAME" ]; then
-                root cp -r "$TEMP_DIR/$THEME_NAME" "$PLYMOUTH_THEME_DIR" 2>/dev/null || true
-            else
-                EXTRACTED_DIR=$(find "$TEMP_DIR" -maxdepth 1 -type d ! -path "$TEMP_DIR" 2>/dev/null | head -n 1)
-                if [ -n "$EXTRACTED_DIR" ]; then
-                    root cp -r "$EXTRACTED_DIR" "$PLYMOUTH_THEME_DIR" 2>/dev/null || true
+        if [ -n "$PLYMOUTH_FILE" ]; then
+            THEME_NAME=$(basename "$PLYMOUTH_FILE" .plymouth)
+            PLYMOUTH_THEME_DIR="/usr/share/plymouth/themes/$THEME_NAME"
+            root mkdir -p "$PLYMOUTH_THEME_DIR" || true
+            root cp -r "$(dirname "$PLYMOUTH_FILE")/." "$PLYMOUTH_THEME_DIR/" 2>/dev/null || true
+
+            if [ -f "$PLYMOUTH_THEME_DIR/$THEME_NAME.plymouth" ]; then
+                run_cmd "update-alternatives install" root update-alternatives --install /usr/share/plymouth/themes/default.plymouth default.plymouth "$PLYMOUTH_THEME_DIR/$THEME_NAME.plymouth" 100 || true
+                run_cmd "update-alternatives set" root update-alternatives --set default.plymouth "$PLYMOUTH_THEME_DIR/$THEME_NAME.plymouth" || true
+
+                if update-alternatives --query default.plymouth 2>/dev/null | grep -q "Value: $PLYMOUTH_THEME_DIR/$THEME_NAME.plymouth"; then
+                    log_ok "Tema Plymouth: $THEME_NAME"
+                    PLYMOUTH_THEME_SET=true
+                else
+                    log_warn "Tema Plymouth copiado pero update-alternatives fallo"
                 fi
-            fi
-            rm -rf "$TEMP_DIR"
-        fi
-
-        if [ -f "$PLYMOUTH_FILE" ]; then
-            run_cmd "update-alternatives install" root update-alternatives --install /usr/share/plymouth/themes/default.plymouth default.plymouth "$PLYMOUTH_FILE" 100 || true
-            run_cmd "update-alternatives set" root update-alternatives --set default.plymouth "$PLYMOUTH_FILE" || true
-
-            if update-alternatives --query default.plymouth 2>/dev/null | grep -q "Value: $PLYMOUTH_FILE"; then
-                log_ok "Tema Plymouth: $THEME_NAME"
-                PLYMOUTH_THEME_SET=true
             else
-                log_warn "Tema Plymouth copiado pero update-alternatives fallo"
+                log_warn "Tema Plymouth: no se encontro $THEME_NAME.plymouth en el ZIP"
             fi
         else
-            log_warn "Tema Plymouth: no se encontro $THEME_NAME.plymouth en el ZIP"
+            log_warn "No se encontro archivo .plymouth en el ZIP"
         fi
+
+        rm -rf "$TEMP_DIR"
     else
-        log_warn "No se encontro tema Plymouth en $SCRIPT_DIR"
+        log_warn "No se encontro tema Plymouth en $SCRIPT_DIR ni en URL"
     fi
 
     if [ "$PLYMOUTH_THEME_SET" = false ]; then
