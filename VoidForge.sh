@@ -4,6 +4,12 @@
 # Gestor: Nala | Base: Wayland + Nautilus + Flatpak
 # Objetivo: Configurar base, Plymouth, Dank Linux y optimizar hardware
 # ============================================================
+#
+# Instalación desde GitHub:
+#   wget -qO- https://raw.githubusercontent.com/tuusuario/VoidForge/main/VoidForge.sh | bash
+#   curl -fsSL https://raw.githubusercontent.com/tuusuario/VoidForge/main/VoidForge.sh | bash
+#
+# ============================================================
 
 set -euo pipefail
 
@@ -49,20 +55,20 @@ print_banner() {
     clear
     echo -e "${C_CYAN}"
     cat <<'ASCII'
- ╔══════════════════════════════════════════════════════════════╗
- ║                                                              ║
- ║  /$$    /$$          /$$       /$$ /$$$$$$$$                 ║
- ║ | $$   | $$         |__/      | $$| $$_____/                ║
- ║ | $$   | $$ /$$$$$$  /$$  /$$$$$$$| $$     /$$$$$$  /$$$$$$  ║
- ║ |  $$ / $$//$$__  $$| $$ /$$__  $$| $$$$$ /$$__  $$/$$__  $$ ║
- ║  \  $$ $$/| $$  \ $$| $$| $$  | $$| $$__/| $$  $$_| $$$$$$$$  ║
- ║   \  $$$/ | $$  | $$| $$| $$  | $$| $$   | $$  \_ /$$__  $$  ║
- ║    \  $/  |  $$$$$$/| $$|  $$$$$$$| $$   |  $$$$$/|  $$$$$$$  ║
- ║     \_/    \______/ |__/ \_______/|__/    \______/ \_______/  ║
- ║                                                              ║
- ║              Tu sistema. Tus reglas. Tu forja.              ║
- ║                                                              ║
- ╚══════════════════════════════════════════════════════════════╝
+  ╔══════════════════════════════════════════════════════════════╗
+  ║                                                              ║
+  ║  __      __   _     _ ______                         _       ║
+  ║  \ \    / /  (_)   | |  ____|                       | |      ║
+  ║   \ \  / /__  _  __| | |__ ___  _ __ __ _  ___   ___| |__    ║
+  ║    \ \/ / _ \| |/ _` |  __/ _ \| '__/ _` |/ _ \ / __| '_ \   ║
+  ║     \  / (_) | | (_| | | | (_) | | | (_| |  __/_\__ \ | | |  ║
+  ║      \/ \___/|_|\__,_|_|  \___/|_|  \__, |\___(_)___/_| |_|  ║
+  ║                                      __/ |                   ║
+  ║                                     |___/                    ║
+  ║                                                              ║
+  ║              Tu sistema. Tus reglas. Tu forja.               ║
+  ║                                                              ║
+  ╚══════════════════════════════════════════════════════════════╝
 ASCII
     echo -e "${C_GRAY}                      v${VERSION}${C_RESET}"
     echo ""
@@ -203,7 +209,7 @@ should_run_step() {
 step_0() {
     should_run_step 0 || return 0
     log_step 0 "$TOTAL_STEPS" "Instalando herramientas base"
-    
+
     spin "Instalando herramientas base..."
     run_cmd "apt update" apt update || true
     run_cmd "apt install base" apt install -y nala wget tar unzip file zsh git curl ca-certificates pciutils locales || true
@@ -215,7 +221,7 @@ step_0() {
 step_1() {
     should_run_step 1 || return 0
     log_step 1 "$TOTAL_STEPS" "Configurando repositorios y sistema base"
-    
+
     # ButterRepo
     if [ ! -f /etc/apt/sources.list.d/butterrepo.list ]; then
         spin "Agregando ButterRepo..."
@@ -226,18 +232,18 @@ step_1() {
     else
         log_skip "ButterRepo ya existe"
     fi
-    
+
     # Update y upgrade
     spin "Actualizando sistema..."
     run_cmd "nala update" nala update || true
     run_cmd "nala upgrade" nala upgrade -y || true
     nospin
     log_ok "Sistema actualizado"
-    
+
     # Grupos
     usermod -aG video,render,audio,plugdev,netdev "$REAL_USER" >>"$LOG_FILE" 2>&1 || true
     log_ok "Usuario agregado a grupos"
-    
+
     # Timezone
     if [ "$(timedatectl show -p Timezone --value)" != "America/Mazatlan" ]; then
         timedatectl set-timezone America/Mazatlan
@@ -245,7 +251,7 @@ step_1() {
     else
         log_skip "Zona horaria ya configurada"
     fi
-    
+
     # Locale
     if ! locale -a 2>/dev/null | grep -q "es_MX.utf8"; then
         sed -i 's/^# *es_MX\.UTF-8 UTF-8/es_MX.UTF-8 UTF-8/' /etc/locale.gen
@@ -257,14 +263,14 @@ step_1() {
     else
         log_skip "Locale ya configurado"
     fi
-    
+
     save_checkpoint 1
 }
 
 step_2() {
     should_run_step 2 || return 0
     log_step 2 "$TOTAL_STEPS" "Instalando Kernel XanMod"
-    
+
     # Agregar repo XanMod
     if [ ! -f /etc/apt/sources.list.d/xanmod-release.list ]; then
         spin "Agregando repositorio XanMod..."
@@ -274,7 +280,7 @@ step_2() {
         nospin
         log_ok "Repositorio XanMod agregado"
     fi
-    
+
     if ! uname -r 2>/dev/null | grep -q "xanmod"; then
         spin "Instalando kernel XanMod x64v3..."
         run_cmd "nala update" nala update || true
@@ -285,25 +291,25 @@ step_2() {
     else
         log_skip "XanMod ya instalado"
     fi
-    
+
     save_checkpoint 2
 }
 
 step_3() {
     should_run_step 3 || return 0
     log_step 3 "$TOTAL_STEPS" "Detectando GPU NVIDIA e instalando drivers"
-    
+
     if command -v lspci >/dev/null 2>&1; then
         HAS_NVIDIA=0
         HAS_INTEL=0
         lspci -nn 2>/dev/null | grep -qi "nvidia" && HAS_NVIDIA=1
         lspci -nn 2>/dev/null | grep -qi "vga.*intel" && HAS_INTEL=1
-        
+
         if [ "$HAS_NVIDIA" -eq 1 ]; then
             spin "Actualizando repositorios..."
             run_cmd "nala update" nala update || true
             nospin
-            
+
             if [ "$HAS_INTEL" -eq 1 ]; then
                 log_info "Detectado sistema hibrido Intel + NVIDIA"
                 spin "Instalando driver NVIDIA 595-open + prime..."
@@ -320,7 +326,7 @@ step_3() {
                 HAS_NVIDIA_GPU=1
                 log_ok "Driver NVIDIA 595-open instalado"
             fi
-            
+
             for svc in nvidia-suspend nvidia-resume nvidia-hibernate; do
                 systemctl enable "$svc" >>"$LOG_FILE" 2>&1 || true
             done
@@ -331,14 +337,14 @@ step_3() {
     else
         log_warn "lspci no disponible, omitiendo deteccion"
     fi
-    
+
     save_checkpoint 3
 }
 
 step_4() {
     should_run_step 4 || return 0
     log_step 4 "$TOTAL_STEPS" "Instalando paquetes del sistema (Wayland, Nautilus, Apps, Audio, Codecs, Flatpak, TLP, Fonts)"
-    
+
     spin "Instalando todos los paquetes (esto puede tardar)..."
     run_cmd "mega-install" nala install --no-install-recommends -y \
         wayland-protocols libwayland-dev libegl1 \
@@ -355,7 +361,7 @@ step_4() {
         gstreamer1.0-libav ffmpegthumbnailer \
         flatpak tlp tlp-rdw fonts-powerline || true
     nospin
-    
+
     log_ok "Todos los paquetes instalados"
     save_checkpoint 4
 }
@@ -363,7 +369,7 @@ step_4() {
 step_5() {
     should_run_step 5 || return 0
     log_step 5 "$TOTAL_STEPS" "Configurando polkit automontaje"
-    
+
     POLKIT_RULE="/etc/polkit-1/rules.d/90-udisks2-automount.rules"
     if [ ! -f "$POLKIT_RULE" ]; then
         mkdir -p /etc/polkit-1/rules.d
@@ -380,14 +386,14 @@ POLKIT
     else
         log_skip "Regla polkit ya existe"
     fi
-    
+
     save_checkpoint 5
 }
 
 step_6() {
     should_run_step 6 || return 0
     log_step 6 "$TOTAL_STEPS" "Configurando xdg-user-dirs y UFW"
-    
+
     if [ -d "$HOME_DIR/Documentos" ] || [ -d "$HOME_DIR/Documents" ]; then
         echo -e "${C_YELLOW}   Los directorios de usuario ya existen.${C_RESET}"
         echo -ne "${C_WHITE}   ¿Recrearlos? [s/N]: ${C_RESET}"
@@ -414,7 +420,7 @@ step_6() {
         nospin
         log_ok "Directorios de usuario creados"
     fi
-    
+
     if ! ufw status 2>/dev/null | grep -q "Status: active"; then
         ufw default deny incoming >>"$LOG_FILE" 2>&1 || true
         ufw default allow outgoing >>"$LOG_FILE" 2>&1 || true
@@ -429,14 +435,14 @@ step_6() {
             log_skip "UFW ya está activo con SSH"
         fi
     fi
-    
+
     save_checkpoint 6
 }
 
 step_7() {
     should_run_step 7 || return 0
     log_step 7 "$TOTAL_STEPS" "Configurando red y optimizando boot"
-    
+
     # systemd-networkd-wait-online
     if ! systemctl is-masked systemd-networkd-wait-online.service 2>/dev/null; then
         run_cmd "disable wait-online" systemctl disable systemd-networkd-wait-online.service || true
@@ -445,21 +451,21 @@ step_7() {
     else
         log_skip "systemd-networkd-wait-online ya desactivado"
     fi
-    
+
     # Detectar interfaz de red activa
     ACTIVE_IFACE=$(ip route show default 2>/dev/null | awk '{print $5}' | head -n 1)
-    
+
     # Si no hay ruta default, buscar primera interfaz ethernet activa
     if [ -z "$ACTIVE_IFACE" ]; then
         ACTIVE_IFACE=$(ip -o link show 2>/dev/null | awk -F': ' '{print $2}' | grep -E '^en|^eth' | head -n 1)
     fi
-    
+
     if [ -n "$ACTIVE_IFACE" ]; then
         log_info "Interfaz de red detectada: $ACTIVE_IFACE"
     else
         log_warn "No se pudo detectar la interfaz de red, usando configuracion generica"
     fi
-    
+
     # Habilitar NetworkManager ANTES de cambiar netplan
     if ! systemctl is-active NetworkManager >/dev/null 2>&1; then
         run_cmd "enable NetworkManager" systemctl enable --now NetworkManager || true
@@ -467,27 +473,27 @@ step_7() {
     else
         log_skip "NetworkManager ya esta activo"
     fi
-    
+
     # Netplan
     NETPLAN_DIR="/etc/netplan"
     NETPLAN_FILE="$NETPLAN_DIR/01-netcfg.yaml"
-    
+
     if [ ! -f "$NETPLAN_FILE" ] || ! grep -q "NetworkManager" "$NETPLAN_FILE"; then
         # Backup del netplan original
         if [ -f "$NETPLAN_FILE" ]; then
             cp "$NETPLAN_FILE" "${NETPLAN_FILE}.bak-$(date +%Y%m%d-%H%M%S)" 2>/dev/null || true
             log_info "Backup del netplan original creado"
         fi
-        
+
         rm -f "$NETPLAN_DIR"/*.yaml.bak 2>/dev/null || true
-        
+
         # Escribir nuevo netplan con interfaz detectada
         cat > "$NETPLAN_FILE" <<NETPLAN
 network:
   version: 2
   renderer: NetworkManager
 NETPLAN
-        
+
         if [ -n "$ACTIVE_IFACE" ]; then
             cat >> "$NETPLAN_FILE" <<NETPLAN
   ethernets:
@@ -495,10 +501,10 @@ NETPLAN
       dhcp4: true
 NETPLAN
         fi
-        
+
         run_cmd "netplan apply" netplan apply || true
         log_ok "Netplan configurado (renderer: NetworkManager)"
-        
+
         # Verificar que NetworkManager tenga permisos de gestion
         if command -v nmcli >/dev/null 2>&1 && [ -n "$ACTIVE_IFACE" ]; then
             sleep 3
@@ -509,14 +515,14 @@ NETPLAN
     else
         log_skip "Netplan ya configurado"
     fi
-    
+
     save_checkpoint 7
 }
 
 step_8() {
     should_run_step 8 || return 0
     log_step 8 "$TOTAL_STEPS" "Configurando Flatpak y aplicaciones"
-    
+
     FLATHUB_OK=false
     if ! flatpak remotes 2>/dev/null | grep -q "flathub"; then
         spin "Agregando Flathub..."
@@ -532,7 +538,7 @@ step_8() {
         log_skip "Flathub ya existe"
         FLATHUB_OK=true
     fi
-    
+
     if [ "$FLATHUB_OK" = true ]; then
         for app in org.gnome.Papers net.nokyan.Resources org.gnome.Showtime; do
             if flatpak list --app 2>/dev/null | grep -q "$app"; then
@@ -550,7 +556,7 @@ step_8() {
         done
     fi
     log_ok "Paso Flatpak completado"
-    
+
     # Override para Nautilus
     FLATPAK_OVERRIDE="/etc/flatpak/overrides/global"
     if [ ! -f "$FLATPAK_OVERRIDE" ]; then
@@ -563,26 +569,26 @@ FLATPAK
     else
         log_skip "Override Flatpak ya existe"
     fi
-    
+
     save_checkpoint 8
 }
 
 step_9() {
     should_run_step 9 || return 0
     log_step 9 "$TOTAL_STEPS" "Habilitando servicios y configurando entorno Wayland"
-    
+
     # Servicios
     run_cmd "enable services" systemctl enable --now udisks2.service bluetooth.service || true
     if ! systemctl is-active NetworkManager >/dev/null 2>&1; then
         run_cmd "enable NetworkManager" systemctl enable --now NetworkManager || true
     fi
     log_ok "Servicios habilitados: NetworkManager, udisks2, bluetooth"
-    
+
     # Servicios de usuario
     loginctl enable-linger "$REAL_USER" >>"$LOG_FILE" 2>&1 || true
     sudo -u "$REAL_USER" bash -c 'export XDG_RUNTIME_DIR="/run/user/$(id -u)"; systemctl --user enable pipewire.socket wireplumber.service' >>"$LOG_FILE" 2>&1 || true
     log_ok "Servicios de usuario habilitados: pipewire, wireplumber"
-    
+
     # Environment Wayland
     ENV_FILE="$HOME_DIR/.config/environment.d/wayland.conf"
     if [ ! -f "$ENV_FILE" ]; then
@@ -599,14 +605,14 @@ ENV
     else
         log_skip "Entorno Wayland ya existe"
     fi
-    
+
     save_checkpoint 9
 }
 
 step_10() {
     should_run_step 10 || return 0
     log_step 10 "$TOTAL_STEPS" "Configurando optimización energética (TLP)"
-    
+
     TLP_CONF="/etc/tlp.d/01-voidforge.conf"
     if [ ! -f "$TLP_CONF" ]; then
         mkdir -p /etc/tlp.d
@@ -649,7 +655,7 @@ TLP
     else
         log_skip "TLP ya configurado"
     fi
-    
+
     # logind.conf
     LOGIND="/etc/systemd/logind.conf"
     grep -q "^HandleLidSwitch=suspend$" "$LOGIND" || sed -i 's/^#HandleLidSwitch=.*/HandleLidSwitch=suspend/' "$LOGIND"
@@ -657,19 +663,19 @@ TLP
     grep -q "^HandleLidSwitchDocked=ignore$" "$LOGIND" || sed -i 's/^#HandleLidSwitchDocked=.*/HandleLidSwitchDocked=ignore/' "$LOGIND"
     grep -q "^PowerKeyAction=poweroff$" "$LOGIND" || sed -i 's/^#PowerKeyAction=.*/PowerKeyAction=poweroff/' "$LOGIND"
     log_ok "logind configurado (lid switch, power key)"
-    
+
     save_checkpoint 10
 }
 
 step_11() {
     should_run_step 11 || return 0
     log_step 11 "$TOTAL_STEPS" "Configurando Oh My Zsh con tema agnoster"
-    
+
     if [ "$(getent passwd "$REAL_USER" 2>/dev/null | cut -d: -f7)" != "$(which zsh)" ]; then
         chsh -s "$(which zsh)" "$REAL_USER" >>"$LOG_FILE" 2>&1 || true
         log_ok "Shell por defecto: zsh"
     fi
-    
+
     if [ ! -d "$HOME_DIR/.oh-my-zsh" ]; then
         spin "Instalando Oh My Zsh..."
         if sudo -u "$REAL_USER" bash -c '
@@ -706,14 +712,14 @@ step_11() {
             fi
         fi
     fi
-    
+
     save_checkpoint 11
 }
 
 step_12() {
     should_run_step 12 || return 0
     log_step 12 "$TOTAL_STEPS" "Instalando tema de iconos Colloid"
-    
+
     if [ ! -d /usr/share/icons/Colloid-catppuccin-green-dark ]; then
         ICON_TMP_DIR="$(mktemp --directory)"
         spin "Descargando tema de iconos Colloid..."
@@ -727,37 +733,37 @@ step_12() {
     else
         log_skip "Tema Colloid ya instalado"
     fi
-    
+
     save_checkpoint 12
 }
 
 step_13() {
     should_run_step 13 || return 0
     log_step 13 "$TOTAL_STEPS" "Configurando Plymouth y GRUB"
-    
+
     # Plymouth theme desde ZIP
     spin "Instalando Plymouth..."
     run_cmd "nala install plymouth" nala install -y plymouth plymouth-themes || true
     nospin
     mkdir -p /usr/share/plymouth/themes
-    
+
     PLYMOUTH_ZIP_PATH=""
     if [ -z "$PLYMOUTH_ZIP_NAME" ]; then
         PLYMOUTH_ZIP_PATH=$(find "$SCRIPT_DIR" -maxdepth 1 -name "*.zip" 2>/dev/null | head -n 1)
     else
         PLYMOUTH_ZIP_PATH="$SCRIPT_DIR/$PLYMOUTH_ZIP_NAME"
     fi
-    
+
     PLYMOUTH_THEME_SET=false
     if [ -n "$PLYMOUTH_ZIP_PATH" ] && [ -f "$PLYMOUTH_ZIP_PATH" ]; then
         THEME_NAME=$(basename "$PLYMOUTH_ZIP_PATH" .zip)
         PLYMOUTH_THEME_DIR="/usr/share/plymouth/themes/$THEME_NAME"
         PLYMOUTH_FILE="$PLYMOUTH_THEME_DIR/$THEME_NAME.plymouth"
-        
+
         if [ ! -f "$PLYMOUTH_FILE" ]; then
             TEMP_DIR=$(mktemp -d)
             run_cmd "unzip plymouth" unzip -q "$PLYMOUTH_ZIP_PATH" -d "$TEMP_DIR" || true
-            
+
             if [ -d "$TEMP_DIR/$THEME_NAME" ]; then
                 cp -r "$TEMP_DIR/$THEME_NAME" "$PLYMOUTH_THEME_DIR" 2>/dev/null || true
             else
@@ -768,11 +774,11 @@ step_13() {
             fi
             rm -rf "$TEMP_DIR"
         fi
-        
+
         if [ -f "$PLYMOUTH_FILE" ]; then
             run_cmd "update-alternatives install" update-alternatives --install /usr/share/plymouth/themes/default.plymouth default.plymouth "$PLYMOUTH_FILE" 100 || true
             run_cmd "update-alternatives set" update-alternatives --set default.plymouth "$PLYMOUTH_FILE" || true
-            
+
             if update-alternatives --query default.plymouth 2>/dev/null | grep -q "Value: $PLYMOUTH_FILE"; then
                 log_ok "Tema Plymouth: $THEME_NAME"
                 PLYMOUTH_THEME_SET=true
@@ -785,11 +791,11 @@ step_13() {
     else
         log_warn "No se encontro tema Plymouth en $SCRIPT_DIR"
     fi
-    
+
     if [ "$PLYMOUTH_THEME_SET" = false ]; then
         log_info "Plymouth usara tema por defecto del sistema"
     fi
-    
+
     # GRUB theme
     GRUB_THEME_PATH="/usr/share/grub/themes/grub-theme-vimix-very-dark-blue"
     if [ ! -f "$GRUB_THEME_PATH/theme.txt" ]; then
@@ -804,10 +810,10 @@ step_13() {
     else
         log_skip "Tema GRUB ya instalado"
     fi
-    
+
     # Configuración GRUB
     GRUB_CFG="/etc/default/grub"
-    
+
     # Agregar parámetros de kernel NVIDIA si hay GPU NVIDIA
     if [ "$HAS_NVIDIA_GPU" -eq 1 ]; then
         log_info "Agregando parámetros de kernel para NVIDIA..."
@@ -816,20 +822,20 @@ step_13() {
     else
         grep -q "GRUB_CMDLINE_LINUX_DEFAULT=.*splash" "$GRUB_CFG" || sed -i 's/^GRUB_CMDLINE_LINUX_DEFAULT="/GRUB_CMDLINE_LINUX_DEFAULT="quiet splash plymouth:force-recovery splash=/' "$GRUB_CFG"
     fi
-    
+
     grep -q "GRUB_GFXPAYLOAD_LINUX=keep" "$GRUB_CFG" || echo 'GRUB_GFXPAYLOAD_LINUX=keep' >> "$GRUB_CFG"
-    
+
     # GRUB_THEME
     grep -q "^GRUB_THEME=" "$GRUB_CFG" \
         && sed -i "s|^GRUB_THEME=.*|GRUB_THEME=\"$GRUB_THEME_PATH/theme.txt\"|" "$GRUB_CFG" \
         || echo "GRUB_THEME=\"$GRUB_THEME_PATH/theme.txt\"" >> "$GRUB_CFG"
-    
+
     log_ok "Configuración GRUB actualizada"
-    
+
     # Initramfs para Plymouth y NVIDIA
     mkdir -p /etc/initramfs-tools/conf.d
     echo "FRAMEBUFFER=y" > /etc/initramfs-tools/conf.d/splash 2>/dev/null
-    
+
     # Módulos NVIDIA en initramfs si hay GPU NVIDIA
     if [ "$HAS_NVIDIA_GPU" -eq 1 ]; then
         echo "nvidia" >> /etc/initramfs-tools/modules 2>/dev/null
@@ -840,38 +846,38 @@ step_13() {
     else
         echo "drm" >> /etc/initramfs-tools/modules 2>/dev/null || true
     fi
-    
+
     spin "Regenerando GRUB e initramfs..."
     run_cmd "grub-mkconfig" grub-mkconfig -o /boot/grub/grub.cfg || true
     run_cmd "update-initramfs" update-initramfs -u || true
     nospin
     log_ok "GRUB e initramfs regenerados"
-    
+
     save_checkpoint 13
 }
 
 step_14() {
     should_run_step 14 || return 0
     log_step 14 "$TOTAL_STEPS" "Limpieza de paquetes huerfanos"
-    
+
     spin "Limpiando paquetes huerfanos..."
     run_cmd "nala autoremove" nala autoremove -y || true
     run_cmd "nala clean" nala clean || true
     nospin
     log_ok "Paquetes huérfanos eliminados, caché limpiada"
-    
+
     save_checkpoint 14
 }
 
 step_15() {
     should_run_step 15 || return 0
     log_step 15 "$TOTAL_STEPS" "Ejecutando asistente Dank Linux"
-    
+
     echo -e "\n${C_CYAN}Iniciando instalador Dank Linux...${C_RESET}\n"
     spin "Ejecutando asistente Dank Linux..."
     sudo -u "$REAL_USER" bash -c 'curl -fsSL https://install.danklinux.com | sh' >>"$LOG_FILE" 2>&1 || true
     nospin
-    
+
     log_ok "Asistente Dank Linux completado"
     clear_checkpoint
 }
@@ -890,7 +896,7 @@ run_all_steps() {
     for i in $(seq 0 "$TOTAL_STEPS"); do
         run_step "$i"
     done
-    
+
     print_summary
 }
 
@@ -899,9 +905,9 @@ print_summary() {
     echo -e "\n${C_CYAN}╔════════════════════════════════════════════════════════════════╗${C_RESET}"
     echo -e "${C_CYAN}║${C_WHITE}                   ¡Instalación completada!                      ${C_CYAN}║${C_RESET}"
     echo -e "${C_CYAN}╚════════════════════════════════════════════════════════════════╝${C_RESET}\n"
-    
+
     echo -e "${C_GREEN}✅ Todos los pasos completados${C_RESET}\n"
-    
+
     echo -e "${C_WHITE}Cambios realizados:${C_RESET}"
     echo -e "  • Kernel: XanMod Edge"
     echo -e "  • Wayland + Nautilus + PipeWire"
@@ -912,11 +918,11 @@ print_summary() {
     echo -e "  • Temas: Plymouth + GRUB Vimix"
     echo -e "  • Firewall: UFW activo deny incoming"
     echo -e "  • TLP configurado para laptops"
-    
+
     if [ "$HAS_NVIDIA_GPU" -eq 1 ]; then
         echo -e "  • Drivers NVIDIA + parámetros kernel DRM/KMS"
     fi
-    
+
     echo -e "\n${C_YELLOW}⚠️ Importante:${C_RESET}"
     echo -e "  • Si se instaló XanMod Edge, ${C_RED}requiere reiniciar${C_RESET} para aplicar el nuevo kernel"
     echo -e "  • Si se instalaron drivers NVIDIA, ${C_RED}requiere reiniciar${C_RESET} para aplicar DRM/KMS"
@@ -938,7 +944,7 @@ print_summary() {
 show_menu() {
     clear
     print_banner
-    
+
     echo -e "${C_WHITE}  ${C_CYAN}[1]${C_RESET}  Instalacion completa pasos 0-15"
     echo -e "${C_WHITE}  ${C_CYAN}[2]${C_RESET}  Reanudar desde último checkpoint"
     echo -e "${C_WHITE}  ${C_CYAN}[3]${C_RESET}  Ejecutar paso específico"
@@ -1056,27 +1062,83 @@ parse_args() {
 }
 
 # ============================================================
+# VERIFICACIÓN DEL SISTEMA
+# ============================================================
+
+check_system() {
+    local OS_ID=""
+    local OS_VERSION=""
+
+    if [ -f /etc/os-release ]; then
+        OS_ID=$(grep '^ID=' /etc/os-release | cut -d= -f2 | tr -d '"')
+        OS_VERSION=$(grep '^VERSION_ID=' /etc/os-release | cut -d= -f2 | tr -d '"')
+    fi
+
+    if [ "$OS_ID" = "ubuntu" ]; then
+        OS_MAJOR=$(echo "$OS_VERSION" | cut -d. -f1)
+        if [ "$OS_MAJOR" -ge 24 ]; then
+            log_info "Sistema detectado: Ubuntu $OS_VERSION"
+            return 0
+        else
+            log_error "Ubuntu $OS_VERSION no es compatible. Se requiere Ubuntu 24.04 o superior"
+            return 1
+        fi
+    elif [ -n "$OS_ID" ]; then
+        log_error "Sistema no compatible: $OS_ID. Este script es solo para Ubuntu 24.04+"
+        return 1
+    else
+        log_error "No se pudo detectar el sistema operativo"
+        return 1
+    fi
+}
+
+# ============================================================
+# GESTIÓN DE SUDO
+# ============================================================
+
+reexec_as_root() {
+    if command -v sudo >/dev/null 2>&1; then
+        echo -e "${C_YELLOW}Se requieren permisos de administrador (sudo)...${C_RESET}"
+        echo -ne "${C_WHITE}Contraseña de sudo: ${C_RESET}"
+        if ! sudo -v; then
+            log_error "No se pudo obtener permisos sudo"
+            exit 1
+        fi
+
+        log_info "Reiniciando script con sudo..."
+        exec sudo bash "$0" "$@"
+    else
+        log_error "sudo no esta instalado. Por favor, ejecuta: sudo $0"
+        exit 1
+    fi
+}
+
+# ============================================================
 # FUNCIÓN PRINCIPAL
 # ============================================================
 
 main() {
-    # Verificar root
-    if [[ $EUID -ne 0 ]]; then
-        echo -e "${C_RED}Este script debe ejecutarse como root - sudo.${C_RESET}"
+    # Verificar sistema primero (antes de pedir sudo)
+    if ! check_system; then
         exit 1
     fi
-    
+
+    # Verificar root y re-ejecutar si es necesario
+    if [[ $EUID -ne 0 ]]; then
+        reexec_as_root
+    fi
+
     # Inicializar log
     echo "=== VoidForge v${VERSION} - $(date) ===" > "$LOG_FILE"
     echo "Usuario: $REAL_USER | Home: $HOME_DIR | Script: $SCRIPT_DIR" >> "$LOG_FILE"
     log_info "Log de la sesion: $LOG_FILE"
-    
+
     # Si hay args CLI, procesarlos
     if [[ $# -gt 0 ]]; then
         parse_args "$@"
         return
     fi
-    
+
     # Modo interactivo (default)
     show_menu
     handle_menu_choice
