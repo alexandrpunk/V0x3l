@@ -217,6 +217,7 @@ should_run_step() {
 # ============================================================
 
 step_0() {
+    echo "[DEBUG] step_0 entered" >&2
     should_run_step 0 || return 0
     log_step 0 "$TOTAL_STEPS" "Instalando herramientas base"
 
@@ -926,6 +927,7 @@ step_15() {
 }
 
 run_step() {
+    echo "[DEBUG] run_step arg='$1'" >&2
     local step_num=$1
     local step_func="step_$step_num"
     if declare -f "$step_func" >/dev/null 2>&1; then
@@ -1001,9 +1003,12 @@ show_menu() {
 }
 
 handle_menu_choice() {
-    read -r choice
+    echo "[DEBUG] Entering handle_menu_choice" >&2
+    read -r choice </dev/tty
+    echo "[DEBUG] choice='$choice'" >&2
     case $choice in
         1)
+            echo "[DEBUG] Branch 1: run_all_steps" >&2
             run_all_steps
             ;;
         2)
@@ -1020,12 +1025,12 @@ handle_menu_choice() {
             ;;
         3)
             echo -ne "${C_WHITE}  Numero de paso 0-15: ${C_RESET}"
-            read -r step
+            read -r step </dev/tty
             run_step "$step"
             ;;
         4)
             echo -ne "${C_WHITE}  Rango ej: 5-10: ${C_RESET}"
-            read -r range
+            read -r range </dev/tty
             start=$(echo "$range" | cut -d- -f1)
             end=$(echo "$range" | cut -d- -f2)
             for i in $(seq "$start" "$end"); do
@@ -1040,7 +1045,7 @@ handle_menu_choice() {
                 log_info "No hay checkpoint guardado"
             fi
             echo -ne "${C_WHITE}  Presiona Enter para continuar...${C_RESET}"
-            read -r
+            read -r </dev/tty
             show_menu
             handle_menu_choice
             ;;
