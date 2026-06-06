@@ -243,7 +243,7 @@ step_1() {
     else
         log_skip "ButterRepo ya existe"
     fi
-    
+
     # PPAs de Dank Linux (DMS)
     if ! grep -qr "avengemedia" /etc/apt/sources.list.d/ 2>/dev/null; then
         echo -e "y" | root add-apt-repository ppa:avengemedia/danklinux >>"$LOG_FILE" 2>&1 || true
@@ -252,7 +252,7 @@ step_1() {
     else
         log_skip "PPAs de Dank Linux ya existen"
     fi
-    
+
     # Update y upgrade
     spin "Actualizando sistema..."
     run_cmd "nala update" root nala update || true
@@ -371,7 +371,8 @@ step_4() {
         libgl1-mesa-dri mesa-vulkan-drivers xwayland \
         nautilus gvfs-backends gvfs-fuse udisks2 polkitd \
         ntfs-3g exfatprogs libglib2.0-bin \
-        neovim zen-browser tmux fastfetch geany nwg-look foot dms \
+        neovim zen-browser tmux fastfetch geany nwg-look foot dms dgop danksearch\
+        dms-greeter cliphist quickshell niri\
         libheif-plugin-libde265 ufw gnome-sushi xdg-user-dirs \
         pipewire wireplumber libpipewire-0.3-0 libwireplumber-0.5-0 \
         dbus-user-session network-manager libnm0 \
@@ -736,13 +737,13 @@ step_11() {
 step_12() {
     should_run_step 12 || return 0
     log_step 12 "$TOTAL_STEPS" "Instalando LazyVim"
-    
+
     LAZYVIM_DIR="$HOME_DIR/.config/nvim"
     LAZYVIM_INSTALLED=false
     if [ -f "$LAZYVIM_DIR/init.lua" ] && grep -q "LazyVim" "$LAZYVIM_DIR/init.lua" 2>/dev/null; then
         LAZYVIM_INSTALLED=true
     fi
-    
+
     if [ "$LAZYVIM_INSTALLED" = true ]; then
         echo -e "${C_YELLOW}   LazyVim ya esta instalado.${C_RESET}"
         echo -ne "${C_WHITE}   ¿Reinstalar? [s/N]: ${C_RESET}"
@@ -751,10 +752,10 @@ step_12() {
             LAZYVIM_INSTALLED=false
         fi
     fi
-    
+
     if [ "$LAZYVIM_INSTALLED" = false ]; then
         spin "Instalando LazyVim..."
-        
+
         sudo -u "$REAL_USER" bash -c "
             mv ~/.config/nvim ~/.config/nvim.bak 2>/dev/null || true
             mv ~/.local/share/nvim ~/.local/share/nvim.bak 2>/dev/null || true
@@ -763,13 +764,13 @@ step_12() {
             git clone https://github.com/LazyVim/starter ~/.config/nvim 2>/dev/null
             rm -rf ~/.config/nvim/.git 2>/dev/null || true
         " >>"$LOG_FILE" 2>&1
-        
+
         nospin
         log_ok "LazyVim instalado (ejecuta 'nvim' para completar la configuracion)"
     else
         log_skip "LazyVim conservado"
     fi
-    
+
     save_checkpoint 12
 }
 
@@ -941,7 +942,7 @@ run_all_steps() {
     for i in $(seq 0 "$TOTAL_STEPS"); do
         run_step "$i"
     done
-    
+
     clear_checkpoint
     print_summary
 }
@@ -1166,21 +1167,21 @@ main() {
     # Inicializar log (lo antes posible)
     echo "=== VoidForge v${VERSION} - $(date) ===" > "$LOG_FILE"
     echo "Usuario: $REAL_USER | Home: $HOME_DIR | Script: $SCRIPT_DIR" >> "$LOG_FILE"
-    
+
     # Verificar sistema
     if ! check_system; then
         exit 1
     fi
-    
+
     # Cachear permisos sudo (pide contraseña una vez)
     ensure_sudo
-    
+
     # Si hay args CLI, procesarlos
     if [[ $# -gt 0 ]]; then
         parse_args "$@"
         return
     fi
-    
+
     # Modo interactivo (default)
     show_menu
     handle_menu_choice
