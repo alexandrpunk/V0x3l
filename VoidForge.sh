@@ -558,6 +558,7 @@ step_10() {
     
     TLP_CONF="/etc/tlp.d/01-voidforge.conf"
     if [ ! -f "$TLP_CONF" ]; then
+        mkdir -p /etc/tlp.d
         cat > "$TLP_CONF" <<'TLP'
 TLP_ENABLE=1
 CPU_SCALING_GOVERNOR_ON_AC=powersave
