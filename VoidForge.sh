@@ -48,7 +48,7 @@ HAS_NVIDIA_GPU=0
 
 # Configuración tema Plymouth
 PLYMOUTH_ZIP_NAME="ubuntu-mac-style.zip"
-PLYMOUTH_ZIP_URL="https://github.com/navisjayaseelan/apple-mac-plymouth/archive/refs/heads/main.zip"
+PLYMOUTH_ZIP_URL="https://raw.githubusercontent.com/alexandrpunk/VoidForge/main/voidforge-boot-theme.zip"
 
 # ============================================================
 # FUNCIONES HELPER
@@ -245,15 +245,6 @@ step_1() {
         log_skip "ButterRepo ya existe"
     fi
 
-    # PPAs de Dank Linux (DMS)
-    if ! grep -qr "avengemedia" /etc/apt/sources.list.d/ 2>/dev/null; then
-        echo -e "y" | root add-apt-repository ppa:avengemedia/danklinux >>"$LOG_FILE" 2>&1 || true
-        echo -e "y" | root add-apt-repository ppa:avengemedia/dms >>"$LOG_FILE" 2>&1 || true
-        log_ok "PPAs de Dank Linux agregados"
-    else
-        log_skip "PPAs de Dank Linux ya existen"
-    fi
-
     # Update y upgrade
     spin "Actualizando sistema..."
     run_cmd "nala update" root nala update || true
@@ -372,8 +363,7 @@ step_4() {
         libgl1-mesa-dri mesa-vulkan-drivers xwayland \
         nautilus gvfs-backends gvfs-fuse udisks2 polkitd \
         ntfs-3g exfatprogs libglib2.0-bin \
-        neovim zen-browser tmux fastfetch geany nwg-look foot dms dgop danksearch\
-        dms-greeter cliphist quickshell niri\
+        neovim zen-browser tmux fastfetch geany nwg-look foot dialog apt-utils\
         libheif-plugin-libde265 ufw gnome-sushi xdg-user-dirs \
         pipewire wireplumber libpipewire-0.3-0 libwireplumber-0.5-0 \
         dbus-user-session network-manager libnm0 \
@@ -922,18 +912,22 @@ step_14() {
     nospin
     log_ok "GRUB e initramfs regenerados"
 
-    save_checkpoint 14
-}
-
-step_15() {
-    should_run_step 15 || return 0
-    log_step 15 "$TOTAL_STEPS" "Limpieza de paquetes huerfanos"
-
+    # Limpieza de paquetes huérfanos
     spin "Limpiando paquetes huerfanos..."
     run_cmd "nala autoremove" root nala autoremove -y || true
     run_cmd "nala clean" root nala clean || true
     nospin
     log_ok "Paquetes huérfanos eliminados, caché limpiada"
+
+    save_checkpoint 14
+}
+
+step_15() {
+    should_run_step 15 || return 0
+    log_step 15 "$TOTAL_STEPS" "Instalando DMS (Dank Linux)"
+
+    log_info "Ejecutando asistente de instalación DMS..."
+    run_cmd "DMS installer" sudo -u "$REAL_USER" sh -c "curl -fsSL https://install.danklinux.com | sh" || true
 
     save_checkpoint 15
 }
@@ -1138,7 +1132,7 @@ check_system() {
 
     if [ "$OS_ID" = "ubuntu" ]; then
         OS_MAJOR=$(echo "$OS_VERSION" | cut -d. -f1)
-        if [ "$OS_MAJOR" -ge 24 ]; then
+        if [ "$OS_MAJOR" -ge 26 ]; then
             log_info "Sistema detectado: Ubuntu $OS_VERSION"
             return 0
         else
