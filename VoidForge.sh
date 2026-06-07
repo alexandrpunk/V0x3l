@@ -218,7 +218,6 @@ should_run_step() {
 # ============================================================
 
 step_0() {
-    echo "[DEBUG] step_0 entered" >&2
     should_run_step 0 || return 0
     log_step 0 "$TOTAL_STEPS" "Instalando herramientas base"
 
@@ -933,7 +932,6 @@ step_15() {
 }
 
 run_step() {
-    echo "[DEBUG] run_step arg='$1'" >&2
     local step_num=$1
     local step_func="step_$step_num"
     if declare -f "$step_func" >/dev/null 2>&1; then
@@ -1009,12 +1007,9 @@ show_menu() {
 }
 
 handle_menu_choice() {
-    echo "[DEBUG] Entering handle_menu_choice" >&2
     read -r choice </dev/tty
-    echo "[DEBUG] choice='$choice'" >&2
     case $choice in
         1)
-            echo "[DEBUG] Branch 1: run_all_steps" >&2
             run_all_steps
             ;;
         2)
