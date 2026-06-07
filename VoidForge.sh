@@ -14,6 +14,8 @@
 # ============================================================
 
 set -euo pipefail
+export DEBIAN_FRONTEND=noninteractive
+export NEEDRESTART_MODE=a
 
 # ============================================================
 # CONFIGURACIÓN Y VARIABLES GLOBALES
@@ -129,7 +131,7 @@ run_cmd() {
     local desc="$1"
     shift
     log_to_file "CMD: $*"
-    "$@" >>"$LOG_FILE" 2>&1
+    "$@" 2>&1 | tee -a "$LOG_FILE"
 }
 
 SPINNER_PID=""

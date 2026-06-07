@@ -1,81 +1,109 @@
-# VoidForge — Agent Notes
+# VoidForge — Agent Notes (refactor branch)
 
 ## What this is
 
-Monolintary Bash post-installer for Ubuntu Server. The entire codebase is `VoidForge.sh`.
+Modular Bash post-installer for Ubuntu Server, rebuilt from the monolithic `VoidForge.sh` into a clean directory structure inspired by [Omakub](https://github.com/basecamp/omakub).
+
+## Structure
+
+```
+VoidForge/
+├── voidforge.sh              # Entry point / runner — sources libs + steps, handles menu & CLI
+├── boot.sh                   # curl | bash entry — clones repo, runs voidforge.sh
+├── ascii.sh                  # ASCII banner art
+├── lib/
+│   ├── config.sh             # Variables globales (colores, TOTAL_STEPS, paths)
+│   ├── helpers.sh            # root(), log_*(), run_cmd(), spinner, checkpoint, run_step, run_all_steps
+│   └── gum.sh                # Gum detection + install + wrapper functions (spin, choose, confirm, style)
+├── install/
+│   ├── core/                 # Base del sistema
+│   │   ├── bootstrap.sh      # step_0 — nala, git, curl, zsh...
+│   │   └── system-prep.sh    # step_1 — ButterRepo, PPAs, upgrade, locale, grupos
+│   ├── drivers/              # Kernel y drivers
+│   │   ├── kernel.sh         # step_2 — XanMod Edge
+│   │   └── gpu.sh            # step_3 — GPU NVIDIA + prime
+│   ├── packages/             # Software y aplicaciones
+│   │   ├── mega.sh           # step_4 — Mega-instalación (Wayland, Nautilus, PipeWire, codecs...)
+│   │   ├── flatpak.sh        # step_8 — Flathub + Flatpak apps
+│   │   ├── shell.sh          # step_11 — Oh My Zsh + tema agnoster
+│   │   └── editor.sh         # step_12 — LazyVim
+│   ├── system/               # Configuración del sistema
+│   │   ├── polkit.sh         # step_5 — Polkit automount
+│   │   ├── xdg-ufw.sh        # step_6 — xdg-user-dirs + UFW
+│   │   ├── network.sh        # step_7 — Netplan + NetworkManager
+│   │   ├── services.sh       # step_9 — Servicios + Wayland env
+│   │   └── tlp.sh            # step_10 — TLP + logind
+│   ├── theming/              # Capa visual
+│   │   ├── icons.sh          # step_13 — Colloid catppuccin green
+│   │   └── boot.sh           # step_14 — Plymouth + GRUB + limpieza
+│   └── final/                # Post-instalación
+│       └── dms.sh            # step_15 — DMS (Dank Linux)
+├── assets/
+│   └── voidforge-boot-theme.zip
+├── VoidForge.sh              # (legacy) Monolítico original, mantenido como referencia
+├── AGENTS.md
+└── README.md
+```
 
 ## Running
 
 ```bash
-sudo bash VoidForge.sh
+# Interactive menu
+sudo bash voidforge.sh
+
+# CLI flags
+sudo bash voidforge.sh --resume      # Resume from checkpoint
+sudo bash voidforge.sh --step 5      # Run only step 5
+sudo bash voidforge.sh --range 5-10  # Run steps 5-10
+sudo bash voidforge.sh --skip 3,7    # Skip steps 3 and 7
+sudo bash voidforge.sh --all         # Run all steps
+
+# One-liner (clones repo first)
+bash <(curl -fsSL https://raw.githubusercontent.com/alexandrpunk/VoidForge/main/boot.sh)
 ```
 
-Interactive menu launches by default. CLI flags available for automation:
+## Key architectural decisions
 
-```bash
-sudo bash VoidForge.sh --resume      # Resume from checkpoint
-sudo bash VoidForge.sh --step 5      # Run only step 5
-sudo bash VoidForge.sh --range 5-10  # Run steps 5-10
-sudo bash VoidForge.sh --skip 3,7    # Skip steps 3 and 7
-sudo bash VoidForge.sh --all         # Run all steps
-```
+- **Modularity**: Each step is a separate file in `install/<category>/`. The runner `voidforge.sh` sources everything via `find` + `source` at startup.
+- **Gum integration**: `lib/gum.sh` detects and installs Charmbracelet Gum. All UI functions have text fallbacks if gum isn't available.
+- **DEBIAN_FRONTEND=noninteractive**: Set in `lib/helpers.sh` to prevent debconf prompts from blocking package installation.
+- **NEEDRESTART_MODE=a**: Suppresses needrestart prompts for service restarts after package updates.
+- **tee in run_cmd**: `run_cmd()` now uses `tee -a "$LOG_FILE"` so output is visible in real-time AND logged — no more blind spinner while nala waits for input.
+- **boot.sh**: Follows Omakub's pattern — minimal entry point (~30 lines) that clones the repo and hands off to `voidforge.sh`.
+- **16 steps (0–15)**: Unchanged from the monolithic version. Each step file defines one `step_N()` function.
 
-- Must run as root (`EUID` check exits immediately otherwise).
-- Uses `$SUDO_USER` to target the real user's home and services — never hardcode a username.
-- Uses `set -euo pipefail` — any unbound variable or failing command aborts the whole script.
+## Fixes included vs the monolithic version
 
-## Script structure (16 steps, numbered 0–15)
-
-| Step | What it does |
-|------|-------------|
-| 0 | Bootstrap: installs `nala`, `wget`, `git`, `curl`, `zsh`, `pciutils`, `locales` via `apt` |
-| 1 | Adds ButterRepo, full system upgrade, adds user to groups, timezone (America/Mazatlan), locale (es_MX.UTF-8) |
-| 2 | Installs XanMod Edge kernel (via dedicated repo) |
-| 3 | Detects GPU: uses `ubuntu-drivers devices` to find latest compatible NVIDIA driver, installs `nvidia-driver-<VERSION>` + `nvidia-prime` for Optimus or pure NVIDIA, skips otherwise. Enables `nvidia-suspend/resume/hibernate` services. |
-| 4 | **Mega-installation** of all packages: Wayland stack, Nautilus, apps (neovim, zen-browser, tmux, fastfetch, geany, nwg-look), Audio/Bluetooth (PipeWire, bluez), Codecs, Flatpak, TLP, fonts-powerline. 8+ nala calls consolidated into 1. |
-| 5 | Polkit automount rule (`/etc/polkit-1/rules.d/90-udisks2-automount.rules`) — grants auto-mount to `plugdev` group |
-| 6 | `xdg-user-dirs-update` (creates user dirs), UFW enabled (deny incoming, allow outgoing) |
-| 7 | Masks `systemd-networkd-wait-online.service` (avoids 5-min boot hang), writes `/etc/netplan/01-netcfg.yaml` (renderer: NetworkManager), runs `netplan apply` |
-| 8 | Adds Flathub, installs Flatpak apps (Papers, Resources, Showtime), writes `/etc/flatpak/overrides/global` for Nautilus access |
-| 9 | Enables services (NetworkManager, udisks2, bluetooth), enables user services (pipewire, wireplumber), writes `~/.config/environment.d/wayland.conf` with Wayland env vars |
-| 10 | TLP config (`/etc/tlp.d/01-voidforge.conf`) — limits CPU to 80% on battery, PCIe ASPM powersupersave, USB autosuspend, WiFi power save. Also configures `logind` (lid switch, power key). |
-| 11 | Installs Oh My Zsh with agnoster theme, sets zsh as default shell, installs `fonts-powerline` (already included in step 4 mega-install) |
-| 12 | Icon theme Colloid with catppuccin green variant (from GitHub) |
-| 13 | Plymouth theme from a `.zip` colocated with the script (auto-detected), GRUB theme (Vimix Very Dark Blue from GitHub), adds NVIDIA DRM/KMS kernel parameters if GPU detected, updates GRUB and initramfs, `nala autoremove + clean` |
-| 14 | Cleanup: `nala autoremove -y`, `nala clean` |
-| 15 | Downloads and pipes Dank Linux installer (runs last to avoid interference) |
-
-## Non-obvious gotchas
-
-- **Plymouth theme detection**: looks for any `*.zip` in the script's own directory (`$SCRIPT_DIR`). If absent, step 13 warns and skips without error.
-- **Step 7 critical side-effect**: masks `systemd-networkd-wait-online.service` and overwrites `/etc/netplan/01-netcfg.yaml`. Editing this step requires care on systems that depend on netplan's default renderer.
-- **Step 8 installs Flatpak apps**: the Flatpak apps (Papers, Resources, Showtime) must stay in step 8, AFTER Flathub is added — not earlier.
-- **Step 10 TLP config**: writes `/etc/tlp.d/01-voidforge.conf` — limits CPU to 80% on battery, PCIe ASPM powersupersave, USB autosuspend, WiFi power save on battery. Also configures logind lid switch behavior.
-- **Step 13 NVIDIA DRM/KMS**: if NVIDIA GPU detected, adds `nvidia-drm.modeset=1 nvidia-drm.fbdev=1 nvidia.NVreg_PreserveVideoMemoryAllocations=1` to `GRUB_CMDLINE_LINUX_DEFAULT`. Required for Wayland on NVIDIA. Also adds NVIDIA modules to initramfs.
-- **Step 15 is external**: fetches and runs Dank Linux installer as unprivileged user. Runs last to avoid interference with other steps.
-- **GRUB is modified**: `sed` on `/etc/default/grub` adds `splash`, sets `GRUB_THEME`, adds NVIDIA parameters if needed, then `grub-mkconfig` + `update-initramfs -u` are run. A typo here can break boot visuals.
-- **Checkpoints**: script saves last completed step in `/tmp/voidforge-progress`. Use `--resume` to continue from interruption.
-- **Polkit rule**: writes `/etc/polkit-1/rules.d/90-udisks2-automount.rules` — grants auto-mount to `plugdev` group.
-- **UFW is enabled** in step 6 with `deny incoming / allow outgoing`. Adding services later requires opening ports explicitly.
-- **XanMod kernel**: requires reboot to apply. Script warns at end if installed.
-- **NVIDIA drivers**: require reboot to apply DRM/KMS parameters. Script warns at end if installed.
+| Issue | Fix |
+|-------|-----|
+| Nala/apt hanging on debconf prompts | `DEBIAN_FRONTEND=noninteractive` + `NEEDRESTART_MODE=a` |
+| Nala output hidden (blind spinner) | `tee -a` en `run_cmd()` |
+| Plymouth theme not found in `curl | bash` | `PLYMOUTH_ZIP_URL` fallback download (line 53 of config.sh) |
+| Ubuntu version check blocking 24.04 | Fixed `-ge 26` → `-ge 24` in `check_system()` |
+| Menu `read` fails on piped input | All `read` calls use `</dev/tty` |
+| DMS installer not included | Reintegrated as `step_15` via `curl | sh` |
 
 ## Code conventions
 
-- Each step is a function `step_N()`.
-- Helper functions: `log_step()`, `log_ok()`, `log_skip()`, `log_warn()`, `log_error()`.
-- Checkpoints: `save_checkpoint <N>` and `load_checkpoint`.
-- Colors: `C_CYAN`, `C_GREEN`, `C_YELLOW`, `C_RED`, `C_GRAY`, `C_WHITE`, `C_BLUE`.
-- Mega-installation: step 4 installs 8+ steps' worth of packages in 1 nala call for speed.
-- NVIDIA detection: `ubuntu-drivers devices` finds optimal version dynamically.
-- Interactive menu: `select` loop with 7 options (all, resume, step, range, status, readme, exit).
-- CLI flags: `--resume`, `--step N`, `--range N-M`, `--skip N,M,...`, `--all`.
-- Package installs use `--no-install-recommends -y` for minimal footprint.
+- Each `install/*/*.sh` defines a single `step_N()` function
+- Step functions use `should_run_step N || return 0` for idempotency
+- All `root()` calls protected with `|| true` or equivalent
+- `set -euo pipefail` at the top of `voidforge.sh`
+- Colors via `$C_*` variables (defined in `config.sh`)
+- Gum wrappers in `lib/gum.sh` auto-fallback to text mode
+- Two traps in `helpers.sh`:
+  - `trap 'nospin 2>/dev/null || true' EXIT` — kills spinner on exit
+  - `trap 'error_handler $? $LINENO "$BASH_COMMAND"' ERR` — logs errors
 
 ## Verification
 
-No tests, linter, or CI. Verify changes by:
-- ShellCheck: `shellcheck VoidForge.sh`
-- Test individual steps: `sudo bash VoidForge.sh --step <N>`
-- Test ranges: `sudo bash VoidForge.sh --range 0-4`
-- Dry-review: read the diff carefully, since this script modifies system-level config as root.
+```bash
+bash -n voidforge.sh && echo "Syntax OK"
+find . -name "*.sh" -exec bash -n {} \; && echo "All OK"
+```
+
+For functional testing:
+```bash
+sudo bash voidforge.sh --step 0     # Test bootstrap only
+sudo bash voidforge.sh --range 0-4  # Test core + drivers + packages
+```
