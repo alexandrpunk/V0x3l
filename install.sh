@@ -5,13 +5,14 @@
 # ============================================================
 #
 # Uso:
-#   curl -fsSL https://raw.githubusercontent.com/alexandrpunk/VoidForge/main/install.sh | bash
+#   curl -fsSL https://raw.githubusercontent.com/alexandrpunk/VoidForge/refactor/install.sh | bash
 # ============================================================
 
 set -euo pipefail
 
 REPO_URL="https://github.com/alexandrpunk/VoidForge.git"
 INSTALL_DIR="${HOME}/.local/share/voidforge"
+VOIDFORGE_BRANCH="${VOIDFORGE_BRANCH:-refactor}"
 
 echo ""
 echo "  ╔═══════════════════════════════════════════════════╗"
@@ -35,9 +36,9 @@ if ! command -v git &>/dev/null; then
 fi
 
 # Clonar repositorio
-echo "📦 Clonando VoidForge..."
+echo "📦 Clonando VoidForge (rama: $VOIDFORGE_BRANCH)..."
 rm -rf "$INSTALL_DIR"
-git clone --depth 1 "$REPO_URL" "$INSTALL_DIR" 2>/dev/null
+git clone --depth 1 --branch "$VOIDFORGE_BRANCH" "$REPO_URL" "$INSTALL_DIR" 2>/dev/null
 
 if [ ! -f "$INSTALL_DIR/voidforge.sh" ]; then
     echo "❌ Error al clonar el repositorio."
