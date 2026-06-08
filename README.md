@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="voidforge-logo.svg" alt="VoidForge" width="250" />
+  <img src="voidforge-logo.png" alt="VoidForge" width="250" />
 </p>
 
 <p align="center">
