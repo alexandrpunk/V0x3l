@@ -21,7 +21,8 @@ run_cmd() {
     local desc="$1"
     shift
     log_to_file "CMD: $*"
-    "$@" >>"$LOG_FILE" 2>&1
+    echo -e "\n${C_CYAN}   -> $desc${C_RESET}"
+    "$@" 2>&1 | tee -a "$LOG_FILE"
 }
 
 log_step() {

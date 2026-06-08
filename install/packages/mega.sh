@@ -2,7 +2,6 @@ step_4() {
     should_run_step 4 || return 0
     log_step 4 "$TOTAL_STEPS" "Instalando paquetes del sistema (Wayland, Nautilus, Apps, Audio, Codecs, Flatpak, TLP, Fonts)"
 
-    spin "Instalando todos los paquetes (esto puede tardar)..."
     run_cmd "mega-install" root nala install --no-install-recommends -y \
         wayland-protocols libwayland-dev libegl1 \
         libgl1-mesa-dri mesa-vulkan-drivers xwayland \
@@ -17,7 +16,6 @@ step_4() {
         ubuntu-restricted-extras gstreamer1.0-plugins-bad \
         gstreamer1.0-libav ffmpegthumbnailer \
         flatpak tlp tlp-rdw fonts-powerline || true
-    nospin
     log_ok "Todos los paquetes instalados"
     save_checkpoint 4
 }

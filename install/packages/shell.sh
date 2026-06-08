@@ -8,29 +8,27 @@ step_11() {
     fi
 
     if [ ! -d "$HOME_DIR/.oh-my-zsh" ]; then
-        spin "Instalando Oh My Zsh..."
         if sudo -u "$REAL_USER" bash -c '
             sh -c "$(curl -fsSL https://raw.githubusercontent.com/ohmyzsh/ohmyzsh/master/tools/install.sh)" "" --unattended
             sed -i "s/^ZSH_THEME=.*/ZSH_THEME=\"agnoster\"/" "$HOME/.zshrc"
         ' >>"$LOG_FILE" 2>&1; then
-            nospin; log_ok "Oh My Zsh instalado, tema: agnoster"
+ log_ok "Oh My Zsh instalado, tema: agnoster"
         else
-            nospin; log_warn "Oh My Zsh no se pudo instalar (sin conexion o error de descarga)"
+ log_warn "Oh My Zsh no se pudo instalar (sin conexion o error de descarga)"
         fi
     else
         echo -e "${C_YELLOW}   Oh My Zsh ya esta instalado.${C_RESET}"
         echo -ne "${C_WHITE}   ¿Reinstalar? [s/N]: ${C_RESET}"
         read -r respuesta </dev/tty
         if [[ "$respuesta" =~ ^[Ss]$ ]]; then
-            spin "Reinstalando Oh My Zsh..."
             sudo -u "$REAL_USER" rm -rf "$HOME_DIR/.oh-my-zsh" 2>/dev/null || true
             if sudo -u "$REAL_USER" bash -c '
                 sh -c "$(curl -fsSL https://raw.githubusercontent.com/ohmyzsh/ohmyzsh/master/tools/install.sh)" "" --unattended
                 sed -i "s/^ZSH_THEME=.*/ZSH_THEME=\"agnoster\"/" "$HOME/.zshrc"
             ' >>"$LOG_FILE" 2>&1; then
-                nospin; log_ok "Oh My Zsh reinstalado, tema: agnoster"
+ log_ok "Oh My Zsh reinstalado, tema: agnoster"
             else
-                nospin; log_warn "Oh My Zsh no se pudo reinstalar"
+ log_warn "Oh My Zsh no se pudo reinstalar"
             fi
         else
             sudo -u "$REAL_USER" sed -i "s/^ZSH_THEME=.*/ZSH_THEME=\"agnoster\"/" "$HOME_DIR/.zshrc" >>"$LOG_FILE" 2>&1 || true

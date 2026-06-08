@@ -7,7 +7,6 @@ step_6() {
         echo -ne "${C_WHITE}   ¿Recrearlos? [s/N]: ${C_RESET}"
         read -r respuesta </dev/tty
         if [[ "$respuesta" =~ ^[Ss]$ ]]; then
-            spin "Recreando directorios de usuario..."
             sudo -u "$REAL_USER" rm -rf "$HOME_DIR/Documentos" "$HOME_DIR/Documents" \
                 "$HOME_DIR/Descargas" "$HOME_DIR/Downloads" \
                 "$HOME_DIR/Escritorio" "$HOME_DIR/Desktop" \
@@ -17,15 +16,12 @@ step_6() {
                 "$HOME_DIR/Plantillas" "$HOME_DIR/Templates" \
                 "$HOME_DIR/Público" "$HOME_DIR/Public" 2>/dev/null || true
             sudo -u "$REAL_USER" xdg-user-dirs-update >>"$LOG_FILE" 2>&1 || log_warn "xdg-user-dirs-update fallo"
-            nospin
             log_ok "Directorios de usuario recreados"
         else
             log_skip "Directorios de usuario conservados"
         fi
     else
-        spin "Creando directorios de usuario..."
         sudo -u "$REAL_USER" xdg-user-dirs-update >>"$LOG_FILE" 2>&1 || log_warn "xdg-user-dirs-update fallo"
-        nospin
         log_ok "Directorios de usuario creados"
     fi
 

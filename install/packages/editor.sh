@@ -18,7 +18,6 @@ step_12() {
     fi
 
     if [ "$LAZYVIM_INSTALLED" = false ]; then
-        spin "Instalando LazyVim..."
         sudo -u "$REAL_USER" bash -c "
             mv ~/.config/nvim ~/.config/nvim.bak 2>/dev/null || true
             mv ~/.local/share/nvim ~/.local/share/nvim.bak 2>/dev/null || true
@@ -27,7 +26,6 @@ step_12() {
             git clone https://github.com/LazyVim/starter ~/.config/nvim 2>/dev/null
             rm -rf ~/.config/nvim/.git 2>/dev/null || true
         " >>"$LOG_FILE" 2>&1
-        nospin
         log_ok "LazyVim instalado (ejecuta 'nvim' para completar la configuracion)"
     else
         log_skip "LazyVim conservado"

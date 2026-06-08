@@ -3,9 +3,7 @@ step_14() {
     log_step 14 "$TOTAL_STEPS" "Configurando Plymouth y GRUB"
 
     # ── Plymouth theme ──
-    spin "Instalando Plymouth..."
     run_cmd "nala install plymouth" root nala install -y plymouth plymouth-themes || true
-    nospin
     root mkdir -p /usr/share/plymouth/themes || true
 
     PLYMOUTH_THEME_SET=false
@@ -73,9 +71,7 @@ step_14() {
     GRUB_THEME_PATH="/usr/share/grub/themes/grub-theme-vimix-very-dark-blue"
     if [ ! -f "$GRUB_THEME_PATH/theme.txt" ]; then
         GRUB_TMP_DIR="$(mktemp --directory)"
-        spin "Descargando tema GRUB Vimix..."
         run_cmd "git clone GRUB theme" git clone --depth 1 https://github.com/trueNAHO/grub2-theme-vimix-very-dark-blue.git "$GRUB_TMP_DIR" || true
-        nospin
         root install --directory --mode 755 "$GRUB_THEME_PATH" || true
         root cp --no-preserve=ownership --recursive "$GRUB_TMP_DIR/src/." "$GRUB_THEME_PATH" || true
         rm -rf "$GRUB_TMP_DIR"
@@ -108,16 +104,12 @@ step_14() {
         root sh -c "echo 'drm' >> /etc/initramfs-tools/modules" 2>/dev/null || true
     fi
 
-    spin "Regenerando GRUB e initramfs..."
     run_cmd "grub-mkconfig" root grub-mkconfig -o /boot/grub/grub.cfg || true
     run_cmd "update-initramfs" root update-initramfs -u || true
-    nospin
     log_ok "GRUB e initramfs regenerados"
 
-    spin "Limpiando paquetes huerfanos..."
     run_cmd "nala autoremove" root nala autoremove -y || true
     run_cmd "nala clean" root nala clean || true
-    nospin
     log_ok "Paquetes huérfanos eliminados, caché limpiada"
     save_checkpoint 14
 }

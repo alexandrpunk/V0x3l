@@ -3,10 +3,8 @@ step_1() {
     log_step 1 "$TOTAL_STEPS" "Configurando repositorios y sistema base"
 
     if [ ! -f /etc/apt/sources.list.d/butterrepo.list ]; then
-        spin "Agregando ButterRepo..."
         curl -fsSL https://justaguylinux.codeberg.page/butterrepo/key.asc | root gpg --dearmor -o /usr/share/keyrings/butterrepo.gpg >>"$LOG_FILE" 2>&1 || true
         echo "deb [arch=amd64 signed-by=/usr/share/keyrings/butterrepo.gpg] https://justaguylinux.codeberg.page/butterrepo stable main" | root tee /etc/apt/sources.list.d/butterrepo.list >>"$LOG_FILE" 2>&1 || true
-        nospin
         log_ok "ButterRepo agregado"
     else
         log_skip "ButterRepo ya existe"
@@ -17,10 +15,8 @@ step_1() {
     if [ "$NALA_AVAILABLE" = true ]; then
         PKG_MGR="nala"
     fi
-    spin "Actualizando sistema..."
     run_cmd "update" root $PKG_MGR update || true
     run_cmd "upgrade" root $PKG_MGR upgrade -y || true
-    nospin
     log_ok "Sistema actualizado"
 
     root usermod -aG video,render,audio,plugdev,netdev "$REAL_USER" >>"$LOG_FILE" 2>&1 || true
