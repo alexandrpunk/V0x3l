@@ -21,7 +21,7 @@ run_cmd() {
     local desc="$1"
     shift
     log_to_file "CMD: $*"
-    "$@" 2>&1 | tee -a "$LOG_FILE"
+    "$@" >>"$LOG_FILE" 2>&1
 }
 
 log_step() {
