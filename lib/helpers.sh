@@ -33,11 +33,11 @@ log_step() {
     echo -e "${C_CYAN}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${C_RESET}\n"
 }
 
-log_ok()   { log_to_file "OK: $1";   echo -e "${C_GREEN}   ✅ $1${C_RESET}"; }
-log_skip() { log_to_file "SKIP: $1"; echo -e "${C_YELLOW}   ⏭️ $1${C_RESET}"; }
-log_warn() { log_to_file "WARN: $1"; echo -e "${C_YELLOW}   ⚠️ $1${C_RESET}"; }
-log_error(){ log_to_file "ERROR: $1";echo -e "${C_RED}   ❌ $1${C_RESET}"; }
-log_info() { log_to_file "INFO: $1"; echo -e "${C_GRAY}   ℹ️  $1${C_RESET}"; }
+log_ok()   { log_to_file "OK: $1";   echo -e "${C_GREEN}   [OK] $1${C_RESET}"; }
+log_skip() { log_to_file "SKIP: $1"; echo -e "${C_YELLOW}   [--] $1${C_RESET}"; }
+log_warn() { log_to_file "WARN: $1"; echo -e "${C_YELLOW}   [!] $1${C_RESET}"; }
+log_error(){ log_to_file "ERROR: $1";echo -e "${C_RED}   [ERR] $1${C_RESET}"; }
+log_info() { log_to_file "INFO: $1"; echo -e "${C_GRAY}   [i] $1${C_RESET}"; }
 
 SPINNER_PID=""
 SPINNER_MSG=""
@@ -123,33 +123,33 @@ print_summary() {
     echo -e "\n${C_CYAN}╔════════════════════════════════════════════════════════════════╗${C_RESET}"
     echo -e "${C_CYAN}║${C_WHITE}                   ¡Instalación completada!                      ${C_CYAN}║${C_RESET}"
     echo -e "${C_CYAN}╚════════════════════════════════════════════════════════════════╝${C_RESET}\n"
-    echo -e "${C_GREEN}✅ Todos los pasos completados${C_RESET}\n"
+    echo -e "${C_GREEN}[OK] Todos los pasos completados${C_RESET}\n"
     echo -e "${C_WHITE}Cambios realizados:${C_RESET}"
-    echo -e "  • Kernel: XanMod Edge"
-    echo -e "  • Wayland + Nautilus + PipeWire"
-    echo -e "  • Flatpak con Flathub + Apps Papers, Resources, Showtime"
-    echo -e "  • Oh My Zsh + tema agnoster"
-    echo -e "  • Nerd Fonts: fonts-powerline"
-    echo -e "  • Iconos: Colloid catppuccin green"
-    echo -e "  • Temas: Plymouth + GRUB Vimix"
-    echo -e "  • Firewall: UFW activo deny incoming"
-    echo -e "  • TLP configurado para laptops"
-    echo -e "  • DMS (Dank Linux)"
+    echo -e "  + Kernel: XanMod Edge"
+    echo -e "  + Wayland + Nautilus + PipeWire"
+    echo -e "  + Flatpak con Flathub + Apps Papers, Resources, Showtime"
+    echo -e "  + Oh My Zsh + tema agnoster"
+    echo -e "  + Nerd Fonts: fonts-powerline"
+    echo -e "  + Iconos: Colloid catppuccin green"
+    echo -e "  + Temas: Plymouth + GRUB Vimix"
+    echo -e "  + Firewall: UFW activo deny incoming"
+    echo -e "  + TLP configurado para laptops"
+    echo -e "  + DMS (Dank Linux)"
     if [ "$HAS_NVIDIA_GPU" -eq 1 ]; then
-        echo -e "  • Drivers NVIDIA + parámetros kernel DRM/KMS"
+        echo -e "  + Drivers NVIDIA + parametros kernel DRM/KMS"
     fi
-    echo -e "\n${C_YELLOW}⚠️ Importante:${C_RESET}"
-    echo -e "  • Si se instaló XanMod Edge, ${C_RED}requiere reiniciar${C_RESET} para aplicar el nuevo kernel"
-    echo -e "  • Si se instalaron drivers NVIDIA, ${C_RED}requiere reiniciar${C_RESET} para aplicar DRM/KMS"
-    echo -e "\n${C_WHITE}Comandos útiles:${C_RESET}"
-    echo -e "  ${C_GRAY}sudo reboot${C_RESET}              — Reiniciar para aplicar cambios"
-    echo -e "  ${C_GRAY}prime-run <app>${C_RESET}         — Usar GPU NVIDIA en sistema hibrido"
-    echo -e "  ${C_GRAY}tlp start${C_RESET}               — Iniciar TLP manualmente"
-    echo -e "  ${C_GRAY}tlp-stat${C_RESET}                — Ver estado de ahorro de energía"
-    echo -e "  ${C_GRAY}ufw status${C_RESET}               — Ver estado del firewall"
-    echo -e "  ${C_GRAY}flatpak list${C_RESET}            — Ver aplicaciones Flatpak instaladas"
+    echo -e "\n${C_YELLOW}[!] Importante:${C_RESET}"
+    echo -e "  + Si se instalo XanMod Edge, ${C_RED}requiere reiniciar${C_RESET} para aplicar el nuevo kernel"
+    echo -e "  + Si se instalaron drivers NVIDIA, ${C_RED}requiere reiniciar${C_RESET} para aplicar DRM/KMS"
+    echo -e "\n${C_WHITE}Comandos utiles:${C_RESET}"
+    echo -e "  ${C_GRAY}sudo reboot${C_RESET}              - Reiniciar para aplicar cambios"
+    echo -e "  ${C_GRAY}prime-run <app>${C_RESET}         - Usar GPU NVIDIA en sistema hibrido"
+    echo -e "  ${C_GRAY}tlp start${C_RESET}               - Iniciar TLP manualmente"
+    echo -e "  ${C_GRAY}tlp-stat${C_RESET}                - Ver estado de ahorro de energia"
+    echo -e "  ${C_GRAY}ufw status${C_RESET}               - Ver estado del firewall"
+    echo -e "  ${C_GRAY}flatpak list${C_RESET}            - Ver aplicaciones Flatpak instaladas"
     echo -e "\n${C_GRAY}Log completo: $LOG_FILE${C_RESET}"
-    echo -e "\n${C_GREEN}¡Tu sistema está listo! 🚀${C_RESET}\n"
+    echo -e "\n${C_GREEN}Tu sistema esta listo!${C_RESET}\n"
 }
 
 check_system() {

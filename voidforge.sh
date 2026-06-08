@@ -72,31 +72,34 @@ show_menu() {
     print_banner
 
     if command -v gum &>/dev/null; then
-        local options=(
-            "Instalación completa (pasos 0-15)"
-            "Reanudar desde último checkpoint"
-            "Ejecutar paso específico"
-            "Ejecutar rango de pasos"
-            "Ver estado actual"
-            "Salir"
-        )
-        local choice
-        if choice=$(gum choose "${options[@]}" --height 10 --header "Selecciona una opción:"); then
-            case "$choice" in
-                "Instalación completa (pasos 0-15)") run_all_steps ;;
-                "Reanudar desde último checkpoint") resume_from_checkpoint ;;
-                "Ejecutar paso específico") run_specific_step ;;
-                "Ejecutar rango de pasos") run_range ;;
-                "Ver estado actual") show_status ;;
-                *) clear; exit 0 ;;
-            esac
-            return
-        fi
-        log_info "Gum no disponible, usando menú texto"
-        sleep 1
+        show_gum_menu
+    else
+        show_text_menu
     fi
+}
 
-    show_text_menu
+show_gum_menu() {
+    print_banner
+    local options=(
+        "Instalacion completa (pasos 0-15)"
+        "Reanudar desde ultimo checkpoint"
+        "Ejecutar paso especifico"
+        "Ejecutar rango de pasos"
+        "Ver estado actual"
+        "Salir"
+    )
+    local choice
+    choice=$(gum choose "${options[@]}" --height 10 --header "Selecciona una opcion:")
+    if [ -z "$choice" ] || [ "$choice" = "Salir" ]; then
+        clear; exit 0
+    fi
+    case "$choice" in
+        "Instalacion completa (pasos 0-15)") run_all_steps ;;
+        "Reanudar desde ultimo checkpoint") resume_from_checkpoint ;;
+        "Ejecutar paso especifico") run_specific_step ;;
+        "Ejecutar rango de pasos") run_range ;;
+        "Ver estado actual") show_status ;;
+    esac
 }
 
 show_text_menu() {
@@ -243,7 +246,5 @@ main() {
 
     show_menu
 }
-
-main "$@"
 
 main "$@"

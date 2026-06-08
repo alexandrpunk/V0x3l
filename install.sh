@@ -23,9 +23,9 @@ init_screen() {
     echo ""
 }
 
-step_ok()   { echo -e "\r  \033[1;32m◉\033[0m $1... \033[1;32m✅\033[0m"; }
-step_fail() { echo -e "\r  \033[1;31m◉\033[0m $1... \033[1;31m❌\033[0m"; }
-step_doing(){ echo -ne "  \033[1;36m◉\033[0m $1... \033[1;36m⏳\033[0m"; }
+step_ok()   { echo -e "  \033[1;32m[OK]\033[0m $1"; }
+step_fail() { echo -e "  \033[1;31m[ERR]\033[0m $1"; }
+step_doing(){ echo -e "  \033[1;36m[..]\033[0m $1"; }
 
 # ── Paso 1: Verificar sistema ──
 step_doing "Verificando sistema"
@@ -60,7 +60,7 @@ step_ok "Descargando VoidForge"
 
 # ── Lanzar voidforge.sh ──
 echo ""
-echo -e "  \033[1;36m🚀 Iniciando VoidForge...\033[0m"
+echo -e "  \033[1;36mIniciando VoidForge...\033[0m"
 echo ""
 cd "$INSTALL_DIR"
 sudo bash voidforge.sh "$@"
