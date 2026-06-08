@@ -70,43 +70,9 @@ print_banner() {
 # ──────────────────────────────────────────
 show_menu() {
     print_banner
-
-    if command -v gum &>/dev/null; then
-        show_gum_menu
-    else
-        show_text_menu
-    fi
-}
-
-show_gum_menu() {
-    print_banner
-    local options=(
-        "Instalacion completa (pasos 0-15)"
-        "Reanudar desde ultimo checkpoint"
-        "Ejecutar paso especifico"
-        "Ejecutar rango de pasos"
-        "Ver estado actual"
-        "Salir"
-    )
-    local choice
-    choice=$(gum choose "${options[@]}" --height 10 --header "Selecciona una opcion:")
-    if [ -z "$choice" ] || [ "$choice" = "Salir" ]; then
-        clear; exit 0
-    fi
-    case "$choice" in
-        "Instalacion completa (pasos 0-15)") run_all_steps ;;
-        "Reanudar desde ultimo checkpoint") resume_from_checkpoint ;;
-        "Ejecutar paso especifico") run_specific_step ;;
-        "Ejecutar rango de pasos") run_range ;;
-        "Ver estado actual") show_status ;;
-    esac
-}
-
-show_text_menu() {
-    print_banner
     echo -e "${C_WHITE}  ${C_CYAN}[1]${C_RESET}  Instalacion completa pasos 0-15"
-    echo -e "${C_WHITE}  ${C_CYAN}[2]${C_RESET}  Reanudar desde último checkpoint"
-    echo -e "${C_WHITE}  ${C_CYAN}[3]${C_RESET}  Ejecutar paso específico"
+    echo -e "${C_WHITE}  ${C_CYAN}[2]${C_RESET}  Reanudar desde ultimo checkpoint"
+    echo -e "${C_WHITE}  ${C_CYAN}[3]${C_RESET}  Ejecutar paso especifico"
     echo -e "${C_WHITE}  ${C_CYAN}[4]${C_RESET}  Ejecutar rango de pasos"
     echo -e "${C_WHITE}  ${C_CYAN}[5]${C_RESET}  Ver estado actual"
     echo -e "${C_WHITE}  ${C_CYAN}[6]${C_RESET}  Salir"
@@ -125,7 +91,7 @@ handle_menu_choice() {
         5) show_status ;;
         6) clear; exit 0 ;;
         *)
-            echo -e "${C_RED}  Opción no válida${C_RESET}"
+            echo -e "${C_RED}  Opcion no valida${C_RESET}"
             sleep 1
             show_menu
             ;;
@@ -146,22 +112,14 @@ resume_from_checkpoint() {
 }
 
 run_specific_step() {
-    if command -v gum &>/dev/null; then
-        step=$(gum input --placeholder "Número de paso 0-15" --header "Paso específico")
-    else
-        echo -ne "${C_WHITE}  Numero de paso 0-15: ${C_RESET}"
-        read -r step </dev/tty
-    fi
+    echo -ne "${C_WHITE}  Numero de paso 0-15: ${C_RESET}"
+    read -r step </dev/tty
     run_step "$step"
 }
 
 run_range() {
-    if command -v gum &>/dev/null; then
-        range=$(gum input --placeholder "ej: 5-10" --header "Rango de pasos")
-    else
-        echo -ne "${C_WHITE}  Rango ej: 5-10: ${C_RESET}"
-        read -r range </dev/tty
-    fi
+    echo -ne "${C_WHITE}  Rango ej: 5-10: ${C_RESET}"
+    read -r range </dev/tty
     start=$(echo "$range" | cut -d- -f1)
     end=$(echo "$range" | cut -d- -f2)
     for i in $(seq "$start" "$end"); do
@@ -172,16 +130,12 @@ run_range() {
 show_status() {
     last_step=$(load_checkpoint)
     if [ -n "$last_step" ]; then
-        log_info "Último paso completado: $last_step"
+        log_info "Ultimo paso completado: $last_step"
     else
         log_info "No hay checkpoint guardado"
     fi
-    if command -v gum &>/dev/null; then
-        gum confirm "Presiona Enter para continuar" || true
-    else
-        echo -ne "${C_WHITE}  Presiona Enter para continuar...${C_RESET}"
-        read -r </dev/tty
-    fi
+    echo -ne "${C_WHITE}  Presiona Enter para continuar...${C_RESET}"
+    read -r </dev/tty
     show_menu
 }
 
@@ -233,10 +187,6 @@ main() {
     fi
 
     ensure_sudo
-
-    if ! command -v gum &>/dev/null; then
-        gum_spin "Preparando interfaz..." install_gum
-    fi
 
     # ── Modo CLI o menú interactivo ──
     if [[ $# -gt 0 ]]; then

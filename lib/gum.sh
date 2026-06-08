@@ -19,7 +19,7 @@ install_gum() {
 
     (
         cd /tmp
-        curl -fsSL -o gum.deb "https://github.com/charmbracelet/gum/releases/download/v${GUM_VERSION}/gum_${GUM_VERSION}_${arch}.deb" 2>/dev/null
+        curl -fsSL --max-time 30 -o gum.deb "https://github.com/charmbracelet/gum/releases/download/v${GUM_VERSION}/gum_${GUM_VERSION}_${arch}.deb" 2>/dev/null
         if [ -f gum.deb ]; then
             root apt install -y --allow-downgrades ./gum.deb 2>/dev/null || true
             rm -f gum.deb
