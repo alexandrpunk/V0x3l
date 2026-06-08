@@ -5,5 +5,5 @@ cat <<'EOF'
 │ \/ (_) | (_| | (_) | (_| (/_ o _> | |│
 │                       _|             │
 └──────────────────────────────────────┘
-           Init your own forge.
+           Init your own forge...
 EOF
