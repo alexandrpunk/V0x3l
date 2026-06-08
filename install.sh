@@ -37,11 +37,13 @@ fi
 
 # Clonar repositorio
 echo "📦 Clonando VoidForge (rama: $VOIDFORGE_BRANCH)..."
-rm -rf "$INSTALL_DIR"
-git clone --depth 1 --branch "$VOIDFORGE_BRANCH" "$REPO_URL" "$INSTALL_DIR" 2>/dev/null
-
-if [ ! -f "$INSTALL_DIR/voidforge.sh" ]; then
-    echo "❌ Error al clonar el repositorio."
+rm -rf "$INSTALL_DIR" 2>/dev/null || true
+if ! git clone --depth 1 --branch "$VOIDFORGE_BRANCH" "$REPO_URL" "$INSTALL_DIR" 2>&1; then
+    echo "❌ Error al clonar el repositorio desde $REPO_URL (rama: $VOIDFORGE_BRANCH)."
+    echo "   Verifica tu conexión a internet e intenta de nuevo."
+    echo ""
+    echo "   También puedes clonar manualmente:"
+    echo "   git clone --branch $VOIDFORGE_BRANCH $REPO_URL && cd VoidForge && sudo bash voidforge.sh"
     exit 1
 fi
 
