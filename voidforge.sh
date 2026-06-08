@@ -80,26 +80,36 @@ show_menu() {
             "Ver estado actual"
             "Salir"
         )
-        choice=$(gum choose "${options[@]}" --height 10 --header "Selecciona una opción:" || echo "Salir")
-        case "$choice" in
-            "Instalación completa (pasos 0-15)") run_all_steps ;;
-            "Reanudar desde último checkpoint") resume_from_checkpoint ;;
-            "Ejecutar paso específico") run_specific_step ;;
-            "Ejecutar rango de pasos") run_range ;;
-            "Ver estado actual") show_status ;;
-            *) clear; exit 0 ;;
-        esac
-    else
-        echo -e "${C_WHITE}  ${C_CYAN}[1]${C_RESET}  Instalacion completa pasos 0-15"
-        echo -e "${C_WHITE}  ${C_CYAN}[2]${C_RESET}  Reanudar desde último checkpoint"
-        echo -e "${C_WHITE}  ${C_CYAN}[3]${C_RESET}  Ejecutar paso específico"
-        echo -e "${C_WHITE}  ${C_CYAN}[4]${C_RESET}  Ejecutar rango de pasos"
-        echo -e "${C_WHITE}  ${C_CYAN}[5]${C_RESET}  Ver estado actual"
-        echo -e "${C_WHITE}  ${C_CYAN}[6]${C_RESET}  Salir"
-        echo ""
-        echo -ne "${C_WHITE}  Selecciona una opcion [1-6]: ${C_RESET}"
-        handle_menu_choice
+        local choice
+        if choice=$(gum choose "${options[@]}" --height 10 --header "Selecciona una opción:"); then
+            case "$choice" in
+                "Instalación completa (pasos 0-15)") run_all_steps ;;
+                "Reanudar desde último checkpoint") resume_from_checkpoint ;;
+                "Ejecutar paso específico") run_specific_step ;;
+                "Ejecutar rango de pasos") run_range ;;
+                "Ver estado actual") show_status ;;
+                *) clear; exit 0 ;;
+            esac
+            return
+        fi
+        log_info "Gum no disponible, usando menú texto"
+        sleep 1
     fi
+
+    show_text_menu
+}
+
+show_text_menu() {
+    print_banner
+    echo -e "${C_WHITE}  ${C_CYAN}[1]${C_RESET}  Instalacion completa pasos 0-15"
+    echo -e "${C_WHITE}  ${C_CYAN}[2]${C_RESET}  Reanudar desde último checkpoint"
+    echo -e "${C_WHITE}  ${C_CYAN}[3]${C_RESET}  Ejecutar paso específico"
+    echo -e "${C_WHITE}  ${C_CYAN}[4]${C_RESET}  Ejecutar rango de pasos"
+    echo -e "${C_WHITE}  ${C_CYAN}[5]${C_RESET}  Ver estado actual"
+    echo -e "${C_WHITE}  ${C_CYAN}[6]${C_RESET}  Salir"
+    echo ""
+    echo -ne "${C_WHITE}  Selecciona una opcion [1-6]: ${C_RESET}"
+    handle_menu_choice
 }
 
 handle_menu_choice() {
@@ -214,9 +224,8 @@ main() {
     echo -e "${C_GRAY}                      v${VERSION}${C_RESET}"
     echo ""
 
-    # ── Inicialización silenciosa ──
+    # ── Inicialización ──
     if ! check_system; then
-        echo -e "\n${C_RED}  ❌ Sistema no compatible${C_RESET}"
         exit 1
     fi
 
