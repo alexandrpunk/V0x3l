@@ -8,45 +8,59 @@
 #   curl -fsSL https://raw.githubusercontent.com/alexandrpunk/VoidForge/refactor/install.sh | bash
 # ============================================================
 
-set -euo pipefail
-
 REPO_URL="https://github.com/alexandrpunk/VoidForge.git"
 INSTALL_DIR="${HOME}/.local/share/voidforge"
 VOIDFORGE_BRANCH="${VOIDFORGE_BRANCH:-refactor}"
+TEMP_LOG="/tmp/voidforge-bootstrap.log"
 
-echo ""
-echo "  ╔═══════════════════════════════════════════════════╗"
-echo "  ║              VoidForge Installer                  ║"
-echo "  ╚═══════════════════════════════════════════════════╝"
-echo ""
+# ── Pantalla de inicialización ──
+init_screen() {
+    clear
+    echo ""
+    echo "  ╔═══════════════════════════════════════════════════╗"
+    echo "  ║              VoidForge Initializing               ║"
+    echo "  ╚═══════════════════════════════════════════════════╝"
+    echo ""
+}
 
-# Verificar que es Ubuntu 24.04+
+step_ok()   { echo -e "\r  \033[1;32m◉\033[0m $1... \033[1;32m✅\033[0m"; }
+step_fail() { echo -e "\r  \033[1;31m◉\033[0m $1... \033[1;31m❌\033[0m"; }
+step_doing(){ echo -ne "  \033[1;36m◉\033[0m $1... \033[1;36m⏳\033[0m"; }
+
+# ── Paso 1: Verificar sistema ──
+step_doing "Verificando sistema"
 if [ -f /etc/os-release ]; then
     . /etc/os-release
     if [ "$ID" != "ubuntu" ] || [ "${VERSION_ID%%.*}" -lt 24 ]; then
-        echo "❌ Se requiere Ubuntu 24.04 o superior."
+        step_fail "Verificando sistema"
+        echo -e "\n  \033[1;31mSe requiere Ubuntu 24.04 o superior.\033[0m"
         exit 1
     fi
 fi
+step_ok "Verificando sistema"
 
-# Instalar git si no está
+# ── Paso 2: Git ──
+step_doing "Preparando entorno"
 if ! command -v git &>/dev/null; then
-    sudo apt-get update -qq
-    sudo apt-get install -y -qq git
+    sudo apt-get update -qq > "$TEMP_LOG" 2>&1
+    sudo apt-get install -y -qq git >> "$TEMP_LOG" 2>&1
 fi
+step_ok "Preparando entorno"
 
-# Clonar repositorio
-echo "📦 Clonando VoidForge (rama: $VOIDFORGE_BRANCH)..."
+# ── Paso 3: Clonar repositorio ──
+step_doing "Descargando VoidForge"
 rm -rf "$INSTALL_DIR" 2>/dev/null || true
-if ! git clone --depth 1 --branch "$VOIDFORGE_BRANCH" "$REPO_URL" "$INSTALL_DIR" 2>&1; then
-    echo "❌ Error al clonar el repositorio desde $REPO_URL (rama: $VOIDFORGE_BRANCH)."
-    echo "   Verifica tu conexión a internet e intenta de nuevo."
-    echo ""
-    echo "   También puedes clonar manualmente:"
-    echo "   git clone --branch $VOIDFORGE_BRANCH $REPO_URL && cd VoidForge && sudo bash voidforge.sh"
+if ! git clone --depth 1 --branch "$VOIDFORGE_BRANCH" "$REPO_URL" "$INSTALL_DIR" > "$TEMP_LOG" 2>&1; then
+    step_fail "Descargando VoidForge"
+    echo -e "\n  \033[1;31mError al descargar.\033[0m"
+    echo "  Verifica tu conexión."
     exit 1
 fi
+step_ok "Descargando VoidForge"
 
-echo "🚀 Iniciando VoidForge..."
+# ── Lanzar voidforge.sh ──
+echo ""
+echo -e "  \033[1;36m🚀 Iniciando VoidForge...\033[0m"
+echo ""
 cd "$INSTALL_DIR"
 sudo bash voidforge.sh "$@"

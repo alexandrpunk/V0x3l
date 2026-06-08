@@ -31,6 +31,9 @@ source "$SCRIPT_DIR/lib/config.sh"
 # ──────────────────────────────────────────
 source "$SCRIPT_DIR/lib/helpers.sh"
 
+# Ctrl+C: restaurar cursor y salir limpio
+trap 'tput cnorm 2>/dev/null || true; echo ""; exit 130' SIGINT
+
 # ──────────────────────────────────────────
 # Cargar todos los step files desde install/
 # ──────────────────────────────────────────
@@ -56,13 +59,9 @@ source "$SCRIPT_DIR/lib/gum.sh"
 # ──────────────────────────────────────────
 print_banner() {
     clear
-    if command -v gum &>/dev/null; then
-        bash "$SCRIPT_DIR/ascii.sh" 2>/dev/null || echo "VoidForge"
-    else
-        echo -e "${C_CYAN}"
-        bash "$SCRIPT_DIR/ascii.sh" 2>/dev/null || echo "VoidForge"
-        echo -e "${C_GRAY}                      v${VERSION}${C_RESET}"
-    fi
+    echo -e "${C_CYAN}"
+    bash "$SCRIPT_DIR/ascii.sh" 2>/dev/null || echo "VoidForge"
+    echo -e "${C_GRAY}                      v${VERSION}${C_RESET}"
     echo ""
 }
 
@@ -81,7 +80,7 @@ show_menu() {
             "Ver estado actual"
             "Salir"
         )
-        choice=$(gum choose "${options[@]}" --height 10 --header "Selecciona una opción:" 2>/dev/null || echo "Salir")
+        choice=$(gum choose "${options[@]}" --height 10 --header "Selecciona una opción:" || echo "Salir")
         case "$choice" in
             "Instalación completa (pasos 0-15)") run_all_steps ;;
             "Reanudar desde último checkpoint") resume_from_checkpoint ;;
@@ -135,7 +134,7 @@ resume_from_checkpoint() {
 
 run_specific_step() {
     if command -v gum &>/dev/null; then
-        step=$(gum input --placeholder "Número de paso 0-15" --header "Paso específico" 2>/dev/null)
+        step=$(gum input --placeholder "Número de paso 0-15" --header "Paso específico")
     else
         echo -ne "${C_WHITE}  Numero de paso 0-15: ${C_RESET}"
         read -r step </dev/tty
@@ -145,7 +144,7 @@ run_specific_step() {
 
 run_range() {
     if command -v gum &>/dev/null; then
-        range=$(gum input --placeholder "ej: 5-10" --header "Rango de pasos" 2>/dev/null)
+        range=$(gum input --placeholder "ej: 5-10" --header "Rango de pasos")
     else
         echo -ne "${C_WHITE}  Rango ej: 5-10: ${C_RESET}"
         read -r range </dev/tty
@@ -165,7 +164,7 @@ show_status() {
         log_info "No hay checkpoint guardado"
     fi
     if command -v gum &>/dev/null; then
-        gum confirm "Presiona Enter para continuar" 2>/dev/null || true
+        gum confirm "Presiona Enter para continuar" || true
     else
         echo -ne "${C_WHITE}  Presiona Enter para continuar...${C_RESET}"
         read -r </dev/tty
@@ -208,15 +207,26 @@ main() {
     echo "=== VoidForge v${VERSION} - $(date) ===" > "$LOG_FILE"
     echo "Usuario: $REAL_USER | Home: $HOME_DIR | Script: $SCRIPT_DIR" >> "$LOG_FILE"
 
+    # ── Pantalla de inicio ──
+    clear
+    echo -e "${C_CYAN}"
+    bash "$SCRIPT_DIR/ascii.sh" 2>/dev/null || echo "VoidForge"
+    echo -e "${C_GRAY}                      v${VERSION}${C_RESET}"
+    echo ""
+
+    # ── Inicialización silenciosa ──
     if ! check_system; then
+        echo -e "\n${C_RED}  ❌ Sistema no compatible${C_RESET}"
         exit 1
     fi
 
     ensure_sudo
 
-    # Instalar gum para interfaz mejorada
-    install_gum
+    if ! command -v gum &>/dev/null; then
+        gum_spin "Preparando interfaz..." install_gum
+    fi
 
+    # ── Modo CLI o menú interactivo ──
     if [[ $# -gt 0 ]]; then
         parse_args "$@"
         return
@@ -224,5 +234,7 @@ main() {
 
     show_menu
 }
+
+main "$@"
 
 main "$@"

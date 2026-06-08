@@ -36,7 +36,7 @@ install_gum() {
 gum_spin() {
     local title="$1"; shift
     if command -v gum &>/dev/null; then
-        gum spin --spinner dot --title "$title" -- "$@" 2>/dev/null || true
+        gum spin --spinner dot --title "$title" -- "$@" || true
     else
         spin "$title"
         eval "$@"
