@@ -24,5 +24,7 @@ C_BLUE="\033[1;34m"
 
 CURRENT_STEP_NUM=0
 HAS_NVIDIA_GPU=0
+PLYMOUTH_THEME_NAME="voidforge-boot-theme"
+PLYMOUTH_THEME_SRC="$SCRIPT_DIR/assets/themes/voidforge-boot-theme"
 PLYMOUTH_ZIP_NAME="ubuntu-mac-style.zip"
 PLYMOUTH_ZIP_URL="https://raw.githubusercontent.com/alexandrpunk/VoidForge/main/voidforge-boot-theme.zip"
