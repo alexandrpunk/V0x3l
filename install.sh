@@ -5,7 +5,7 @@
 # ============================================================
 #
 # Uso:
-#   curl -fsSL https://raw.githubusercontent.com/alexandrpunk/VoidForge/main/boot.sh | bash
+#   curl -fsSL https://raw.githubusercontent.com/alexandrpunk/VoidForge/main/install.sh | bash
 # ============================================================
 
 set -euo pipefail

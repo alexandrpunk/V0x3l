@@ -2,6 +2,7 @@
 # ============================================================
 # VoidForge — Post-Instalación para Ubuntu Server
 # Gestor: Nala | Base: Wayland + Nautilus + Flatpak
+# Entry point principal (renombrado de voidforge.sh → install.sh)
 # ============================================================
 #
 # Uso:
@@ -56,7 +57,7 @@ source "$SCRIPT_DIR/lib/gum.sh"
 print_banner() {
     clear
     if command -v gum &>/dev/null; then
-        gum style --border double --align center --width 68 --foreground 6 "$(bash "$SCRIPT_DIR/ascii.sh" 2>/dev/null || echo "VoidForge")" ""
+        bash "$SCRIPT_DIR/ascii.sh" 2>/dev/null || echo "VoidForge"
     else
         echo -e "${C_CYAN}"
         bash "$SCRIPT_DIR/ascii.sh" 2>/dev/null || echo "VoidForge"

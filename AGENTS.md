@@ -8,8 +8,8 @@ Modular Bash post-installer for Ubuntu Server, rebuilt from the monolithic `Void
 
 ```
 VoidForge/
+├── install.sh                # curl | bash entry — clones repo, runs voidforge.sh
 ├── voidforge.sh              # Entry point / runner — sources libs + steps, handles menu & CLI
-├── boot.sh                   # curl | bash entry — clones repo, runs voidforge.sh
 ├── ascii.sh                  # ASCII banner art
 ├── lib/
 │   ├── config.sh             # Variables globales (colores, TOTAL_STEPS, paths)
@@ -59,7 +59,7 @@ sudo bash voidforge.sh --skip 3,7    # Skip steps 3 and 7
 sudo bash voidforge.sh --all         # Run all steps
 
 # One-liner (clones repo first)
-bash <(curl -fsSL https://raw.githubusercontent.com/alexandrpunk/VoidForge/main/boot.sh)
+bash <(curl -fsSL https://raw.githubusercontent.com/alexandrpunk/VoidForge/main/install.sh)
 ```
 
 ## Key architectural decisions
@@ -98,8 +98,13 @@ bash <(curl -fsSL https://raw.githubusercontent.com/alexandrpunk/VoidForge/main/
 ## Verification
 
 ```bash
-bash -n voidforge.sh && echo "Syntax OK"
+bash -n install.sh && bash -n voidforge.sh && echo "Syntax OK"
 find . -name "*.sh" -exec bash -n {} \; && echo "All OK"
+
+For functional testing:
+```bash
+sudo bash voidforge.sh --step 0     # Test bootstrap only
+sudo bash voidforge.sh --range 0-4  # Test core + drivers + packages
 ```
 
 For functional testing:

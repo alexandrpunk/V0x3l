@@ -8,7 +8,7 @@ step_4() {
         libgl1-mesa-dri mesa-vulkan-drivers xwayland \
         nautilus gvfs-backends gvfs-fuse udisks2 polkitd \
         ntfs-3g exfatprogs libglib2.0-bin \
-        neovim zen-browser tmux fastfetch geany nwg-look foot dialog apt-utils \
+        neovim zen-browser tmux fastfetch geany nwg-look foot \
         libheif-plugin-libde265 ufw gnome-sushi xdg-user-dirs \
         pipewire wireplumber libpipewire-0.3-0 libwireplumber-0.5-0 \
         dbus-user-session network-manager libnm0 \

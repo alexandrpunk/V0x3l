@@ -12,14 +12,6 @@ step_1() {
         log_skip "ButterRepo ya existe"
     fi
 
-    if ! grep -qr "avengemedia" /etc/apt/sources.list.d/ 2>/dev/null; then
-        echo -e "y" | root add-apt-repository ppa:avengemedia/danklinux >>"$LOG_FILE" 2>&1 || true
-        echo -e "y" | root add-apt-repository ppa:avengemedia/dms >>"$LOG_FILE" 2>&1 || true
-        log_ok "PPAs de Dank Linux agregados"
-    else
-        log_skip "PPAs de Dank Linux ya existen"
-    fi
-
     NALA_AVAILABLE=false; command -v nala >/dev/null 2>&1 && NALA_AVAILABLE=true
     PKG_MGR="apt"
     if [ "$NALA_AVAILABLE" = true ]; then
