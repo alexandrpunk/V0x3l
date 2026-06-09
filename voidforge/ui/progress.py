@@ -31,10 +31,10 @@ class ProgressScreen:
         self.pile = urwid.Pile([
             ("pack", urwid.Divider("─")),
             ("pack", urwid.AttrMap(self.header, "title")),
-            ("pack", urwid.Divider("")),
+            ("pack", urwid.Divider(" ")),
             ("pack", self.spinner_widget),
             ("pack", self.cmd_widget),
-            ("pack", urwid.Divider("")),
+            ("pack", urwid.Divider(" ")),
             ("weight", 1, output_padded),
         ])
         self.widget = urwid.Filler(self.pile, valign="top")
