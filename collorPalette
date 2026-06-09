@@ -1,27 +1,31 @@
-# VoidForge v2 — Color Palette
-# Colores ANSI estandar para maxima compatibilidad en TTY.
-# Evitar "dark blue" / colores oscuros que no contrastan en terminal basico.
+# VoidForge v2 — Color Palette (ANSI)
+# Colores desde colores -> ANSI 16 colores
+#
+# #74BF04 -> light green (brilliant green, primary)
+# #467302 -> dark green  (tertiary dark green)
+# #D1C6B2 -> yellow (dark beige, secondary - mas cercano a ANSI yellow)
+# #DCD2BF -> white (light beige, text light)
+# #534E48 -> dark gray (background and text dark)
+#
+# Formato: nombre | ANSI_fg | ANSI_bg
 
-header_bg      | light cyan, bold | black
-header_body    | light cyan       | black
-footer_bg      | dark gray        | black
-footer_info    | dark gray        | black
+header_bg   | light green | black
+footer_bg   | dark gray   | black
+body        | white       | black
+body_focus  | black       | light gray
+dim         | dark gray   | black
 
-body           | white            | black
-body_focus     | black            | light gray
-dim            | dark gray        | black
+button_normal | white     | black
+button_focus  | black     | light green
 
-button_normal  | white            | black
-button_focus   | black            | light cyan
+ok    | light green | black
+warn  | yellow      | black
+error | light red   | black
+info  | dark gray   | black
 
-ok             | light green      | black
-warn           | yellow           | black
-error          | light red        | black
-info           | dark gray        | black
+title | light green, bold | black
 
-title          | light cyan, bold | black
-
-progress_done  | light green      | black
-progress_bar   | dark cyan        | black
-pkg_name       | white, bold      | black
-pkg_speed      | dark gray        | black
+progress_done | light green | black
+progress_bar  | dark green  | black
+pkg_name      | white, bold | black
+pkg_speed     | dark gray   | black

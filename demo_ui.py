@@ -1,289 +1,219 @@
 #!/usr/bin/env python3
-# VoidForge UI Demo — muestra la interfaz sin modificar el sistema
+# VoidForge UI Demo — interfaz ANSI con colores
+# Funciona en TTY puro, SSH, terminal grafico
 # Uso: python3 demo_ui.py
 
 import sys
 import os
 import time
-import random
+import re as _re
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 os.environ["LOG_FILE"] = "/dev/null"
 
-import urwid
-from voidforge.config import PALETTE, VERSION, TOTAL_STEPS
-from voidforge.ui.menu import MainMenu
-from voidforge.ui.progress import ProgressScreen
-from voidforge.ui.layout import VoidForgeLayout
-from voidforge.ui.dialogs import message_dialog
+from voidforge.config import VERSION
 
 
-NALA_OUTPUT_SIMULATION = [
-    "Leyendo lista de paquetes... Hecho",
-    "Creando arbol de dependencias... Hecho",
-    "Leyendo informacion de estado... Hecho",
-    "Los paquetes indicados adicionales se instalaran:",
-    "  libwayland-client0 libwayland-server0 libegl1 libgl1-mesa-dri",
-    "Se instalaran 77 paquetes nuevos (45.8 MB para descargar)", "",
-    "Descargando...",
-    "Get:1 http://archive.ubuntu.com noble/main amd64 libwayland-client0 (0.8 MB) [1%]",
-    "Get:2 http://archive.ubuntu.com noble/main amd64 libwayland-server0 (0.4 MB) [3%]",
-    "Get:3 http://archive.ubuntu.com noble/main amd64 libegl1 (0.2 MB) [5%]",
-    "Get:4 http://archive.ubuntu.com noble/main amd64 libgl1-mesa-dri (8.2 MB) [10%]",
-    "Get:5 http://archive.ubuntu.com noble/main amd64 mesa-vulkan-drivers (4.1 MB) [15%]",
-    "Get:6 http://archive.ubuntu.com noble/main amd64 xwayland (1.5 MB) [18%]",
-    "Get:7 http://archive.ubuntu.com noble/main amd64 nautilus (2.3 MB) [22%]",
-    "Get:8 http://archive.ubuntu.com noble/main amd64 gvfs-backends (1.1 MB) [25%]",
-    "Get:9 http://archive.ubuntu.com noble/main amd64 pipewire (3.6 MB) [30%]",
-    "Get:10 http://archive.ubuntu.com noble/main amd64 wireplumber (0.9 MB) [33%]",
-    "Get:11 http://archive.ubuntu.com noble/main amd64 bluez (5.2 MB) [38%]",
-    "Get:12 http://archive.ubuntu.com noble/main amd64 flatpak (6.8 MB) [45%]",
-    "Get:13 http://archive.ubuntu.com noble/main amd64 fonts-powerline (0.3 MB) [47%]",
-    "Get:14 http://archive.ubuntu.com noble/main amd64 tlp (1.8 MB) [50%]",
-    "Get:15 http://archive.ubuntu.com noble/main amd64 neovim (4.2 MB) [55%]",
-    "Get:16 http://archive.ubuntu.com noble/main amd64 tmux (0.8 MB) [58%]",
-    "Get:17 http://archive.ubuntu.com noble/main amd64 fastfetch (0.4 MB) [60%]",
-    "Get:18 http://archive.ubuntu.com noble/main amd64 ufw (0.7 MB) [63%]",
-    "Get:19 http://archive.ubuntu.com noble/main amd64 ubuntu-restricted-extras (2.9 MB) [68%]",
-    "Get:20 http://archive.ubuntu.com noble/main amd64 ffmpegthumbnailer (1.1 MB) [72%]",
-    "Fetched 45.8 MB in 12s (3.8 MB/s)", "",
-    "Extrayendo plantillas de los paquetes... 100%", "",
-    "(Leyendo la base de datos... 1%",
-    "Extrayendo libwayland-client0 (1/77)...",
-    "Extrayendo libwayland-server0 (2/77)...",
-    "Extrayendo libegl1 (3/77)...",
-    "Extrayendo libgl1-mesa-dri (4/77)...",
-    "Extrayendo mesa-vulkan-drivers (5/77)...",
-    "Extrayendo xwayland (6/77)...",
-    "Extrayendo nautilus (7/77)...",
-    "Extrayendo pipewire (9/77)...",
-    "Extrayendo wireplumber (10/77)...",
-    "Extrayendo flatpak (11/77)...",
-    "Extrayendo neovim (12/77)...",
-    "Extrayendo tmux (13/77)...",
-    "Extrayendo fastfetch (14/77)...",
-    "Extrayendo ufw (15/77)...",
-    "Extrayendo ubuntu-restricted-extras (16/77)...", "",
-    "Configurando libwayland-client0 (17/77)...",
-    "Configurando libwayland-server0 (18/77)...",
-    "Configurando libegl1 (19/77)...",
-    "Configurando libgl1-mesa-dri (20/77)...",
-    "Configurando mesa-vulkan-drivers (21/77)...",
-    "Configurando xwayland (22/77)...",
-    "Configurando nautilus (23/77)...",
-    "Configurando pipewire (24/77)...",
-    "Configurando wireplumber (25/77)...",
-    "Configurando flatpak (26/77)...",
-    "Configurando neovim (27/77)...",
-    "Configurando ufw (28/77)...",
-    "Configurando ubuntu-restricted-extras (29/77)...",
-    "Procesando disparadores...",
-    "nala install correcto",
-]
+# ── ANSI helpers ──
 
-FLATPAK_OUTPUT_SIMULATION = [
-    "Looking for matches...",
-    "Starting download of 1 item (45.2 MB)",
-    "Downloading: org.gnome.Papers (45%)",
-    "Downloading: org.gnome.Papers (78%)",
-    "Downloading: org.gnome.Papers (100%)",
-    "Starting to install...",
-    "Installing: org.gnome.Papers (1/3)",
-    "Installing: net.nokyan.Resources (2/3)",
-    "Installing: org.gnome.Showtime (3/3)",
-    "Installation complete.",
-]
+class C:
+    """Colores ANSI mapeados desde colores."""
+    # #74BF04 primary brilliant green
+    green = "\033[1;32m"
+    # #467302 tertiary dark green
+    dgreen = "\033[0;32m"
+    # #D1C6B2 secondary dark beige
+    beige = "\033[1;33m"
+    # #DCD2BF text light beige
+    white = "\033[1;37m"
+    # #534E48 background/text dark
+    gray = "\033[2;37m"
+    red = "\033[1;31m"
+    cyan = "\033[1;36m"
+    reset = "\033[0m"
+    bold = "\033[1m"
 
-SUMMARY_LINES = [
-    "+ Kernel: XanMod Edge",
-    "+ Wayland + Nautilus + PipeWire",
-    "+ Flatpak con Flathub + Apps",
-    "+ Oh My Zsh + tema agnoster",
-    "+ Iconos: Colloid catppuccin green",
-    "+ Temas: Plymouth + GRUB Vimix",
-    "+ Firewall: UFW activo",
-    "+ TLP configurado para laptops",
+
+# Datos para simulaciones
+NALA_OUT = [
+    ("downloading", 0.05,
+     ["Leyendo listas de paquetes...",
+      "Descargando libwayland-client0 (0.8 MB) [1%]",
+      "Descargando libegl1 (0.2 MB) [5%]",
+      "Descargando libgl1-mesa-dri (8.2 MB) [12%]",
+      "Descargando xwayland (1.5 MB) [18%]",
+      "Descargando nautilus (2.3 MB) [25%]",
+      "Descargando pipewire (3.6 MB) [35%]",
+      "Descargando flatpak (6.8 MB) [48%]",
+      "Descargando neovim (4.2 MB) [58%]",
+      "Descargando bluez (5.2 MB) [68%]",
+      "Descargando ubuntu-restricted-extras (2.9 MB) [78%]",
+      "Fetched 45.8 MB in 12s (3.8 MB/s)"]),
+    ("extracting", 0.08,
+     ["Extrayendo libwayland-client0 (1/30)...",
+      "Extrayendo libgl1-mesa-dri (4/30)...",
+      "Extrayendo xwayland (6/30)...",
+      "Extrayendo nautilus (7/30)...",
+      "Extrayendo pipewire (9/30)...",
+      "Extrayendo wireplumber (10/30)...",
+      "Extrayendo flatpak (11/30)...",
+      "Extrayendo neovim (12/30)..."]),
+    ("configuring", 0.1,
+     ["Configurando libwayland-client0 (17/30)...",
+      "Configurando libgl1-mesa-dri (20/30)...",
+      "Configurando xwayland (22/30)...",
+      "Configurando nautilus (23/30)...",
+      "Configurando pipewire (24/30)...",
+      "Configurando wireplumber (25/30)...",
+      "Configurando flatpak (26/30)...",
+      "Configurando neovim (28/30)...",
+      "Procesando disparadores..."]),
 ]
 
 
-class DemoApp:
-    """Demo de la interfaz VoidForge."""
+def clear():
+    os.system("clear" if os.name == "posix" else "cls")
 
-    def __init__(self):
-        self.loop = None
-        self.layout = VoidForgeLayout()
-        self.progress = None
-        self.spinner_handle = None
-        self.simulator_handle = None
 
-    def run(self):
-        self.loop = urwid.MainLoop(
-            urwid.SolidFill(" "),
-            palette=PALETTE,
-            unhandled_input=self._unhandled_key,
-        )
-        self._show_menu()
-        self.loop.run()
+def header(title="Menu"):
+    clear()
+    bar = C.green + "\u2500" * 60 + C.reset
+    print(f"\n{C.green} VoidForge.sh : {title}{C.reset}")
+    print(bar)
 
-    def _unhandled_key(self, key):
-        if key in ("q", "Q", "esc"):
-            raise urwid.ExitMainLoop()
 
-    def _show_menu(self):
-        menu = MainMenu(on_choice=self._on_choice)
-        self.layout.show_menu(menu.get_widget())
+def progress_bar(pct, width=20):
+    """Barra de progreso ANSI."""
+    done = int(pct * width)
+    bar = C.green + "\u2588" * done + C.gray + "\u2588" * (width - done) + C.reset
+    return f"  [{bar}] {int(pct * 100)}%"
 
-    def _on_choice(self, key):
-        if key == "1":
-            self._simulate_all_steps()
-        elif key == "3":
-            self._simulate_flatpak()
-        elif key == "6":
-            raise urwid.ExitMainLoop()
+
+def simulate_packages():
+    """Simula instalacion con barra de progreso."""
+    header("Paso 4/15 - Instalando paquetes del sistema")
+
+    total_lines = sum(len(lines) for _, _, lines in NALA_OUT)
+    current = 0
+
+    for phase, delay, lines in NALA_OUT:
+        for line in lines:
+            current += 1
+            pct = current / total_lines
+
+            clear()
+            header("Paso 4/15 - Instalando paquetes del sistema")
+            print()
+            print(f"   {C.cyan}\u2B9C Instalando paquetes...{C.reset}")
+            print()
+            print(f"   {progress_bar(pct)}")
+            if phase == "downloading":
+                counter = f"{current}/{total_lines} paquetes"
+            elif phase == "extracting":
+                counter = f"Extrayendo {current}/{total_lines}"
+            else:
+                counter = f"Configurando {current}/{total_lines}"
+            print(f"   {C.gray}{counter}{C.reset}")
+            print()
+            print(f"   {C.white}{line}{C.reset}")
+            print(f"\n{C.gray} Ctrl+C cancelar | Log: /tmp/voidforge.log{C.reset}")
+            time.sleep(delay)
+
+
+def run_step(num, total, title, lines, delay=0.1):
+    """Muestra un paso simple con lineas de progreso."""
+    for line in lines:
+        clear()
+        header(f"Paso {num}/{total} - {title}")
+        print(f"\n   {C.cyan}{line}{C.reset}")
+        time.sleep(delay)
+    print(f"\n   {C.green}[OK]{C.reset} Paso {num} completado")
+    time.sleep(0.5)
+
+
+def show_menu():
+    while True:
+        header("Demo VoidForge")
+        print()
+        print(f"   {C.white}(1){C.reset} Instalacion completa (pasos 0-15)")
+        print(f"   {C.white}(2){C.reset} Reanudar desde ultimo checkpoint")
+        print(f"   {C.white}(3){C.reset} Ejecutar paso especifico")
+        print(f"   {C.white}(4){C.reset} Ejecutar rango de pasos")
+        print(f"   {C.white}(5){C.reset} Ver estado actual")
+        print(f"   {C.white}(6){C.reset} Salir")
+        print(f"\n{C.gray} \u2191\u2193 navegar | Enter elegir | Ctrl+C salir{C.reset}")
+        print()
+
+        try:
+            choice = input(f"  {C.white}Selecciona [1-6]: {C.reset}").strip()
+        except (EOFError, KeyboardInterrupt):
+            print(f"\n  {C.gray}Adios.{C.reset}")
+            break
+
+        if choice == "1":
+            # Simular pasos
+            run_step(0, 15, "Preparando entorno",
+                    ["Instalando nala...", "Instalando git...", "Instalando curl, zsh...", "OK."])
+            run_step(1, 15, "Configurando repositorios",
+                    ["ButterRepo agregado.", "PPAs DMS agregados.", "Sistema actualizado."])
+            run_step(2, 15, "Instalando Kernel XanMod",
+                    ["Agregando repositorio XanMod...", "linux-xanmod-x64v3 instalado."])
+            run_step(3, 15, "Detectando GPU NVIDIA",
+                    ["Buscando GPU...", "Sin GPU NVIDIA detectada."])
+
+            # Simular mega install con barra de progreso
+            simulate_packages()
+
+            # Pasos restantes rapidos
+            for num, title, lines in [
+                (5, "Configurando polkit automontaje", ["Regla polkit creada."]),
+                (6, "Configurando xdg-user-dirs y UFW", ["Directorios creados.", "UFW habilitado."]),
+                (7, "Configurando red", ["NetworkManager habilitado.", "Netplan configurado."]),
+                (8, "Configurando Flatpak", ["Flathub agregado.", "Apps instaladas."]),
+                (9, "Habilitando servicios", ["Servicios iniciados.", "Entorno Wayland configurado."]),
+                (10, "Configurando TLP", ["TLP habilitado.", "logind configurado."]),
+                (11, "Configurando Oh My Zsh", ["Zsh instalado.", "Tema: agnoster."]),
+                (12, "Instalando LazyVim", ["LazyVim clonado."]),
+                (13, "Instalando Colloid icons", ["Tema instalado."]),
+                (14, "Configurando Plymouth y GRUB", ["Tema instalado.", "GRUB regenerado."]),
+            ]:
+                run_step(num, 15, title, lines, delay=0.08)
+
+            # Resumen final
+            header("Instalacion completada!")
+            print()
+            print(f"   {C.green}[OK]{C.reset} Todos los pasos completados\n")
+            resumen = [
+                "Kernel: XanMod Edge",
+                "Wayland + Nautilus + PipeWire",
+                "Flatpak + Oh My Zsh + LazyVim",
+                "Plymouth + GRUB Vimix",
+                "TLP + UFW configurados",
+                "DMS (Dank Linux)",
+            ]
+            for r in resumen:
+                print(f"     {C.white}+{C.reset} {r}")
+            print(f"\n   {C.gray}Log: /tmp/voidforge.log{C.reset}")
+            print(f"\n   {C.green}Tu sistema esta listo!{C.reset}")
+            input(f"\n{C.gray}   Enter para continuar...{C.reset}")
+
+        elif choice == "3":
+            header("Ejecutar paso especifico")
+            step = input(f"\n  {C.white}Numero de paso 0-15: {C.reset}")
+            print(f"\n  {C.gray}Paso {step} ejecutado.{C.reset}")
+            time.sleep(1)
+
+        elif choice == "6":
+            print(f"\n  {C.green}Hasta luego!{C.reset}")
+            break
+
         else:
-            self._show_message(
-                "Demo disponible:\n  [1] Instalacion completa\n"
-                "  [3] Flatpak install\n  [6] Salir",
-                "Info"
-            )
-
-    # ── Simulacion ──
-
-    def _simulate_all_steps(self):
-        self._run_step_sim(0, 2, "Preparando entorno...", [], delay=0.1)
-
-    def _simulate_flatpak(self):
-        self._show_progress(8, 15, "Configurando Flatpak")
-        self._feed_lines_slowly(FLATPAK_OUTPUT_SIMULATION, 0.2,
-                                callback=lambda: self._show_result(True))
-
-    def _run_step_sim(self, step, total, title, lines, delay=0.1):
-        self._show_progress(step, total, title)
-        self._feed_lines_slowly(lines, delay,
-                                callback=lambda: self._step_done(step))
-
-    def _show_progress(self, num, total, title):
-        self.progress = ProgressScreen(num, total, title)
-        self.layout.show_progress(num, total, title)
-        self.layout.set_body(self.progress.get_widget())
-        self.spinner_handle = self.loop.set_alarm_in(0.15, self._tick_spinner)
-
-    def _tick_spinner(self, loop, data):
-        if self.progress:
-            self.progress.update_spinner()
-        self.spinner_handle = self.loop.set_alarm_in(0.15, self._tick_spinner)
-
-    def _feed_lines_slowly(self, lines, delay, callback=None):
-        self._line_index = 0
-        self._sim_lines = lines
-        self._sim_callback = callback
-        self._sim_delay = delay
-        self._feed_next_line()
-
-    def _feed_next_line(self, loop=None, data=None):
-        if self._line_index >= len(self._sim_lines):
-            if self._sim_callback:
-                self._sim_callback()
-            return
-        line = self._sim_lines[self._line_index]
-        self._line_index += 1
-        if self.progress:
-            self.progress.feed_line(line)
-        self.simulator_handle = self.loop.set_alarm_in(
-            self._sim_delay, self._feed_next_line)
-
-    def _step_done(self, step):
-        ok = random.random() > 0.1
-        self.progress.show_result(ok, f"Paso {step} completado")
-        self.layout.show_result(ok, f"Paso {step}")
-        if self.spinner_handle:
-            try:
-                self.loop.remove_alarm(self.spinner_handle)
-            except Exception:
-                pass
-            self.spinner_handle = None
-        if step < 4:
-            self.loop.set_alarm_in(1.0, lambda l, d: self._simulate_mega_step())
-        elif step == 4:
-            self.loop.set_alarm_in(1.0, lambda l, d: self._simulate_final_steps())
-        else:
-            self.loop.set_alarm_in(1.0, lambda l, d: self._show_summary())
-
-    def _simulate_mega_step(self):
-        self._show_progress(4, 15, "Instalando paquetes del sistema")
-        self.progress.use_package_monitor()
-        self.progress.show_command("nala install paquetes...")
-        self._feed_lines_slowly(NALA_OUTPUT_SIMULATION, 0.08,
-                                callback=lambda: self._step_done(4))
-
-    def _simulate_final_steps(self):
-        steps = [
-            (5, "Configurando polkit automontaje"),
-            (6, "Configurando xdg-user-dirs y UFW"),
-            (7, "Configurando red"),
-            (8, "Configurando Flatpak"),
-            (9, "Habilitando servicios"),
-            (10, "Configurando TLP"),
-            (11, "Configurando Oh My Zsh"),
-            (12, "Instalando LazyVim"),
-            (13, "Instalando Colloid icons"),
-            (14, "Configurando Plymouth y GRUB"),
-        ]
-        self._sim_remaining_steps = steps
-        self._sim_remaining_idx = 0
-        self._run_next_remaining()
-
-    def _run_next_remaining(self):
-        if self._sim_remaining_idx >= len(self._sim_remaining_steps):
-            self._show_summary()
-            return
-        num, title = self._sim_remaining_steps[self._sim_remaining_idx]
-        self._sim_remaining_idx += 1
-        self._show_progress(num, 15, title)
-        if num == 8:
-            lines = NALA_OUTPUT_SIMULATION[:8] + NALA_OUTPUT_SIMULATION[-3:]
-            self.progress.use_package_monitor()
-        else:
-            lines = [f"Configurando {title.split(':')[-1].strip()}...",
-                     "Hecho."]
-        self._feed_lines_slowly(lines, 0.15,
-                                callback=self._run_next_remaining)
-
-    def _show_summary(self):
-        if self.spinner_handle:
-            try:
-                self.loop.remove_alarm(self.spinner_handle)
-            except Exception:
-                pass
-            self.spinner_handle = None
-        msg = "Instalacion completada!\n\n"
-        for line in SUMMARY_LINES:
-            msg += f"  {line}\n"
-        msg += f"\n  Log: /tmp/voidforge.log"
-        self._show_message(msg, "VoidForge - Listo!")
-
-    def _show_message(self, text, title="VoidForge"):
-        def close():
-            self._show_menu()
-        dialog = message_dialog(title, text, close)
-        overlay = urwid.Overlay(
-            dialog,
-            urwid.SolidFill(" "),
-            align="center", width=("relative", 60),
-            valign="middle", height=("relative", 55),
-        )
-        self.layout.set_body(overlay)
-
-    def _show_result(self, ok):
-        self.progress.show_result(ok, "Completado")
-        self.layout.show_result(ok, "Paso completado")
-        self.loop.set_alarm_in(1.5, lambda l, d: self._show_menu())
+            print(f"\n  {C.red}[ERR] Opcion invalida{C.reset}")
+            time.sleep(0.5)
 
 
 if __name__ == "__main__":
-    print("VoidForge UI Demo")
-    print("[1] Instalacion completa simulada")
-    print("[3] Flatpak install simulado")
-    print("[6] Salir")
-    time.sleep(2)
-    DemoApp().run()
+    print(f"{C.green}VoidForge Demo - Interfaz ANSI{C.reset}")
+    print(f"{C.gray}  Iniciando...{C.reset}")
+    time.sleep(1)
+    show_menu()

@@ -1,7 +1,7 @@
 #!/bin/bash
 # ============================================================
-# VoidForge v2 — Bootstrap entry point (curl URL | bash)
-# Instala dependencias Python y lanza VoidForge
+# VoidForge v2 — Bootstrap entry point
+# Instala dependencias y lanza VoidForge
 # ============================================================
 #
 # Uso:
@@ -20,8 +20,7 @@ echo "  ║              VoidForge v2 Initializing            ║"
 echo "  ╚═══════════════════════════════════════════════════╝"
 echo ""
 
-# ── Verificar sistema ──
-echo "  [..] Verificando sistema"
+# Verificar sistema
 if [ -f /etc/os-release ]; then
     . /etc/os-release
     if [ "$ID" != "ubuntu" ] || [ "${VERSION_ID%%.*}" -lt 24 ]; then
@@ -31,33 +30,22 @@ if [ -f /etc/os-release ]; then
 fi
 echo -e "  [OK]  Ubuntu ${VERSION_ID}"
 
-# ── Instalar git ──
+# Instalar git
 if ! command -v git &>/dev/null; then
-    echo "  [..] Instalando git..."
     sudo apt-get update -qq > /dev/null 2>&1
     sudo apt-get install -y -qq git > /dev/null 2>&1
 fi
 echo -e "  [OK]  Git listo"
 
-# ── Clonar repositorio ──
-echo "  [..] Descargando VoidForge (rama: $VOIDFORGE_BRANCH)..."
+# Clonar repositorio
 rm -rf "$INSTALL_DIR" 2>/dev/null || true
 if ! git clone --depth 1 --branch "$VOIDFORGE_BRANCH" "$REPO_URL" "$INSTALL_DIR" > /dev/null 2>&1; then
-    echo -e "  [ERR] Error al descargar."
-    echo "   Verifica tu conexion a internet."
+    echo -e "  [ERR] Error al descargar. Verifica tu conexion."
     exit 1
 fi
 echo -e "  [OK]  Descarga completada"
 
-# ── Instalar python3-urwid ──
-if ! python3 -c "import urwid" 2>/dev/null; then
-    echo "  [..] Instalando python3-urwid..."
-    sudo apt-get install -y -qq python3-urwid > /dev/null 2>&1 || \
-        pip3 install --break-system-packages urwid > /dev/null 2>&1 || true
-fi
-echo -e "  [OK]  Dependencias Python listas"
-
-# ── Lanzar VoidForge ──
+# Lanzar VoidForge
 echo ""
 echo -e "  Iniciando VoidForge..."
 echo ""
