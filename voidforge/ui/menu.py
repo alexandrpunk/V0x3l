@@ -1,12 +1,11 @@
-# Menu principal — version minimal y probada
+# Menu principal - panel con delineado
 
 import urwid
-from voidforge.config import VERSION
 from voidforge.ui.banner import get_banner_text
 
 
 class MainMenu:
-    """Menu principal con 6 opciones usando urwid.Button directamente."""
+    """Menu principal con 6 opciones en un panel con borde."""
 
     def __init__(self, on_choice):
         self.on_choice = on_choice
@@ -19,28 +18,28 @@ class MainMenu:
             ("6", "Salir"),
         ]
 
-        banner_text = get_banner_text()
-        banner = urwid.Pile([
-            urwid.Text(banner_text, align="center"),
-            urwid.Text(f"  v{VERSION}", align="center"),
-            urwid.Divider(" "),
-        ])
-
-        # Lista de botones simple y probada
-        items = []
+        buttons = []
         for key, label in self.choices:
             btn = urwid.Button(f"  ({key}) {label}")
             urwid.connect_signal(btn, "click", self._on_click, key)
-            items.append(
+            buttons.append(
                 urwid.AttrMap(btn, "button_normal", "button_focus")
             )
 
-        list_box = urwid.ListBox(urwid.SimpleFocusListWalker(items))
+        list_box = urwid.ListBox(urwid.SimpleFocusListWalker(buttons))
 
-        self.widget = urwid.Pile([
-            ("pack", banner),
-            ("weight", 1, list_box),
-        ])
+        # Panel con borde
+        panel = urwid.LineBox(
+            urwid.Pile([
+                urwid.Divider(" "),
+                list_box,
+                urwid.Divider(" "),
+            ]),
+            title="Menu",
+            title_align="left",
+        )
+
+        self.widget = panel
 
     def _on_click(self, button, key):
         if self.on_choice:

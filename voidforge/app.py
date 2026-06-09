@@ -6,6 +6,7 @@ from voidforge.shell import run, log
 from voidforge.runner import StepRunner
 from voidforge.ui.menu import MainMenu
 from voidforge.ui.progress import ProgressScreen
+from voidforge.ui.execution_screen import ExecutionScreen
 from voidforge.ui.layout import VoidForgeLayout
 from voidforge.ui.dialogs import message_dialog
 from voidforge.ui.banner import get_banner_text
@@ -17,6 +18,7 @@ class VoidForgeApp:
     def __init__(self):
         self.loop = None
         self.layout = VoidForgeLayout()
+        self.exec_screen: ExecutionScreen | None = None
         self.runner = StepRunner(self, self)
         self._register_steps()
         self.current_progress: ProgressScreen | None = None
@@ -25,7 +27,6 @@ class VoidForgeApp:
     # ===================== Shell callbacks =====================
 
     def run_cmd(self, desc: str, *args, sudo=False, timeout=None) -> bool:
-        """Ejecuta un comando, mostrando salida en el progress screen."""
         def on_line(line: str):
             if self.current_progress:
                 self.current_progress.feed_line(line)
@@ -34,14 +35,19 @@ class VoidForgeApp:
     # ===================== UI =====================
 
     def run(self):
-        """Inicia el event loop de urwid."""
         import asyncio
         try:
             event_loop = urwid.AsyncioEventLoop(loop=asyncio.new_event_loop())
         except Exception:
             event_loop = None
 
-        self._show_menu()
+        # Mostrar banner en el cuerpo inicial
+        banner_text = get_banner_text()
+        banner_widget = urwid.Pile([
+            urwid.Text(banner_text, align="center"),
+            urwid.Divider(" "),
+        ])
+        self.layout.set_body(banner_widget)
 
         kwargs = {
             "widget": self.layout.get_widget(),
@@ -52,6 +58,7 @@ class VoidForgeApp:
             kwargs["event_loop"] = event_loop
 
         self.loop = urwid.MainLoop(**kwargs)
+        self._show_menu()
         self.loop.run()
 
     def _unhandled_key(self, key):
@@ -66,10 +73,8 @@ class VoidForgeApp:
         actions = {
             "1": self._run_all,
             "2": self._run_resume,
-            "3": lambda: self._show_message(
-                "Proximamente.", "Paso especifico"),
-            "4": lambda: self._show_message(
-                "Proximamente.", "Rango de pasos"),
+            "3": lambda: self._show_message("Proximamente.", "Paso especifico"),
+            "4": lambda: self._show_message("Proximamente.", "Rango de pasos"),
             "5": self._show_status,
             "6": lambda: exit_app(self.loop),
         }
@@ -78,16 +83,26 @@ class VoidForgeApp:
             action()
 
     def _run_all(self):
+        self._prepare_execution()
         self.runner.run_all(resume=False)
 
     def _run_resume(self):
+        self._prepare_execution()
         self.runner.run_all(resume=True)
+
+    def _prepare_execution(self):
+        """Prepara la pantalla de ejecucion con los pasos."""
+        self.exec_screen = ExecutionScreen()
+        # Marcar todos como pending
+        for i in range(TOTAL_STEPS + 1):
+            self.exec_screen.set_step_status(i, "pending")
+        self.layout.show_execution(self.exec_screen.get_widget())
 
     def _show_status(self):
         status = self.runner.get_checkpoint_status()
         msg = (f"  {status}\n\n"
                f"  Log: {LOG_FILE}\n"
-               f"  Versión: {VERSION}\n"
+               f"  Version: {VERSION}\n"
                f"  Pasos: {TOTAL_STEPS}")
         self._show_message(msg, "Estado actual")
 
@@ -106,14 +121,21 @@ class VoidForgeApp:
     # ===================== Ejecucion de steps =====================
 
     def run_step(self, step) -> bool:
-        """Ejecuta un step con UI de progreso."""
+        """Ejecuta un step con UI de progreso en split panel."""
+        # Marcar paso como running en el panel izquierdo
+        if self.exec_screen:
+            self.exec_screen.set_step_status(step.number, "running")
+
+        # Crear progress screen y ponerlo en el panel derecho
         self.current_progress = ProgressScreen(
             step.number, TOTAL_STEPS, step.title
         )
-        self.layout.show_progress(step.number, TOTAL_STEPS, step.title)
-        self.layout.set_body(self.current_progress.get_widget())
+        if self.exec_screen:
+            self.exec_screen.set_output(self.current_progress.get_widget())
 
-        # Iniciar animacion del spinner
+        self.layout.set_header(f"Paso {step.number}/{TOTAL_STEPS} - {step.title}")
+
+        # Iniciar animacion spinner
         self.spinner_handle = self.loop.set_alarm_in(
             0.15, self._tick_spinner
         ) if self.loop else None
@@ -130,11 +152,12 @@ class VoidForgeApp:
                 pass
             self.spinner_handle = None
 
-        # Mostrar resultado
-        msg = "Completado" if ok else "Fallado"
-        if self.current_progress:
-            self.current_progress.show_result(ok, msg)
-        self.layout.show_result(ok, f"Paso {step.number} - {msg}")
+        # Actualizar estado del paso
+        status = "done" if ok else "failed"
+        if self.exec_screen:
+            self.exec_screen.set_step_status(step.number, status)
+
+        self.layout.show_result(ok, f"Paso {step.number}")
 
         if ok:
             self.runner.save_checkpoint(step.number)
@@ -142,12 +165,13 @@ class VoidForgeApp:
         else:
             log(f"FAIL: Paso {step.number} - {step.title}")
 
-        # Pausa breve para que el usuario vea el resultado
-        if self.loop:
-            self.loop.set_alarm_in(1.5, lambda loop, data: self._show_menu())
-
         self.current_progress = None
         return ok
+
+    def on_all_done(self):
+        """Called when all steps complete."""
+        if self.loop:
+            self.loop.set_alarm_in(1.5, lambda loop, data: self._show_menu())
 
     def _tick_spinner(self, loop, data):
         if self.current_progress:
@@ -157,7 +181,6 @@ class VoidForgeApp:
     # ===================== Registro de steps =====================
 
     def _register_steps(self):
-        """Importa y registra todos los steps."""
         from voidforge.steps.core import BootstrapStep, SystemPrepStep
         from voidforge.steps.drivers import KernelStep, GPUStep
         from voidforge.steps.packages import MegaInstallStep, FlatpakStep, ShellStep, EditorStep

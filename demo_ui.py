@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-# VoidForge UI Demo — muestra la interfaz sin modificar el sistema
+# VoidForge UI Demo
 # Uso: python3 demo_ui.py
 
 import sys
@@ -14,127 +14,76 @@ import urwid
 from voidforge.config import PALETTE, VERSION, TOTAL_STEPS
 from voidforge.ui.menu import MainMenu
 from voidforge.ui.progress import ProgressScreen
+from voidforge.ui.execution_screen import ExecutionScreen
 from voidforge.ui.layout import VoidForgeLayout
+from voidforge.ui.steps_list import StepsList
 from voidforge.ui.dialogs import message_dialog
+from voidforge.ui.banner import get_banner_text
 
 
 NALA_OUTPUT_SIMULATION = [
     "Leyendo lista de paquetes... Hecho",
     "Creando arbol de dependencias... Hecho",
-    "Leyendo informacion de estado... Hecho",
-    "Los paquetes indicados adicionales se instalaran:",
-    "  libwayland-client0 libwayland-server0 libegl1 libgl1-mesa-dri",
-    "Se instalaran 77 paquetes nuevos (45.8 MB para descargar)", "",
     "Descargando...",
-    "Get:1 http://archive.ubuntu.com noble/main amd64 libwayland-client0 (0.8 MB) [1%]",
-    "Get:2 http://archive.ubuntu.com noble/main amd64 libwayland-server0 (0.4 MB) [3%]",
-    "Get:3 http://archive.ubuntu.com noble/main amd64 libegl1 (0.2 MB) [5%]",
-    "Get:4 http://archive.ubuntu.com noble/main amd64 libgl1-mesa-dri (8.2 MB) [10%]",
-    "Get:5 http://archive.ubuntu.com noble/main amd64 mesa-vulkan-drivers (4.1 MB) [15%]",
-    "Get:6 http://archive.ubuntu.com noble/main amd64 xwayland (1.5 MB) [18%]",
-    "Get:7 http://archive.ubuntu.com noble/main amd64 nautilus (2.3 MB) [22%]",
-    "Get:8 http://archive.ubuntu.com noble/main amd64 gvfs-backends (1.1 MB) [25%]",
-    "Get:9 http://archive.ubuntu.com noble/main amd64 pipewire (3.6 MB) [30%]",
-    "Get:10 http://archive.ubuntu.com noble/main amd64 wireplumber (0.9 MB) [33%]",
-    "Get:11 http://archive.ubuntu.com noble/main amd64 bluez (5.2 MB) [38%]",
-    "Get:12 http://archive.ubuntu.com noble/main amd64 flatpak (6.8 MB) [45%]",
-    "Get:13 http://archive.ubuntu.com noble/main amd64 fonts-powerline (0.3 MB) [47%]",
-    "Get:14 http://archive.ubuntu.com noble/main amd64 tlp (1.8 MB) [50%]",
-    "Get:15 http://archive.ubuntu.com noble/main amd64 neovim (4.2 MB) [55%]",
-    "Get:16 http://archive.ubuntu.com noble/main amd64 tmux (0.8 MB) [58%]",
-    "Get:17 http://archive.ubuntu.com noble/main amd64 fastfetch (0.4 MB) [60%]",
-    "Get:18 http://archive.ubuntu.com noble/main amd64 ufw (0.7 MB) [63%]",
-    "Get:19 http://archive.ubuntu.com noble/main amd64 ubuntu-restricted-extras (2.9 MB) [68%]",
-    "Get:20 http://archive.ubuntu.com noble/main amd64 ffmpegthumbnailer (1.1 MB) [72%]",
+    "Get:1 libwayland-client0 (0.8 MB) [1%]",
+    "Get:2 libegl1 (0.2 MB) [5%]",
+    "Get:3 libgl1-mesa-dri (8.2 MB) [10%]",
+    "Get:4 xwayland (1.5 MB) [18%]",
+    "Get:5 nautilus (2.3 MB) [22%]",
+    "Get:6 pipewire (3.6 MB) [30%]",
+    "Get:7 bluez (5.2 MB) [38%]",
+    "Get:8 flatpak (6.8 MB) [45%]",
+    "Get:9 neovim (4.2 MB) [55%]",
     "Fetched 45.8 MB in 12s (3.8 MB/s)", "",
-    "Extrayendo plantillas de los paquetes... 100%", "",
-    "(Leyendo la base de datos... 1%",
-    "Extrayendo libwayland-client0 (1/77)...",
-    "Extrayendo libwayland-server0 (2/77)...",
-    "Extrayendo libegl1 (3/77)...",
-    "Extrayendo libgl1-mesa-dri (4/77)...",
-    "Extrayendo mesa-vulkan-drivers (5/77)...",
-    "Extrayendo xwayland (6/77)...",
-    "Extrayendo nautilus (7/77)...",
-    "Extrayendo pipewire (9/77)...",
-    "Extrayendo wireplumber (10/77)...",
-    "Extrayendo flatpak (11/77)...",
-    "Extrayendo neovim (12/77)...",
-    "Extrayendo tmux (13/77)...",
-    "Extrayendo fastfetch (14/77)...",
-    "Extrayendo ufw (15/77)...",
-    "Extrayendo ubuntu-restricted-extras (16/77)...", "",
-    "Configurando libwayland-client0 (17/77)...",
-    "Configurando libwayland-server0 (18/77)...",
-    "Configurando libegl1 (19/77)...",
-    "Configurando libgl1-mesa-dri (20/77)...",
-    "Configurando mesa-vulkan-drivers (21/77)...",
-    "Configurando xwayland (22/77)...",
-    "Configurando nautilus (23/77)...",
-    "Configurando pipewire (24/77)...",
-    "Configurando wireplumber (25/77)...",
-    "Configurando flatpak (26/77)...",
-    "Configurando neovim (27/77)...",
-    "Configurando ufw (28/77)...",
-    "Configurando ubuntu-restricted-extras (29/77)...",
+    "Extrayendo paquetes... 100%", "",
+    "Extrayendo libwayland-client0 (1/30)...",
+    "Extrayendo pipewire (9/30)...",
+    "Extrayendo flatpak (11/30)...",
+    "Configurando libwayland (17/30)...",
+    "Configurando pipewire (24/30)...",
+    "Configurando flatpak (26/30)...",
     "Procesando disparadores...",
     "nala install correcto",
-]
-
-FLATPAK_OUTPUT_SIMULATION = [
-    "Looking for matches...",
-    "Starting download of 1 item (45.2 MB)",
-    "Downloading: org.gnome.Papers (45%)",
-    "Downloading: org.gnome.Papers (78%)",
-    "Downloading: org.gnome.Papers (100%)",
-    "Starting to install...",
-    "Installing: org.gnome.Papers (1/3)",
-    "Installing: net.nokyan.Resources (2/3)",
-    "Installing: org.gnome.Showtime (3/3)",
-    "Installation complete.",
 ]
 
 SUMMARY_LINES = [
     "+ Kernel: XanMod Edge",
     "+ Wayland + Nautilus + PipeWire",
-    "+ Flatpak con Flathub + Apps",
-    "+ Oh My Zsh + tema agnoster",
-    "+ Iconos: Colloid catppuccin green",
-    "+ Temas: Plymouth + GRUB Vimix",
-    "+ Firewall: UFW activo",
-    "+ TLP configurado para laptops",
+    "+ Flatpak + Oh My Zsh + LazyVim",
+    "+ Plymouth + GRUB Vimix",
+    "+ TLP + UFW configurados",
 ]
 
 
 class DemoApp:
-    """Demo de la interfaz VoidForge."""
-
     def __init__(self):
         self.loop = None
         self.layout = VoidForgeLayout()
+        self.exec_screen: ExecutionScreen | None = None
         self.progress = None
         self.spinner_handle = None
         self.simulator_handle = None
 
     def run(self):
         import asyncio
-        # Usar AsyncioEventLoop (evita PermissionError en TTY sin epoll)
         try:
-            event_loop = urwid.AsyncioEventLoop(loop=asyncio.new_event_loop())
+            ev = urwid.AsyncioEventLoop(loop=asyncio.new_event_loop())
         except Exception:
-            event_loop = None
+            ev = None
 
-        self._show_menu()
-
+        banner_text = get_banner_text()
+        self.layout.set_body(
+            urwid.Pile([urwid.Text(banner_text, align="center")])
+        )
         kwargs = {
             "widget": self.layout.get_widget(),
             "palette": PALETTE,
             "unhandled_input": self._unhandled_key,
         }
-        if event_loop:
-            kwargs["event_loop"] = event_loop
-
+        if ev:
+            kwargs["event_loop"] = ev
         self.loop = urwid.MainLoop(**kwargs)
+        self._show_menu()
         self.loop.run()
 
     def _unhandled_key(self, key):
@@ -147,134 +96,126 @@ class DemoApp:
 
     def _on_choice(self, key):
         if key == "1":
-            self._simulate_all_steps()
+            self._simulate_all()
         elif key == "3":
             self._simulate_flatpak()
         elif key == "6":
             raise urwid.ExitMainLoop()
         else:
-            self._show_message(
-                "Demo disponible:\n  [1] Instalacion completa\n"
-                "  [3] Flatpak install\n  [6] Salir",
+            self._show_msg(
+                "Demo:\n  [1] Completa\n  [3] Flatpak\n  [6] Salir",
                 "Info"
             )
 
     # ── Simulacion ──
 
-    def _simulate_all_steps(self):
-        self._run_step_sim(0, 2, "Preparando entorno...", [], delay=0.1)
+    def _simulate_all(self):
+        self.exec_screen = ExecutionScreen()
+        for i in range(TOTAL_STEPS + 1):
+            self.exec_screen.set_step_status(i, "pending")
+        self.layout.show_execution(self.exec_screen.get_widget())
+
+        # Simular steps rapidos
+        steps_data = StepsList.default_titles()
+        for num in range(TOTAL_STEPS + 1):
+            self._simulate_step(num, steps_data[num])
+
+        self.layout.show_result(True, "Instalacion completada")
+        self.loop.set_alarm_in(2.0, lambda l, d: self._show_summary())
+
+    def _simulate_step(self, num: int, title: str):
+        self.exec_screen.set_step_status(num, "running")
+        self.layout.set_header(f"Paso {num}/{TOTAL_STEPS} - {title}")
+
+        self.progress = ProgressScreen(num, TOTAL_STEPS, title)
+        self.exec_screen.set_output(self.progress.get_widget())
+        self.spinner_handle = self.loop.set_alarm_in(0.1, self._tick_spinner)
+        self.loop.draw_screen()
+
+        # Simular output
+        if num == 4:
+            self.progress.use_package_monitor()
+            for line in NALA_OUTPUT_SIMULATION:
+                self.progress.feed_line(line)
+                time.sleep(0.04)
+        elif num == 8:
+            self.progress.use_package_monitor()
+            for line in NALA_OUTPUT_SIMULATION[:6] + ["Install complete."]:
+                self.progress.feed_line(line)
+                time.sleep(0.05)
+        else:
+            for line in [f"Ejecutando {title}...", "Hecho."]:
+                self.progress.feed_line(line)
+                time.sleep(0.1)
+
+        if self.spinner_handle:
+            try:
+                self.loop.remove_alarm(self.spinner_handle)
+            except Exception:
+                pass
+            self.spinner_handle = None
+
+        ok = random.random() > 0.05
+        self.progress.show_result(ok, f"Paso {num}")
+        self.exec_screen.set_step_status(num, "done" if ok else "failed")
+        self.layout.show_result(ok, f"Paso {num}")
+        self.loop.draw_screen()
+        time.sleep(0.2)
 
     def _simulate_flatpak(self):
-        self._show_progress(8, 15, "Configurando Flatpak")
-        self._feed_lines_slowly(FLATPAK_OUTPUT_SIMULATION, 0.2,
-                                callback=lambda: self._show_result(True))
+        self.exec_screen = ExecutionScreen()
+        self.layout.show_execution(self.exec_screen.get_widget())
+        num, title = 8, "Flatpak + apps"
+        self.exec_screen.set_step_status(num, "running")
+        self.layout.set_header(f"Paso {num}/{TOTAL_STEPS} - {title}")
 
-    def _run_step_sim(self, step, total, title, lines, delay=0.1):
-        self._show_progress(step, total, title)
-        self._feed_lines_slowly(lines, delay,
-                                callback=lambda: self._step_done(step))
+        self.progress = ProgressScreen(num, TOTAL_STEPS, title)
+        self.progress.use_package_monitor()
+        self.exec_screen.set_output(self.progress.get_widget())
+        self.spinner_handle = self.loop.set_alarm_in(0.1, self._tick_spinner)
 
-    def _show_progress(self, num, total, title):
-        self.progress = ProgressScreen(num, total, title)
-        self.layout.show_progress(num, total, title)
-        self.layout.set_body(self.progress.get_widget())
-        self.spinner_handle = self.loop.set_alarm_in(0.15, self._tick_spinner)
+        flatpak_lines = [
+            "Looking for matches...",
+            "Downloading: org.gnome.Papers (45%)",
+            "Downloading: org.gnome.Papers (78%)",
+            "Downloading: org.gnome.Papers (100%)",
+            "Installing: org.gnome.Papers (1/3)",
+            "Installing: net.nokyan.Resources (2/3)",
+            "Installing: org.gnome.Showtime (3/3)",
+            "Install complete.",
+        ]
+        for line in flatpak_lines:
+            self.progress.feed_line(line)
+            time.sleep(0.15)
+            self.loop.draw_screen()
+
+        if self.spinner_handle:
+            try:
+                self.loop.remove_alarm(self.spinner_handle)
+            except Exception:
+                pass
+            self.spinner_handle = None
+
+        self.progress.show_result(True, "Flatpak completado")
+        self.exec_screen.set_step_status(num, "done")
+        self.layout.show_result(True, "Flatpak")
+        self.loop.draw_screen()
+        time.sleep(1)
+        self._show_menu()
 
     def _tick_spinner(self, loop, data):
         if self.progress:
             self.progress.update_spinner()
-        self.spinner_handle = self.loop.set_alarm_in(0.15, self._tick_spinner)
-
-    def _feed_lines_slowly(self, lines, delay, callback=None):
-        self._line_index = 0
-        self._sim_lines = lines
-        self._sim_callback = callback
-        self._sim_delay = delay
-        self._feed_next_line()
-
-    def _feed_next_line(self, loop=None, data=None):
-        if self._line_index >= len(self._sim_lines):
-            if self._sim_callback:
-                self._sim_callback()
-            return
-        line = self._sim_lines[self._line_index]
-        self._line_index += 1
-        if self.progress:
-            self.progress.feed_line(line)
-        self.simulator_handle = self.loop.set_alarm_in(
-            self._sim_delay, self._feed_next_line)
-
-    def _step_done(self, step):
-        ok = random.random() > 0.1
-        self.progress.show_result(ok, f"Paso {step} completado")
-        self.layout.show_result(ok, f"Paso {step}")
-        if self.spinner_handle:
-            try:
-                self.loop.remove_alarm(self.spinner_handle)
-            except Exception:
-                pass
-            self.spinner_handle = None
-        if step < 4:
-            self.loop.set_alarm_in(1.0, lambda l, d: self._simulate_mega_step())
-        elif step == 4:
-            self.loop.set_alarm_in(1.0, lambda l, d: self._simulate_final_steps())
-        else:
-            self.loop.set_alarm_in(1.0, lambda l, d: self._show_summary())
-
-    def _simulate_mega_step(self):
-        self._show_progress(4, 15, "Instalando paquetes del sistema")
-        self.progress.use_package_monitor()
-        self.progress.show_command("nala install paquetes...")
-        self._feed_lines_slowly(NALA_OUTPUT_SIMULATION, 0.08,
-                                callback=lambda: self._step_done(4))
-
-    def _simulate_final_steps(self):
-        steps = [
-            (5, "Configurando polkit automontaje"),
-            (6, "Configurando xdg-user-dirs y UFW"),
-            (7, "Configurando red"),
-            (8, "Configurando Flatpak"),
-            (9, "Habilitando servicios"),
-            (10, "Configurando TLP"),
-            (11, "Configurando Oh My Zsh"),
-            (12, "Instalando LazyVim"),
-            (13, "Instalando Colloid icons"),
-            (14, "Configurando Plymouth y GRUB"),
-        ]
-        self._sim_remaining_steps = steps
-        self._sim_remaining_idx = 0
-        self._run_next_remaining()
-
-    def _run_next_remaining(self):
-        if self._sim_remaining_idx >= len(self._sim_remaining_steps):
-            self._show_summary()
-            return
-        num, title = self._sim_remaining_steps[self._sim_remaining_idx]
-        self._sim_remaining_idx += 1
-        self._show_progress(num, 15, title)
-        if num == 8:
-            lines = NALA_OUTPUT_SIMULATION[:8] + NALA_OUTPUT_SIMULATION[-3:]
-            self.progress.use_package_monitor()
-        else:
-            lines = [f"Configurando {title.split(':')[-1].strip()}...",
-                     "Hecho."]
-        self._feed_lines_slowly(lines, 0.15,
-                                callback=self._run_next_remaining)
+        self.spinner_handle = loop.set_alarm_in(0.1, self._tick_spinner)
 
     def _show_summary(self):
-        if self.spinner_handle:
-            try:
-                self.loop.remove_alarm(self.spinner_handle)
-            except Exception:
-                pass
-            self.spinner_handle = None
         msg = "Instalacion completada!\n\n"
         for line in SUMMARY_LINES:
             msg += f"  {line}\n"
         msg += f"\n  Log: /tmp/voidforge.log"
-        self._show_message(msg, "VoidForge - Listo!")
+        self._show_msg(msg, "VoidForge - Listo!")
 
-    def _show_message(self, text, title="VoidForge"):
+    def _show_msg(self, text, title="VoidForge"):
         def close():
             self._show_menu()
         dialog = message_dialog(title, text, close)
@@ -286,16 +227,9 @@ class DemoApp:
         )
         self.layout.set_body(overlay)
 
-    def _show_result(self, ok):
-        self.progress.show_result(ok, "Completado")
-        self.layout.show_result(ok, "Paso completado")
-        self.loop.set_alarm_in(1.5, lambda l, d: self._show_menu())
-
 
 if __name__ == "__main__":
-    print("VoidForge UI Demo")
-    print("[1] Instalacion completa simulada")
-    print("[3] Flatpak install simulado")
-    print("[6] Salir")
-    time.sleep(2)
+    print("VoidForge Demo - Interfaz con split panel")
+    print("[1] Demo completa | [6] Salir")
+    time.sleep(1.5)
     DemoApp().run()

@@ -53,6 +53,8 @@ class StepRunner:
                 return False
 
         self.clear_checkpoint()
+        if hasattr(self.ui, 'on_all_done'):
+            self.ui.on_all_done()
         return True
 
     def run_single(self, step_num: int) -> bool:
