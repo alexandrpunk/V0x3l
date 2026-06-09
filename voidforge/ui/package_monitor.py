@@ -73,7 +73,8 @@ class PackageMonitor:
             ("pack", urwid.Divider("─")),
             ("pack", self.package_widget),
             ("pack", urwid.Divider(" ")),
-            ("weight", 1, self.log_frame),
+            ("pack", self.log_frame),
+            ("weight", 1, urwid.Filler(urwid.Text(""))),
         ])
 
     # ── Procesamiento de lineas ──

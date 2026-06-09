@@ -23,11 +23,6 @@ class ProgressScreen:
         self.output_walker = urwid.SimpleFocusListWalker([])
         self.output_box = urwid.ListBox(self.output_walker)
 
-        output_cols = urwid.Columns([
-            ("weight", 1, self.output_box),
-        ])
-        output_padded = urwid.Padding(output_cols, left=2, right=2)
-
         self.pile = urwid.Pile([
             ("pack", urwid.Divider("─")),
             ("pack", urwid.AttrMap(self.header, "title")),
@@ -35,7 +30,7 @@ class ProgressScreen:
             ("pack", self.spinner_widget),
             ("pack", self.cmd_widget),
             ("pack", urwid.Divider(" ")),
-            ("weight", 1, output_padded),
+            ("weight", 1, urwid.Padding(self.output_box, left=2, right=2)),
         ])
         self.widget = urwid.Filler(self.pile, valign="top")
 
