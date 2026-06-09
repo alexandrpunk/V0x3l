@@ -41,14 +41,6 @@ class VoidForgeApp:
         except Exception:
             event_loop = None
 
-        # Mostrar banner en el cuerpo inicial
-        banner_text = get_banner_text()
-        banner_widget = urwid.Pile([
-            urwid.Text(banner_text, align="center"),
-            urwid.Text(""),
-        ])
-        self.layout.set_body(banner_widget)
-
         kwargs = {
             "widget": self.layout.get_widget(),
             "palette": PALETTE,

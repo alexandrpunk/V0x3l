@@ -37,7 +37,11 @@ class MainMenu:
             title_align="left",
         )
 
-        self.widget = panel
+        self.widget = urwid.Pile([
+            ("pack", urwid.Text(banner_text, align="center")),
+            ("pack", urwid.Text("")),
+            ("weight", 1, panel),
+        ])
 
     def _on_click(self, button, key):
         if self.on_choice:
