@@ -3,7 +3,7 @@
 </p>
 
 <p align="center">
-  <b>Tu sistema. Tus reglas. Tu forja.</b>
+  <b> Init your own forge...</b>
 </p>
 
 <p align="center">

@@ -1,12 +1,16 @@
 # Pantalla de progreso durante la ejecucion de pasos
 
 import urwid
+from typing import Optional
+from voidforge.ui.package_monitor import PackageMonitor
 
 
 class ProgressScreen:
     """Muestra el progreso de un paso con spinner y salida en vivo."""
 
     def __init__(self, step_num: int, total: int, title: str):
+        self._pkg_monitor: Optional[PackageMonitor] = None
+
         self.spinner_frames = ["⣾", "⣽", "⣻", "⢿", "⡿", "⣟", "⣯", "⣷"]
         self.spinner_idx = 0
 
@@ -19,13 +23,12 @@ class ProgressScreen:
         self.output_walker = urwid.SimpleFocusListWalker([])
         self.output_box = urwid.ListBox(self.output_walker)
 
-        # Limitar altura del output a 10 lineas
         output_cols = urwid.Columns([
             ("weight", 1, self.output_box),
         ])
         output_padded = urwid.Padding(output_cols, left=2, right=2)
 
-        pile = urwid.Pile([
+        self.pile = urwid.Pile([
             ("pack", urwid.Divider("─")),
             ("pack", urwid.AttrMap(self.header, "title")),
             ("pack", urwid.Divider("")),
@@ -34,13 +37,37 @@ class ProgressScreen:
             ("pack", urwid.Divider("")),
             ("weight", 1, output_padded),
         ])
-        self.widget = urwid.Filler(pile, valign="top")
+        self.widget = urwid.Filler(self.pile, valign="top")
+
+    # ── Package Monitor ──
+
+    def use_package_monitor(self):
+        """Activa el visor compacto de paquetes (reemplaza output generico)."""
+        self._pkg_monitor = PackageMonitor()
+        pkg_widget = self._pkg_monitor.get_widget()
+        # Reemplazar el output_box en el pile
+        panel = urwid.Padding(
+            urwid.LineBox(pkg_widget),
+            left=2, right=2
+        )
+        self.pile.contents[6] = (panel, ("weight", 1))
+
+    def feed_line(self, line: str):
+        """Enruta la linea al monitor si esta activo, o al log generico."""
+        if self._pkg_monitor:
+            self._pkg_monitor.feed_line(line)
+        else:
+            self.append_output(line)
+
+    # ── Metodos existentes ──
 
     def update_spinner(self):
+        if self._pkg_monitor:
+            return self._pkg_monitor.update_spinner()
         self.spinner_idx = (self.spinner_idx + 1) % len(self.spinner_frames)
         frame = self.spinner_frames[self.spinner_idx]
         self.spinner_widget.set_text(f"   {frame} Trabajando...")
-        return True  # seguir animando
+        return True
 
     def show_command(self, desc: str):
         self.cmd_widget.set_text(f"   -> {desc}")
@@ -50,10 +77,8 @@ class ProgressScreen:
         self.output_walker.append(
             urwid.Text(f"   {line}")
         )
-        # Mantener maximo de lineas
         if len(self.output_walker) > MAX_LINES:
             del self.output_walker[0]
-        # Auto-scroll
         if len(self.output_walker) > 0:
             self.output_box.set_focus(len(self.output_walker) - 1)
 
@@ -62,6 +87,8 @@ class ProgressScreen:
         color = "ok" if ok else "error"
         self.spinner_widget.set_text("")
         self.cmd_widget.set_text("")
+        if self._pkg_monitor:
+            self._pkg_monitor = None
         self.output_walker.append(
             urwid.AttrMap(urwid.Text(f"   {mark} {msg}"), color)
         )

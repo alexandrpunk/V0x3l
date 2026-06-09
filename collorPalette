@@ -1,0 +1,22 @@
+# VoidForge v2 — Color Palette
+# Formato: nombre | foreground | background
+#   foreground y background aceptan: black, white, dark gray, light gray,
+#     light red, light green, yellow, light blue, light cyan, light magenta
+#   Atributos separados por coma: bold, underline, blink, stand out
+# Ejemplo: title | light cyan, bold | black
+
+header        | light cyan    | black
+body          | white         | black
+footer        | dark gray     | black
+selected      | black         | light gray
+ok            | light green   | black
+warn          | yellow        | black
+error         | light red     | black
+info          | dark gray     | black
+title         | light cyan, bold | black
+progress_done | light green   | black
+progress_bar  | dark cyan     | black
+pkg_name      | white, bold   | black
+pkg_speed     | dark gray     | black
+pkg_bar_cur   | light cyan    | black
+dim           | dark gray     | black
