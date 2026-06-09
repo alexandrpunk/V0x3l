@@ -7,7 +7,7 @@ class VoidForgeLayout:
     """Layout principal de la aplicacion.
 
     Proporciona un Frame fijo con:
-    - Header: barra superior con color de fondo (VoidForge.sh : titulo)
+    - Header: texto con separador (VoidForge.sh : titulo)
     - Body: contenido variable (menu, progreso, dialogo)
     - Footer: barra inferior con informacion contextual
     """
@@ -26,11 +26,17 @@ class VoidForgeLayout:
         )
         footer = urwid.AttrMap(self._footer_text, "footer_bg")
 
+        # Header + divider como un Pile
+        header_pile = urwid.Pile([
+            ("pack", header),
+            ("pack", urwid.Divider("─")),
+        ])
+
         if body is None:
             body = urwid.SolidFill(" ")
 
         self.frame = urwid.Frame(
-            header=header,
+            header=header_pile,
             body=body,
             footer=footer,
         )
@@ -48,7 +54,7 @@ class VoidForgeLayout:
         self._footer_text.set_text(f" {text}")
 
     def show_menu(self, widget):
-        """Muestra el menu (header appropriado)."""
+        """Muestra el menu."""
         self.set_header("Menu principal")
         self.set_footer(u"\u2191\u2193 navegar | Enter elegir | Ctrl+Q salir")
         self.set_body(widget)

@@ -1,42 +1,12 @@
-# Menu principal interactivo con urwid
+# Menu principal — version minimal y probada
 
 import urwid
 from voidforge.config import VERSION
 from voidforge.ui.banner import get_banner_text
 
 
-class MenuOption(urwid.WidgetWrap):
-    """Opcion de menu navegable, con estilo mejorado.
-
-    Al recibir el foco cambia a color resaltado (button_focus).
-    Enter ejecuta la accion.
-    """
-
-    def __init__(self, key: str, label: str, on_choice):
-        self.key = key
-        self._on_choice = on_choice
-        self.label = label
-
-        # El texto con el numero y nombre de la opcion
-        text = urwid.SelectableIcon(f"   ({key}) {label}", 0)
-
-        # Colores: normal y al recibir foco
-        self._widget = urwid.AttrMap(text, "button_normal", "button_focus")
-        super().__init__(urwid.Padding(self._widget, left=2, right=2))
-
-    def selectable(self):
-        return True
-
-    def keypress(self, size, key):
-        if key in ("enter", " "):
-            if self._on_choice:
-                self._on_choice(self.key)
-            return None
-        return key
-
-
 class MainMenu:
-    """Menu principal con 6 opciones."""
+    """Menu principal con 6 opciones usando urwid.Button directamente."""
 
     def __init__(self, on_choice):
         self.on_choice = on_choice
@@ -51,32 +21,28 @@ class MainMenu:
 
         banner_text = get_banner_text()
         banner = urwid.Pile([
-            urwid.AttrMap(
-                urwid.Text(banner_text, align="center"),
-                "body"
-            ),
-            urwid.AttrMap(
-                urwid.Text(f"  v{VERSION}", align="center"),
-                "dim"
-            ),
+            urwid.Text(banner_text, align="center"),
+            urwid.Text(f"  v{VERSION}", align="center"),
             urwid.Divider(" "),
         ])
 
-        # Lista de opciones
+        # Lista de botones simple y probada
         items = []
         for key, label in self.choices:
-            option = MenuOption(key, label, self._on_choice)
-            items.append(option)
+            btn = urwid.Button(f"  ({key}) {label}")
+            urwid.connect_signal(btn, "click", self._on_click, key)
+            items.append(
+                urwid.AttrMap(btn, "button_normal", "button_focus")
+            )
 
-        list_walker = urwid.SimpleFocusListWalker(items)
-        list_box = urwid.ListBox(list_walker)
+        list_box = urwid.ListBox(urwid.SimpleFocusListWalker(items))
 
         self.widget = urwid.Pile([
             ("pack", banner),
             ("weight", 1, list_box),
         ])
 
-    def _on_choice(self, key):
+    def _on_click(self, button, key):
         if self.on_choice:
             self.on_choice(key)
 
