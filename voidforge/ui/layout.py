@@ -32,7 +32,7 @@ class VoidForgeLayout:
 
         header_pile = urwid.Pile([
             ("pack", header),
-            ("pack", urwid.Divider("─")),
+            ("pack", urwid.Text("")),
         ])
 
         if body is None:

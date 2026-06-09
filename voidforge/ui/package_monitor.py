@@ -62,14 +62,14 @@ class PackageMonitor:
             ("weight", 1, self.spinner_widget),
         ])
         self.widget = urwid.Pile([
-            ("pack", urwid.Divider(" ")),
+            ("pack", urwid.Text(" ")),
             ("pack", columns),
-            ("pack", urwid.Divider(" ")),
+            ("pack", urwid.Text(" ")),
             ("pack", self.progress_row),
             ("pack", self.detail_row),
-            ("pack", urwid.Divider("─")),
+            ("pack", urwid.Text("─")),
             ("pack", self.package_widget),
-            ("pack", urwid.Divider("─")),
+            ("pack", urwid.Text("─")),
             ("weight", 1, self.log_area),
         ])
 

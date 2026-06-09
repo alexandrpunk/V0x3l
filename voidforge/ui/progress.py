@@ -24,12 +24,12 @@ class ProgressScreen:
         self.output_box = urwid.ListBox(self.output_walker)
 
         self.pile = urwid.Pile([
-            ("pack", urwid.Divider("─")),
+            ("pack", urwid.Text("")),  # small gap
             ("pack", urwid.AttrMap(self.header, "title")),
-            ("pack", urwid.Divider(" ")),
+            ("pack", urwid.Text("")),  # small gap
             ("pack", self.spinner_widget),
             ("pack", self.cmd_widget),
-            ("pack", urwid.Divider(" ")),
+            ("pack", urwid.Text("")),  # small gap
             ("weight", 1, urwid.Padding(self.output_box, left=2, right=2)),
         ])
         self.widget = self.pile
