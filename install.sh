@@ -1,66 +1,65 @@
 #!/bin/bash
 # ============================================================
-# VoidForge — Boot entry point (curl URL | bash)
-# Clona el repositorio y ejecuta voidforge.sh
+# VoidForge v2 — Bootstrap entry point (curl URL | bash)
+# Instala dependencias Python y lanza VoidForge
 # ============================================================
 #
 # Uso:
-#   curl -fsSL https://raw.githubusercontent.com/alexandrpunk/VoidForge/refactor/install.sh | bash
+#   curl -fsSL https://raw.githubusercontent.com/alexandrpunk/VoidForge/python-urwid/install.sh | bash
 # ============================================================
+
+set -euo pipefail
 
 REPO_URL="https://github.com/alexandrpunk/VoidForge.git"
 INSTALL_DIR="${HOME}/.local/share/voidforge"
-VOIDFORGE_BRANCH="${VOIDFORGE_BRANCH:-refactor}"
-TEMP_LOG="/tmp/voidforge-bootstrap.log"
+VOIDFORGE_BRANCH="${VOIDFORGE_BRANCH:-python-urwid}"
 
-# ── Pantalla de inicialización ──
-init_screen() {
-    clear
-    echo ""
-    echo "  ╔═══════════════════════════════════════════════════╗"
-    echo "  ║              VoidForge Initializing               ║"
-    echo "  ╚═══════════════════════════════════════════════════╝"
-    echo ""
-}
+echo ""
+echo "  ╔═══════════════════════════════════════════════════╗"
+echo "  ║              VoidForge v2 Initializing            ║"
+echo "  ╚═══════════════════════════════════════════════════╝"
+echo ""
 
-step_ok()   { echo -e "  \033[1;32m[OK]\033[0m $1"; }
-step_fail() { echo -e "  \033[1;31m[ERR]\033[0m $1"; }
-step_doing(){ echo -e "  \033[1;36m[..]\033[0m $1"; }
-
-# ── Paso 1: Verificar sistema ──
-step_doing "Verificando sistema"
+# ── Verificar sistema ──
+echo "  [..] Verificando sistema"
 if [ -f /etc/os-release ]; then
     . /etc/os-release
     if [ "$ID" != "ubuntu" ] || [ "${VERSION_ID%%.*}" -lt 24 ]; then
-        step_fail "Verificando sistema"
-        echo -e "\n  \033[1;31mSe requiere Ubuntu 24.04 o superior.\033[0m"
+        echo -e "  [ERR] Se requiere Ubuntu 24.04 o superior."
         exit 1
     fi
 fi
-step_ok "Verificando sistema"
+echo -e "  [OK]  Ubuntu ${VERSION_ID}"
 
-# ── Paso 2: Git ──
-step_doing "Preparando entorno"
+# ── Instalar git ──
 if ! command -v git &>/dev/null; then
-    sudo apt-get update -qq > "$TEMP_LOG" 2>&1
-    sudo apt-get install -y -qq git >> "$TEMP_LOG" 2>&1
+    echo "  [..] Instalando git..."
+    sudo apt-get update -qq > /dev/null 2>&1
+    sudo apt-get install -y -qq git > /dev/null 2>&1
 fi
-step_ok "Preparando entorno"
+echo -e "  [OK]  Git listo"
 
-# ── Paso 3: Clonar repositorio ──
-step_doing "Descargando VoidForge"
+# ── Clonar repositorio ──
+echo "  [..] Descargando VoidForge (rama: $VOIDFORGE_BRANCH)..."
 rm -rf "$INSTALL_DIR" 2>/dev/null || true
-if ! git clone --depth 1 --branch "$VOIDFORGE_BRANCH" "$REPO_URL" "$INSTALL_DIR" > "$TEMP_LOG" 2>&1; then
-    step_fail "Descargando VoidForge"
-    echo -e "\n  \033[1;31mError al descargar.\033[0m"
-    echo "  Verifica tu conexión."
+if ! git clone --depth 1 --branch "$VOIDFORGE_BRANCH" "$REPO_URL" "$INSTALL_DIR" > /dev/null 2>&1; then
+    echo -e "  [ERR] Error al descargar."
+    echo "   Verifica tu conexion a internet."
     exit 1
 fi
-step_ok "Descargando VoidForge"
+echo -e "  [OK]  Descarga completada"
 
-# ── Lanzar voidforge.sh ──
+# ── Instalar python3-urwid ──
+if ! python3 -c "import urwid" 2>/dev/null; then
+    echo "  [..] Instalando python3-urwid..."
+    sudo apt-get install -y -qq python3-urwid > /dev/null 2>&1 || \
+        pip3 install --break-system-packages urwid > /dev/null 2>&1 || true
+fi
+echo -e "  [OK]  Dependencias Python listas"
+
+# ── Lanzar VoidForge ──
 echo ""
-echo -e "  \033[1;36mIniciando VoidForge...\033[0m"
+echo -e "  Iniciando VoidForge..."
 echo ""
 cd "$INSTALL_DIR"
-sudo bash voidforge.sh "$@"
+sudo python3 -m voidforge "$@"

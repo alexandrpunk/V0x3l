@@ -1,0 +1,59 @@
+# Dialogos de la UI (confirmacion, input, mensajes)
+
+import urwid
+from typing import Callable, Optional
+from voidforge.ui.banner import get_banner_text
+from voidforge.config import VERSION
+
+
+def confirm_dialog(title: str, message: str, on_yes: Callable,
+                   on_no: Optional[Callable] = None):
+    """Dialogo de confirmacion Si/No."""
+    body = [
+        urwid.Text(message, align="center"),
+        urwid.Divider(),
+        urwid.Columns([
+            urwid.Button("  Si  ", on_press=lambda _: on_yes()),
+            urwid.Button("  No  ", on_press=lambda _: on_no() if on_no else None),
+        ]),
+    ]
+    dialog = urwid.LineBox(
+        urwid.Pile(body),
+        title=title
+    )
+    return dialog
+
+
+def input_dialog(title: str, prompt: str, on_submit: Callable,
+                 on_cancel: Optional[Callable] = None):
+    """Dialogo de entrada de texto."""
+    edit = urwid.Edit(f"  {prompt}: ")
+    body = [
+        urwid.Text(prompt),
+        urwid.Divider(),
+        edit,
+        urwid.Divider(),
+        urwid.Button("  Aceptar  ", on_press=lambda _: on_submit(edit.get_edit_text())),
+    ]
+    if on_cancel:
+        body.append(urwid.Button("  Cancelar  ", on_press=lambda _: on_cancel()))
+
+    dialog = urwid.LineBox(
+        urwid.Pile(body),
+        title=title
+    )
+    return dialog, edit
+
+
+def message_dialog(title: str, message: str, on_close: Callable):
+    """Dialogo de mensaje informativo."""
+    body = [
+        urwid.Text(message, align="center"),
+        urwid.Divider(),
+        urwid.Button("  OK  ", on_press=lambda _: on_close()),
+    ]
+    dialog = urwid.LineBox(
+        urwid.Pile(body),
+        title=title
+    )
+    return dialog
