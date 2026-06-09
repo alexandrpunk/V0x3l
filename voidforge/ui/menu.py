@@ -31,9 +31,7 @@ class MainMenu:
         # Panel con borde
         panel = urwid.LineBox(
             urwid.Pile([
-                urwid.Divider(" "),
                 list_box,
-                urwid.Divider(" "),
             ]),
             title="Menu",
             title_align="left",

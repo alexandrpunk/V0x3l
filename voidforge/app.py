@@ -45,7 +45,7 @@ class VoidForgeApp:
         banner_text = get_banner_text()
         banner_widget = urwid.Pile([
             urwid.Text(banner_text, align="center"),
-            urwid.Divider(" "),
+            urwid.Text(""),
         ])
         self.layout.set_body(banner_widget)
 

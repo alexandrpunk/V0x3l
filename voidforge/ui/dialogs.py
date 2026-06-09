@@ -11,7 +11,7 @@ def confirm_dialog(title: str, message: str, on_yes: Callable,
     """Dialogo de confirmacion Si/No."""
     body = [
         urwid.Text(message, align="center"),
-        urwid.Divider(),
+        urwid.Text(""),
         urwid.Columns([
             urwid.Button("  Si  ", on_press=lambda _: on_yes()),
             urwid.Button("  No  ", on_press=lambda _: on_no() if on_no else None),
@@ -30,9 +30,9 @@ def input_dialog(title: str, prompt: str, on_submit: Callable,
     edit = urwid.Edit(f"  {prompt}: ")
     body = [
         urwid.Text(prompt),
-        urwid.Divider(),
+        urwid.Text(""),
         edit,
-        urwid.Divider(),
+        urwid.Text(""),
         urwid.Button("  Aceptar  ", on_press=lambda _: on_submit(edit.get_edit_text())),
     ]
     if on_cancel:
@@ -49,7 +49,7 @@ def message_dialog(title: str, message: str, on_close: Callable):
     """Dialogo de mensaje informativo."""
     body = [
         urwid.Text(message, align="center"),
-        urwid.Divider(),
+        urwid.Text(""),
         urwid.Button("  OK  ", on_press=lambda _: on_close()),
     ]
     dialog = urwid.LineBox(
