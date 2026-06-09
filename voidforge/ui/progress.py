@@ -32,7 +32,7 @@ class ProgressScreen:
             ("pack", urwid.Divider(" ")),
             ("weight", 1, urwid.Padding(self.output_box, left=2, right=2)),
         ])
-        self.widget = urwid.Filler(self.pile, valign="top")
+        self.widget = self.pile
 
     # ── Package Monitor ──
 
