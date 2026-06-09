@@ -6,6 +6,7 @@ from voidforge.shell import run, log
 from voidforge.runner import StepRunner
 from voidforge.ui.menu import MainMenu
 from voidforge.ui.progress import ProgressScreen
+from voidforge.ui.layout import VoidForgeLayout
 from voidforge.ui.dialogs import message_dialog
 from voidforge.ui.banner import get_banner_text
 
@@ -15,6 +16,7 @@ class VoidForgeApp:
 
     def __init__(self):
         self.loop = None
+        self.layout = VoidForgeLayout()
         self.runner = StepRunner(self, self)
         self._register_steps()
         self.current_progress: ProgressScreen | None = None
@@ -26,7 +28,7 @@ class VoidForgeApp:
         """Ejecuta un comando, mostrando salida en el progress screen."""
         def on_line(line: str):
             if self.current_progress:
-                self.current_progress.append_output(line)
+                self.current_progress.feed_line(line)
         return run(desc, *args, sudo=sudo, on_line=on_line, timeout=timeout)
 
     # ===================== UI =====================
@@ -34,7 +36,7 @@ class VoidForgeApp:
     def run(self):
         """Inicia el event loop de urwid."""
         self.loop = urwid.MainLoop(
-            urwid.SolidFill(" "),
+            self.layout.get_widget(),
             palette=PALETTE,
             unhandled_input=self._unhandled_key,
         )
@@ -47,18 +49,16 @@ class VoidForgeApp:
 
     def _show_menu(self):
         menu = MainMenu(on_choice=self._on_menu_choice)
-        self._set_widget(menu.get_widget())
-
-    def _set_widget(self, widget):
-        if self.loop:
-            self.loop.widget = widget
+        self.layout.show_menu(menu.get_widget())
 
     def _on_menu_choice(self, key: str):
         actions = {
             "1": self._run_all,
             "2": self._run_resume,
-            "3": self._run_specific,
-            "4": self._run_range,
+            "3": lambda: self._show_message(
+                "Proximamente.", "Paso especifico"),
+            "4": lambda: self._show_message(
+                "Proximamente.", "Rango de pasos"),
             "5": self._show_status,
             "6": lambda: exit_app(self.loop),
         }
@@ -72,17 +72,12 @@ class VoidForgeApp:
     def _run_resume(self):
         self.runner.run_all(resume=True)
 
-    def _run_specific(self):
-        self._show_message("Aun no implementado", "Paso especifico - proximamente")
-
-    def _run_range(self):
-        self._show_message("Aun no implementado", "Rango de pasos - proximamente")
-
     def _show_status(self):
         status = self.runner.get_checkpoint_status()
-        banner = get_banner_text()
-        lines = banner.split("\n")
-        msg = "\n".join(lines[:5]) + f"\n\n{status}\n\nLog: {LOG_FILE}"
+        msg = (f"  {status}\n\n"
+               f"  Log: {LOG_FILE}\n"
+               f"  Versión: {VERSION}\n"
+               f"  Pasos: {TOTAL_STEPS}")
         self._show_message(msg, "Estado actual")
 
     def _show_message(self, text: str, title: str = "VoidForge"):
@@ -91,11 +86,11 @@ class VoidForgeApp:
         dialog = message_dialog(title, text, close)
         overlay = urwid.Overlay(
             dialog,
-            self.loop.widget if self.loop else urwid.SolidFill(" "),
+            self.layout.get_widget(),
             align="center", width=("relative", 60),
-            valign="middle", height=("relative", 50),
+            valign="middle", height=("relative", 55),
         )
-        self._set_widget(overlay)
+        self.layout.set_body(overlay)
 
     # ===================== Ejecucion de steps =====================
 
@@ -104,7 +99,8 @@ class VoidForgeApp:
         self.current_progress = ProgressScreen(
             step.number, TOTAL_STEPS, step.title
         )
-        self._set_widget(self.current_progress.get_widget())
+        self.layout.show_progress(step.number, TOTAL_STEPS, step.title)
+        self.layout.set_body(self.current_progress.get_widget())
 
         # Iniciar animacion del spinner
         self.spinner_handle = self.loop.set_alarm_in(
@@ -127,6 +123,7 @@ class VoidForgeApp:
         msg = "Completado" if ok else "Fallado"
         if self.current_progress:
             self.current_progress.show_result(ok, msg)
+        self.layout.show_result(ok, f"Paso {step.number} - {msg}")
 
         if ok:
             self.runner.save_checkpoint(step.number)
@@ -134,7 +131,7 @@ class VoidForgeApp:
         else:
             log(f"FAIL: Paso {step.number} - {step.title}")
 
-        # Pequena pausa para que el usuario vea el resultado
+        # Pausa breve para que el usuario vea el resultado
         if self.loop:
             self.loop.set_alarm_in(1.5, lambda loop, data: self._show_menu())
 

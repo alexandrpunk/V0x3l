@@ -1,22 +1,35 @@
 # VoidForge v2 — Color Palette
 # Formato: nombre | foreground | background
-#   foreground y background aceptan: black, white, dark gray, light gray,
-#     light red, light green, yellow, light blue, light cyan, light magenta
-#   Atributos separados por coma: bold, underline, blink, stand out
-# Ejemplo: title | light cyan, bold | black
+# Colores: black, white, dark gray, light gray, light red, light green,
+#   yellow, light blue, light cyan, light magenta
+# Atributos: bold, underline, blink, stand out
 
-header        | light cyan    | black
-body          | white         | black
-footer        | dark gray     | black
-selected      | black         | light gray
-ok            | light green   | black
-warn          | yellow        | black
-error         | light red     | black
-info          | dark gray     | black
-title         | light cyan, bold | black
-progress_done | light green   | black
-progress_bar  | dark cyan     | black
-pkg_name      | white, bold   | black
-pkg_speed     | dark gray     | black
-pkg_bar_cur   | light cyan    | black
-dim           | dark gray     | black
+# ── Header y Footer ──
+header_bg      | white, bold     | dark blue
+header_body    | light cyan      | black
+footer_bg      | dark gray       | black
+footer_info    | dark gray       | black
+
+# ── Cuerpo principal ──
+body           | white           | black
+body_focus     | black           | light gray
+dim            | dark gray       | black
+
+# ── Botones ──
+button_normal  | white           | dark gray
+button_focus   | black           | light cyan
+
+# ── Estados ──
+ok             | light green     | black
+warn           | yellow          | black
+error          | light red       | black
+info           | dark gray       | black
+
+# ── Titulos ──
+title          | light cyan, bold| black
+
+# ── Progreso ──
+progress_done  | light green     | black
+progress_bar   | dark cyan       | black
+pkg_name       | white, bold     | black
+pkg_speed      | dark gray       | black
