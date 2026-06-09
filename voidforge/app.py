@@ -86,7 +86,7 @@ class VoidForgeApp:
         dialog = message_dialog(title, text, close)
         overlay = urwid.Overlay(
             dialog,
-            self.layout.get_widget(),
+            urwid.SolidFill(" "),
             align="center", width=("relative", 60),
             valign="middle", height=("relative", 55),
         )

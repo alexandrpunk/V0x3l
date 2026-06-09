@@ -1,35 +1,39 @@
 # VoidForge v2 — Color Palette
+# Basada en los colores originales del script Bash:
+#   C_CYAN, C_GREEN, C_YELLOW, C_RED, C_GRAY, C_WHITE, C_BLUE
+#
 # Formato: nombre | foreground | background
-# Colores: black, white, dark gray, light gray, light red, light green,
-#   yellow, light blue, light cyan, light magenta
+# Colores ANSI: black, dark red, dark green, brown, dark blue, dark magenta,
+#   dark cyan, light gray, dark gray, light red, light green, yellow, light blue,
+#   light magenta, light cyan, white
 # Atributos: bold, underline, blink, stand out
 
 # ── Header y Footer ──
-header_bg      | white, bold     | dark blue
-header_body    | light cyan      | black
-footer_bg      | dark gray       | black
-footer_info    | dark gray       | black
+header_bg      | light cyan, bold | dark blue
+header_body    | light cyan       | black
+footer_bg      | dark gray        | black
+footer_info    | dark gray        | black
 
 # ── Cuerpo principal ──
-body           | white           | black
-body_focus     | black           | light gray
-dim            | dark gray       | black
+body           | white            | black
+body_focus     | black            | light gray
+dim            | dark gray        | black
 
 # ── Botones ──
-button_normal  | white           | dark gray
-button_focus   | black           | light cyan
+button_normal  | white            | dark gray
+button_focus   | black            | light cyan
 
-# ── Estados ──
-ok             | light green     | black
-warn           | yellow          | black
-error          | light red       | black
-info           | dark gray       | black
+# ── Estados (mapeo directo de las C_* originales) ──
+ok             | light green      | black     # C_GREEN
+warn           | yellow           | black     # C_YELLOW
+error          | light red        | black     # C_RED
+info           | dark gray        | black     # C_GRAY
 
 # ── Titulos ──
-title          | light cyan, bold| black
+title          | light cyan, bold | black     # C_CYAN
 
 # ── Progreso ──
-progress_done  | light green     | black
-progress_bar   | dark cyan       | black
-pkg_name       | white, bold     | black
-pkg_speed      | dark gray       | black
+progress_done  | light green      | black     # C_GREEN
+progress_bar   | dark cyan        | black
+pkg_name       | white, bold      | black     # C_WHITE
+pkg_speed      | dark gray        | black     # C_GRAY

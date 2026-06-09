@@ -118,7 +118,7 @@ class DemoApp:
 
     def run(self):
         self.loop = urwid.MainLoop(
-            self.layout.get_widget(),
+            urwid.SolidFill(" "),
             palette=PALETTE,
             unhandled_input=self._unhandled_key,
         )
@@ -268,7 +268,7 @@ class DemoApp:
         dialog = message_dialog(title, text, close)
         overlay = urwid.Overlay(
             dialog,
-            self.layout.get_widget(),
+            urwid.SolidFill(" "),
             align="center", width=("relative", 60),
             valign="middle", height=("relative", 55),
         )
