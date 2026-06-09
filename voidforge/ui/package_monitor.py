@@ -52,13 +52,10 @@ class PackageMonitor:
             self.eta_widget,
         ])
 
-        # Log compacto (ultimas 4 lineas)
+        # Log que llena el espacio disponible
         self.log_walker = urwid.SimpleFocusListWalker([])
         self.log_box = urwid.ListBox(self.log_walker)
-        self.log_frame = urwid.BoxAdapter(
-            urwid.Padding(self.log_box, left=2, right=2),
-            height=5
-        )
+        self.log_area = urwid.Padding(self.log_box, left=2, right=2)
 
         # ── Layout final ──
         columns = urwid.Columns([
@@ -72,9 +69,8 @@ class PackageMonitor:
             ("pack", self.detail_row),
             ("pack", urwid.Divider("─")),
             ("pack", self.package_widget),
-            ("pack", urwid.Divider(" ")),
-            ("pack", self.log_frame),
-            ("weight", 1, urwid.Filler(urwid.Text(""))),
+            ("pack", urwid.Divider("─")),
+            ("weight", 1, self.log_area),
         ])
 
     # ── Procesamiento de lineas ──
@@ -165,13 +161,15 @@ class PackageMonitor:
         else:
             self.package_widget.original_widget.set_text("")
 
-        # Log: ultimas 4 lineas
+        # Log: tantas lineas como quepan
         self.log_walker.clear()
-        for ln in self.last_lines[-4:]:
+        for ln in self.last_lines[-15:]:
             display = ln[:80]
             self.log_walker.append(
                 urwid.Text(("dim", f"  {display}"))
             )
+        if len(self.log_walker) > 0:
+            self.log_box.set_focus(len(self.log_walker) - 1)
 
     def update_spinner(self):
         """Actualiza solo el spinner (llamado desde el event loop)."""
