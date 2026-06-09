@@ -21,10 +21,11 @@ PLYMOUTH_ZIP_URL = "https://raw.githubusercontent.com/alexandrpunk/VoidForge/mai
 # ── Cargar paleta de colores desde archivo externo ──
 
 def load_palette(path: Path) -> list:
-    """Lee el archivo collorPalette y devuelve lista de tuplas urwid.
+    """Lee collorPalette y devuelve lista de tuplas urwid.
 
-    Formato (delimitado por |):
-        nombre | foreground | background
+    Formatos:
+      6 columnas: nombre | fg_16 | bg_16 | mono | fg_256 | bg_256
+      3 columnas: nombre | fg_16 | bg_16
     """
     palette = []
     try:
@@ -33,27 +34,34 @@ def load_palette(path: Path) -> list:
                 line = line.strip()
                 if not line or line.startswith("#"):
                     continue
-                parts = [p.strip().split("#")[0].strip() for p in line.split("|")]
-                if len(parts) == 3:
-                    name, fg, bg = parts
-                    palette.append((name, fg, bg))
+                parts = [p.strip() for p in line.split("|")]
+                if len(parts) >= 6:
+                    name, fg16, bg16, mono, fg256, bg256 = parts[:6]
+                    palette.append((name, fg16, bg16, mono, fg256, bg256))
+                elif len(parts) >= 5:
+                    name, fg16, bg16, fg256, bg256 = parts[:5]
+                    palette.append((name, fg16, bg16, "", fg256, bg256))
+                elif len(parts) == 3:
+                    name, fg16, bg16 = parts
+                    palette.append((name, fg16, bg16))
     except (FileNotFoundError, OSError):
-        # Fallback hardcodeado si no existe el archivo
         palette = [
-            ("header", "light cyan", "black"),
-            ("body", "white", "black"),
-            ("footer", "dark gray", "black"),
-            ("selected", "black", "light gray"),
-            ("ok", "light green", "black"),
-            ("warn", "yellow", "black"),
-            ("error", "light red", "black"),
-            ("info", "dark gray", "black"),
-            ("title", "light cyan, bold", "black"),
-            ("progress_done", "light green", "black"),
-            ("progress_bar", "dark cyan", "black"),
-            ("pkg_name", "white, bold", "black"),
-            ("pkg_speed", "dark gray", "black"),
-            ("dim", "dark gray", "black"),
+            ("header_bg", "light green, bold", "black", "", "#74BF04", "#534E48"),
+            ("footer_bg", "dark gray", "black", "", "#534E48", "#000000"),
+            ("body", "white", "black", "", "#DCD2BF", "#000000"),
+            ("body_focus", "black", "light gray", "", "#000000", "#D1C6B2"),
+            ("dim", "dark gray", "black", "", "#534E48", "#000000"),
+            ("button_normal", "white", "black", "", "#DCD2BF", "#000000"),
+            ("button_focus", "black", "light green", "", "#000000", "#74BF04"),
+            ("ok", "light green", "black", "", "#74BF04", "#000000"),
+            ("warn", "yellow", "black", "", "#D1C6B2", "#000000"),
+            ("error", "light red", "black", "", "#74BF04", "#000000"),
+            ("info", "dark gray", "black", "", "#534E48", "#000000"),
+            ("title", "light green, bold", "black", "", "#74BF04", "#000000"),
+            ("progress_done", "light green", "black", "", "#74BF04", "#000000"),
+            ("progress_bar", "dark green", "black", "", "#467302", "#000000"),
+            ("pkg_name", "white, bold", "black", "", "#DCD2BF", "#000000"),
+            ("pkg_speed", "dark gray", "black", "", "#534E48", "#000000"),
         ]
     return palette
 

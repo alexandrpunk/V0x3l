@@ -1,27 +1,32 @@
 # VoidForge v2 — Color Palette
-# Colores ANSI estandar para maxima compatibilidad en TTY.
-# Evitar "dark blue" / colores oscuros que no contrastan en terminal basico.
+# Formato: nombre | fg_16 | bg_16 | mono | fg_high | bg_high
+# mono: atributo en modo monocromatico (usualmente vacio)
+# fg_high/bg_high: formato urwid #RRGGBB (true color) o hN (256 colores)
+#
+# Colores base (desde colores):
+#   #74BF04 brilliant green (primary, usar texto claro)
+#   #D1C6B2 dark beige      (secondary, usar texto oscuro)
+#   #467302 dark green      (tertiary, usar texto claro)
+#   #DCD2BF light beige     (text light)
+#   #534E48 dark            (background and text dark)
 
-header_bg      | light cyan, bold | black
-header_body    | light cyan       | black
-footer_bg      | dark gray        | black
-footer_info    | dark gray        | black
+header_bg   | light green, bold | black | | #74BF04 | #534E48
+footer_bg   | dark gray         | black | | #534E48 | #000000
+body        | white             | black | | #DCD2BF | #000000
+body_focus  | black             | light gray | | #000000 | #D1C6B2
+dim         | dark gray         | black | | #534E48 | #000000
 
-body           | white            | black
-body_focus     | black            | light gray
-dim            | dark gray        | black
+button_normal | white          | black | | #DCD2BF | #000000
+button_focus  | black          | light green | | #000000 | #74BF04
 
-button_normal  | white            | black
-button_focus   | black            | light cyan
+ok    | light green | black | | #74BF04 | #000000
+warn  | yellow      | black | | #D1C6B2 | #000000
+error | light red   | black | | #74BF04 | #000000
+info  | dark gray   | black | | #534E48 | #000000
 
-ok             | light green      | black
-warn           | yellow           | black
-error          | light red        | black
-info           | dark gray        | black
+title | light green, bold | black | | #74BF04 | #000000
 
-title          | light cyan, bold | black
-
-progress_done  | light green      | black
-progress_bar   | dark cyan        | black
-pkg_name       | white, bold      | black
-pkg_speed      | dark gray        | black
+progress_done | light green | black | | #74BF04 | #000000
+progress_bar  | dark green  | black | | #467302 | #000000
+pkg_name      | white, bold | black | | #DCD2BF | #000000
+pkg_speed     | dark gray   | black | | #534E48 | #000000
