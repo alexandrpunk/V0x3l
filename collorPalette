@@ -8,6 +8,14 @@
 #   light magenta, light cyan, white
 # Atributos: bold, underline, blink, stand out
 
+# lista colores voidforge
+# #74BF04, #primary brilliant green (only use light text)
+# #D1C6B2, #secondary dark veige (only use dark text)
+# #467302, #tertiary dark green (only use light text)
+# #DCD2BF, #text light  light veige
+# #534E48  #background and text dark
+
+
 # ── Header y Footer ──
 header_bg      | light cyan, bold | dark blue
 header_body    | light cyan       | black

@@ -33,7 +33,7 @@ def load_palette(path: Path) -> list:
                 line = line.strip()
                 if not line or line.startswith("#"):
                     continue
-                parts = [p.strip() for p in line.split("|")]
+                parts = [p.strip().split("#")[0].strip() for p in line.split("|")]
                 if len(parts) == 3:
                     name, fg, bg = parts
                     palette.append((name, fg, bg))
