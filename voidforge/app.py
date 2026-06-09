@@ -35,12 +35,23 @@ class VoidForgeApp:
 
     def run(self):
         """Inicia el event loop de urwid."""
-        self.loop = urwid.MainLoop(
-            self.layout.get_widget(),
-            palette=PALETTE,
-            unhandled_input=self._unhandled_key,
-        )
+        import asyncio
+        try:
+            event_loop = urwid.AsyncioEventLoop(loop=asyncio.new_event_loop())
+        except Exception:
+            event_loop = None
+
         self._show_menu()
+
+        kwargs = {
+            "widget": self.layout.get_widget(),
+            "palette": PALETTE,
+            "unhandled_input": self._unhandled_key,
+        }
+        if event_loop:
+            kwargs["event_loop"] = event_loop
+
+        self.loop = urwid.MainLoop(**kwargs)
         self.loop.run()
 
     def _unhandled_key(self, key):
