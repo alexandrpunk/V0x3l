@@ -31,7 +31,11 @@ class VoidForgeApp:
     def run_cmd(self, desc: str, *args, sudo=False, timeout=None) -> bool:
         def on_line(line: str):
             if self.current_progress:
+                self.current_progress.show_command(desc)
+                self.current_progress.update_spinner()
                 self.current_progress.feed_line(line)
+            if self.loop:
+                self.loop.draw_screen()
         return run(desc, *args, sudo=sudo, on_line=on_line, timeout=timeout)
 
     # ===================== UI =====================
@@ -192,6 +196,7 @@ class VoidForgeApp:
         self.current_progress = ProgressScreen(
             step.number, TOTAL_STEPS, step.title
         )
+        self.current_progress.show_command("Preparando...")
         if self.exec_screen:
             self.exec_screen.set_output(self.current_progress.get_widget())
 
