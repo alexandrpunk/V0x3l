@@ -10,6 +10,13 @@
 
 set -euo pipefail
 
+# Limpiar al salir (borra el repo clonado)
+cleanup() {
+    cd /tmp 2>/dev/null || true
+    sudo rm -rf "${INSTALL_DIR}" 2>/dev/null || true
+}
+trap cleanup EXIT
+
 REPO_URL="https://github.com/alexandrpunk/VoidForge.git"
 INSTALL_DIR="${HOME}/.local/share/voidforge"
 VOIDFORGE_BRANCH="${VOIDFORGE_BRANCH:-refactor}"
@@ -40,7 +47,10 @@ echo -e "  [OK]  Git listo"
 # Clonar repositorio
 echo "  [..] Clonando: $REPO_URL (rama: $VOIDFORGE_BRANCH)"
 echo "  [..] Destino: $INSTALL_DIR"
-rm -rf "$INSTALL_DIR" 2>/dev/null || true
+# Eliminar el directorio si existe (intenta con y sin sudo)
+sudo rm -rf "$INSTALL_DIR" 2>/dev/null
+rm -rf "$INSTALL_DIR" 2>/dev/null
+mkdir -p "$(dirname "$INSTALL_DIR")" 2>/dev/null || true
 if ! git clone --depth 1 --branch "$VOIDFORGE_BRANCH" "$REPO_URL" "$INSTALL_DIR"; then
     echo -e "  [ERR] Error al descargar desde $REPO_URL (rama: $VOIDFORGE_BRANCH)."
     echo "  [ERR] Comando: git clone --depth 1 --branch $VOIDFORGE_BRANCH $REPO_URL $INSTALL_DIR"
