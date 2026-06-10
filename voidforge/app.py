@@ -97,12 +97,27 @@ class VoidForgeApp:
             except (EOFError, KeyboardInterrupt):
                 print()
                 break
-            if choice == "6":
+            if choice == "1":
+                self._run_all()
+            elif choice == "2":
+                self._run_resume()
+            elif choice == "3":
+                print("  Paso especifico - proximamente")
+            elif choice == "4":
+                print("  Rango de pasos - proximamente")
+            elif choice == "5":
+                self._show_status()
+            elif choice == "6":
                 break
-            print(f"  Opcion {choice} seleccionada (implementacion pendiente)")
+            else:
+                print("  Opcion no valida")
 
 
     def _unhandled_key(self, key):
+        # Atajos numericos directos sin navegar con flechas
+        if key in ("1", "2", "3", "4", "5", "6"):
+            self._on_menu_choice(key)
+            return
         if key in ("q", "Q"):
             raise urwid.ExitMainLoop()
 
