@@ -53,9 +53,16 @@ def main():
     if not ensure_urwid():
         sys.exit(1)
 
+    print("  [OK]  Iniciando interfaz grafica...")
     from voidforge.app import VoidForgeApp
     app = VoidForgeApp()
-    app.run()
+    try:
+        app.run()
+    except Exception as e:
+        print(f"\n  [ERR] Error al iniciar la interfaz: {e}")
+        print("  [ERR] Ejecuta el demo para probar: python3 demo_ui.py")
+        print(f"  [ERR] Log: {LOG_FILE}")
+        sys.exit(1)
 
 
 def _check_system() -> bool:

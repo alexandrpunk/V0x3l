@@ -36,10 +36,14 @@ class VoidForgeApp:
 
     def run(self):
         import asyncio
+        event_loop = None
         try:
             event_loop = urwid.AsyncioEventLoop(loop=asyncio.new_event_loop())
         except Exception:
-            event_loop = None
+            try:
+                event_loop = urwid.SelectEventLoop()
+            except Exception:
+                event_loop = None
 
         kwargs = {
             "widget": self.layout.get_widget(),
@@ -48,10 +52,20 @@ class VoidForgeApp:
         }
         if event_loop:
             kwargs["event_loop"] = event_loop
+        else:
+            print("  [WARN] No se pudo crear event loop, usando default")
+            import sys
+            sys.stdout.flush()
 
         self.loop = urwid.MainLoop(**kwargs)
         self._show_menu()
-        self.loop.run()
+        try:
+            self.loop.run()
+        except urwid.ExitMainLoop:
+            raise
+        except Exception as e:
+            print(f"\n  [ERR] Error en la interfaz: {e}")
+            raise
 
     def _unhandled_key(self, key):
         if key in ("q", "Q"):
