@@ -28,7 +28,7 @@ class VoidForgeApp:
 
     # ===================== Shell callbacks =====================
 
-    def run_cmd(self, desc: str, *args, sudo=False, timeout=None) -> bool:
+    def run_cmd(self, desc: str, *args, sudo=False, timeout=None, capture_output=True) -> bool:
         def on_line(line: str):
             if self.current_progress:
                 self.current_progress.show_command(desc)
@@ -36,7 +36,8 @@ class VoidForgeApp:
                 self.current_progress.feed_line(line)
             if self.loop:
                 self.loop.draw_screen()
-        return run(desc, *args, sudo=sudo, on_line=on_line, timeout=timeout)
+        return run(desc, *args, sudo=sudo, on_line=on_line, timeout=timeout,
+                   capture_output=capture_output)
 
     # ===================== UI =====================
 

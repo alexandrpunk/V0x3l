@@ -1,37 +1,3 @@
-# Shell helper - ejecucion de comandos, sudo, logging
-
-import subprocess
-import os
-from datetime import datetime
-from typing import Optional, Callable
-
-LOG_FILE = "/tmp/voidforge.log"
-
-INSTALL_COMMANDS = (
-    "nala install",
-    "nala update",
-    "nala upgrade",
-    "apt install",
-    "apt-get install",
-    "flatpak install",
-)
-
-
-def is_package_install(args: tuple) -> bool:
-    """Detecta si el comando es de instalacion de paquetes."""
-    cmd_str = " ".join(str(a) for a in args)
-    for kw in INSTALL_COMMANDS:
-        if kw in cmd_str:
-            return True
-    return False
-
-
-def log(msg: str) -> None:
-    ts = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-    with open(LOG_FILE, "a") as f:
-        f.write(f"[{ts}] {msg}\n")
-
-
 def run(
     description: str,
     *args: str,
@@ -39,11 +5,9 @@ def run(
     on_line: Optional[Callable[[str], None]] = None,
     timeout: Optional[int] = None,
     package_monitor: bool = False,
+    capture_output: bool = True,
 ) -> bool:
     """Ejecuta un comando, loguea salida, opcionalmente muestra en vivo.
-
-    Si package_monitor=True y on_line tiene un .use_package_monitor(),
-    activa el visor compacto de paquetes antes de ejecutar.
 
     Args:
         description: descripcion para el log
@@ -52,6 +16,7 @@ def run(
         on_line: callback llamado por cada linea de salida (para UI en vivo)
         timeout: timeout en segundos
         package_monitor: si es True, intenta activar el monitor de paquetes
+        capture_output: si es False, stdout va directo al terminal (sin pipe)
 
     Returns:
         True si el comando retorno 0, False en otro caso
@@ -70,19 +35,21 @@ def run(
         cmd = ["sudo"] + cmd
 
     try:
+        stdout = subprocess.PIPE if capture_output else None
         proc = subprocess.Popen(
             cmd,
-            stdout=subprocess.PIPE,
+            stdout=stdout,
             stderr=subprocess.STDOUT,
             text=True,
             bufsize=1,
         )
 
-        for line in proc.stdout:
-            line = line.rstrip()
-            log(f"  {line}")
-            if on_line:
-                on_line(line)
+        if capture_output:
+            for line in proc.stdout:
+                line = line.rstrip()
+                log(f"  {line}")
+                if on_line:
+                    on_line(line)
 
         proc.wait(timeout=timeout)
         ok = proc.returncode == 0
