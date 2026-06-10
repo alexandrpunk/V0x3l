@@ -55,6 +55,7 @@ def main():
 
     from voidforge.app import VoidForgeApp
     app = VoidForgeApp()
+    sys.stdout.flush()
     app.run()
 
 

@@ -1,6 +1,7 @@
 # VoidForge App - urwid event loop y logica principal
 
 import os
+import sys
 import urwid
 from voidforge.config import PALETTE, TOTAL_STEPS, VERSION, LOG_FILE
 from voidforge.shell import run, log
@@ -73,6 +74,12 @@ class VoidForgeApp:
 
     def _fallback_text_mode(self):
         """Menu de texto ANSI como fallback cuando urwid no funciona."""
+        # Si stdin es pipe, leer de /dev/tty
+        if not sys.stdin.isatty():
+            try:
+                sys.stdin = open("/dev/tty", "r")
+            except Exception:
+                pass
         print()
         while True:
             print(f"\n  {chr(27)}[1;32mVoidForge.sh : Menu principal{chr(27)}[0m")
