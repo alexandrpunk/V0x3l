@@ -36,15 +36,12 @@ class VoidForgeApp:
     # ===================== UI =====================
 
     def run(self):
-        # Detectar si estamos en TTY puro (no SSH ni terminal grafico)
-        tty_name = os.ttyname(0) if os.isatty(0) else ""
-        is_pure_tty = tty_name.startswith("/dev/tty") and not "pts" in tty_name
-
-        if is_pure_tty:
+        # Sin TTY real (pipe, stdout redirigido) -> modo texto
+        if not os.isatty(0):
             self._fallback_text_mode()
             return
 
-        # Intentar urwid en SSH o terminales graficos
+        # TTY real -> urwid
         import asyncio
         event_loop = None
         try:

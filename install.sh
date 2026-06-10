@@ -77,4 +77,4 @@ echo ""
 echo -e "  Iniciando VoidForge..."
 echo ""
 cd "$INSTALL_DIR"
-sudo python3 -m voidforge "$@"
+sudo python3 -m voidforge "$@" < /dev/tty
