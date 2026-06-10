@@ -38,9 +38,13 @@ fi
 echo -e "  [OK]  Git listo"
 
 # Clonar repositorio
+echo "  [..] Clonando: $REPO_URL (rama: $VOIDFORGE_BRANCH)"
+echo "  [..] Destino: $INSTALL_DIR"
 rm -rf "$INSTALL_DIR" 2>/dev/null || true
-if ! git clone --depth 1 --branch "$VOIDFORGE_BRANCH" "$REPO_URL" "$INSTALL_DIR" > /dev/null 2>&1; then
-    echo -e "  [ERR] Error al descargar. Verifica tu conexion."
+if ! git clone --depth 1 --branch "$VOIDFORGE_BRANCH" "$REPO_URL" "$INSTALL_DIR"; then
+    echo -e "  [ERR] Error al descargar desde $REPO_URL (rama: $VOIDFORGE_BRANCH)."
+    echo "  [ERR] Comando: git clone --depth 1 --branch $VOIDFORGE_BRANCH $REPO_URL $INSTALL_DIR"
+    echo "  [ERR] Verifica tu conexion a internet y que la rama exista."
     exit 1
 fi
 echo -e "  [OK]  Descarga completada"
