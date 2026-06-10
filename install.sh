@@ -5,14 +5,14 @@
 # ============================================================
 #
 # Uso:
-#   curl -fsSL https://raw.githubusercontent.com/alexandrpunk/VoidForge/python-urwid/install.sh | bash
+#   curl -fsSL https://raw.githubusercontent.com/alexandrpunk/VoidForge/refactor/install.sh | bash
 # ============================================================
 
 set -euo pipefail
 
 REPO_URL="https://github.com/alexandrpunk/VoidForge.git"
 INSTALL_DIR="${HOME}/.local/share/voidforge"
-VOIDFORGE_BRANCH="${VOIDFORGE_BRANCH:-python-urwid}"
+VOIDFORGE_BRANCH="${VOIDFORGE_BRANCH:-refactor}"
 
 echo ""
 echo "  ╔═══════════════════════════════════════════════════╗"

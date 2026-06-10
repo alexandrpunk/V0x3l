@@ -1,7 +1,8 @@
 # Menu principal - panel con delineado
 
 import urwid
-from voidforge.ui.banner import get_banner_text
+import subprocess
+from voidforge.config import ASCII_FILE
 
 
 class MainMenu:
@@ -37,6 +38,14 @@ class MainMenu:
             title_align="left",
         )
 
+        banner_text = ""
+        try:
+            r = subprocess.run(["bash", str(ASCII_FILE)],
+                               capture_output=True, text=True, timeout=5)
+            if r.returncode == 0 and r.stdout.strip():
+                banner_text = r.stdout
+        except Exception:
+            pass
         self.widget = urwid.Pile([
             ("pack", urwid.Text(banner_text, align="center")),
             ("pack", urwid.Text("")),
