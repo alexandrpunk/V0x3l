@@ -49,6 +49,19 @@ if ! git clone --depth 1 --branch "$VOIDFORGE_BRANCH" "$REPO_URL" "$INSTALL_DIR"
 fi
 echo -e "  [OK]  Descarga completada"
 
+# Instalar python3-urwid
+if ! python3 -c "import urwid" 2>/dev/null; then
+    echo "  [..] Instalando python3-urwid..."
+    sudo apt-get install -y python3-urwid > /dev/null 2>&1
+    if python3 -c "import urwid" 2>/dev/null; then
+        echo -e "  [OK]  python3-urwid instalado"
+    else
+        echo -e "  [WARN] No se pudo instalar python3-urwid. Ejecuta: sudo apt install python3-urwid"
+    fi
+else
+    echo -e "  [OK]  python3-urwid"
+fi
+
 # Lanzar VoidForge
 echo ""
 echo -e "  Iniciando VoidForge..."

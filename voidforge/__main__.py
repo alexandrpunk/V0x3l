@@ -5,31 +5,54 @@ import sys
 import os
 import subprocess
 
-# Asegurar que el directorio actual esta en el path
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from voidforge.config import LOG_FILE, VERSION
 from voidforge.shell import log
 
 
+def ensure_urwid() -> bool:
+    """Verifica que urwid este instalado, si no lo instala via apt."""
+    try:
+        import urwid  # noqa: F401
+        return True
+    except ImportError:
+        pass
+
+    print("  [..] Instalando python3-urwid...")
+    try:
+        subprocess.run(
+            ["apt", "install", "-y", "python3-urwid"],
+            check=True, capture_output=True, text=True
+        )
+        import urwid  # noqa: F401
+        print("  [OK]  python3-urwid instalado")
+        return True
+    except Exception:
+        pass
+
+    print("  [ERR] No se pudo instalar python3-urwid.")
+    print("  [ERR] Ejecuta manualmente: sudo apt install python3-urwid")
+    return False
+
+
 def main():
-    # Inicializar log
-    os.makedirs(os.path.dirname(LOG_FILE), exist_ok=True)
+    os.makedirs(os.path.dirname(LOG_FILE) or ".", exist_ok=True)
     with open(LOG_FILE, "w") as f:
         f.write(f"=== VoidForge v{VERSION} - $(date) ===\n")
 
     log(f"Iniciando VoidForge v{VERSION}")
 
-    # Verificar que corremos como root
     if os.geteuid() != 0:
         print("VoidForge requiere permisos de administrador (sudo).")
         sys.exit(1)
 
-    # Verificar Ubuntu >= 24
     if not _check_system():
         sys.exit(1)
 
-    # Iniciar UI
+    if not ensure_urwid():
+        sys.exit(1)
+
     from voidforge.app import VoidForgeApp
     app = VoidForgeApp()
     app.run()
