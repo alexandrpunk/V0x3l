@@ -45,6 +45,8 @@ class VoidForgeApp:
             except Exception:
                 event_loop = None
 
+        self._show_menu()
+
         kwargs = {
             "widget": self.layout.get_widget(),
             "palette": PALETTE,
@@ -52,20 +54,39 @@ class VoidForgeApp:
         }
         if event_loop:
             kwargs["event_loop"] = event_loop
-        else:
-            print("  [WARN] No se pudo crear event loop, usando default")
-            import sys
-            sys.stdout.flush()
 
         self.loop = urwid.MainLoop(**kwargs)
-        self._show_menu()
         try:
             self.loop.run()
-        except urwid.ExitMainLoop:
+        except (urwid.ExitMainLoop, KeyboardInterrupt):
             raise
         except Exception as e:
-            print(f"\n  [ERR] Error en la interfaz: {e}")
-            raise
+            print(f"\n  [WARN] urwid no disponible en este terminal: {e}")
+            self._fallback_text_mode()
+
+    def _fallback_text_mode(self):
+        """Menu de texto ANSI como fallback cuando urwid no funciona."""
+        print()
+        while True:
+            print(f"\n  {chr(27)}[1;32mVoidForge.sh : Menu principal{chr(27)}[0m")
+            print(f"  {chr(27)}[2;37m{chr(9472) * 60}{chr(27)}[0m")
+            print()
+            print(f"  {chr(27)}[1;37m(1){chr(27)}[0m Instalacion completa (pasos 0-15)")
+            print(f"  {chr(27)}[1;37m(2){chr(27)}[0m Reanudar desde ultimo checkpoint")
+            print(f"  {chr(27)}[1;37m(3){chr(27)}[0m Ejecutar paso especifico")
+            print(f"  {chr(27)}[1;37m(4){chr(27)}[0m Ejecutar rango de pasos")
+            print(f"  {chr(27)}[1;37m(5){chr(27)}[0m Ver estado actual")
+            print(f"  {chr(27)}[1;37m(6){chr(27)}[0m Salir")
+            print(f"\n  {chr(27)}[2;37mSelecciona una opcion [1-6]:{chr(27)}[0m")
+            try:
+                choice = input().strip()
+            except (EOFError, KeyboardInterrupt):
+                print()
+                break
+            if choice == "6":
+                break
+            print(f"  Opcion {choice} seleccionada (implementacion pendiente)")
+
 
     def _unhandled_key(self, key):
         if key in ("q", "Q"):
