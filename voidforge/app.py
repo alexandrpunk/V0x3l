@@ -1,5 +1,6 @@
 # VoidForge App - urwid event loop y logica principal
 
+import os
 import urwid
 from voidforge.config import PALETTE, TOTAL_STEPS, VERSION, LOG_FILE
 from voidforge.shell import run, log
@@ -35,6 +36,15 @@ class VoidForgeApp:
     # ===================== UI =====================
 
     def run(self):
+        # Detectar si estamos en TTY puro (no SSH ni terminal grafico)
+        tty_name = os.ttyname(0) if os.isatty(0) else ""
+        is_pure_tty = tty_name.startswith("/dev/tty") and not "pts" in tty_name
+
+        if is_pure_tty:
+            self._fallback_text_mode()
+            return
+
+        # Intentar urwid en SSH o terminales graficos
         import asyncio
         event_loop = None
         try:
