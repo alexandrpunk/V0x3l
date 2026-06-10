@@ -153,6 +153,8 @@ class VoidForgeApp:
         for i in range(TOTAL_STEPS + 1):
             self.exec_screen.set_step_status(i, "pending")
         self.layout.show_execution(self.exec_screen.get_widget())
+        if self.loop:
+            self.loop.draw_screen()
 
     def _show_status(self):
         status = self.runner.get_checkpoint_status()
@@ -165,6 +167,8 @@ class VoidForgeApp:
     def _show_message(self, text: str, title: str = "VoidForge"):
         def close():
             self._show_menu()
+            if self.loop:
+                self.loop.draw_screen()
         dialog = message_dialog(title, text, close)
         overlay = urwid.Overlay(
             dialog,
@@ -173,6 +177,8 @@ class VoidForgeApp:
             valign="middle", height=("relative", 55),
         )
         self.layout.set_body(overlay)
+        if self.loop:
+            self.loop.draw_screen()
 
     # ===================== Ejecucion de steps =====================
 
@@ -196,6 +202,10 @@ class VoidForgeApp:
             0.15, self._tick_spinner
         ) if self.loop else None
 
+        # Forzar render de la pantalla de progreso antes del comando bloqueante
+        if self.loop:
+            self.loop.draw_screen()
+
         log(f"=== Paso {step.number}/{TOTAL_STEPS}: {step.title} ===")
 
         ok = step.run()
@@ -215,6 +225,10 @@ class VoidForgeApp:
 
         self.layout.show_result(ok, f"Paso {step.number}")
 
+        # Forzar render del resultado del paso
+        if self.loop:
+            self.loop.draw_screen()
+
         if ok:
             self.runner.save_checkpoint(step.number)
             log(f"OK: Paso {step.number} - {step.title}")
@@ -227,6 +241,7 @@ class VoidForgeApp:
     def on_all_done(self):
         """Called when all steps complete."""
         if self.loop:
+            self.loop.draw_screen()
             self.loop.set_alarm_in(1.5, lambda loop, data: self._show_menu())
 
     def _tick_spinner(self, loop, data):
