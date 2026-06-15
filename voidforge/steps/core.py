@@ -3,6 +3,7 @@
 import os
 import subprocess
 from voidforge.steps.base import BaseStep
+from voidforge.config import BASE_DIR
 
 
 class PreparationStep(BaseStep):
@@ -37,8 +38,13 @@ class PreparationStep(BaseStep):
 
         # ── Pika OS Repo ──
         if not os.path.exists("/etc/apt/sources.list.d/pika.list"):
+            os.makedirs("/etc/apt/keyrings", exist_ok=True)
+            self.runner.ui.run_cmd("pika key",
+                "cp", f"{BASE_DIR}/assets/pika-keyring.gpg.key",
+                "/etc/apt/keyrings/pika-keyring.gpg.key", sudo=True)
             self.runner.ui.run_cmd("pika repo", "bash", "-c",
-                'echo "deb [arch=amd64] https://ppa.pika-os.com/pika cockatiel main" | '
+                'echo "deb [arch=amd64 signed-by=/etc/apt/keyrings/pika-keyring.gpg.key] '
+                'https://ppa.pika-os.com pika cockatiel" | '
                 "tee /etc/apt/sources.list.d/pika.list",
                 sudo=True)
 

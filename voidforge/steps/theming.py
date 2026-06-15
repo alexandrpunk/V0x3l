@@ -42,10 +42,10 @@ class AppearanceStep(BaseStep):
 
         if os.path.isdir(theme_src) and os.path.exists(
                 f"{theme_src}/{theme_name}.plymouth"):
-            if not os.path.exists(theme_file):
-                subprocess.run(["cp", "-r", theme_src, theme_dir],
-                               capture_output=True)
-            if os.path.exists(theme_file):
+            if not os.path.isfile(theme_file):
+                self.runner.ui.run_cmd("copy plymouth theme",
+                    "cp", "-r", f"{theme_src}/.", f"{theme_dir}/", sudo=True)
+            if os.path.isfile(theme_file):
                 self.runner.ui.run_cmd("plymouth alternatives",
                     "update-alternatives", "--install",
                     "/usr/share/plymouth/themes/default.plymouth",
