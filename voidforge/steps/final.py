@@ -11,11 +11,6 @@ class DesktopStep(BaseStep):
 
     def run(self) -> bool:
         user = os.environ.get("SUDO_USER", os.environ.get("USER", ""))
-        ok = self.runner.ui.run_cmd("DMS installer",
+        return self.runner.ui.run_raw_cmd(
             "sudo", "-u", user, "bash", "-c",
-            "curl -fsSL https://install.danklinux.com | bash",
-            sudo=False, timeout=300, capture_output=True)
-        if not ok:
-            from voidforge.shell import log as shell_log
-            shell_log("DMS installer retorno error")
-        return ok
+            "curl -fsSL https://install.danklinux.com | bash")

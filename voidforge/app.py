@@ -38,6 +38,27 @@ class VoidForgeApp:
         return run(desc, *args, sudo=sudo, on_line=on_line, timeout=timeout,
                    capture_output=capture_output)
 
+    def run_raw_cmd(self, *args, sudo=False) -> bool:
+        """Ejecuta comando con terminal real (libera urwid temporalmente).
+
+        Detiene la pantalla raw de urwid, ejecuta el comando con stdin/stdout
+        heredados del terminal, y restaura urwid al terminar.
+        """
+        import subprocess
+        # Liberar terminal de urwid (restaura modo normal)
+        if self.loop:
+            self.loop.screen.stop()
+        try:
+            cmd = list(args)
+            if sudo and os.geteuid() != 0:
+                cmd = ["sudo"] + cmd
+            ret = subprocess.call(cmd)
+            return ret == 0
+        finally:
+            if self.loop:
+                self.loop.screen.start()
+                self.loop.draw_screen()
+
     # ===================== UI =====================
 
     def run(self):
