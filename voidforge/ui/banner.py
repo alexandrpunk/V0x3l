@@ -1,8 +1,6 @@
 # Banner - muestra el logo de VoidForge en el terminal
 
 import subprocess
-import importlib.util
-import sys
 from pathlib import Path
 from voidforge.config import BASE_DIR
 
@@ -42,7 +40,7 @@ def _try_pillow(target_width: int = 60) -> str | None:
         aspect = img.height / img.width
         # Ajuste por proporcion de caracter (alto/ancho ≈ 0.45)
         target_height = int(target_width * aspect * 0.45)
-        img = img.resize((target_width, target_height), Image.LANCZOS)
+        img = img.resize((target_width, target_height), Image.Resampling.LANCZOS)
 
         # Gradiente de 10 niveles
         chars = "@%#*+=-:. "

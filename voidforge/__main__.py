@@ -39,7 +39,8 @@ def ensure_urwid() -> bool:
 def main():
     os.makedirs(os.path.dirname(LOG_FILE) or ".", exist_ok=True)
     with open(LOG_FILE, "w") as f:
-        f.write(f"=== VoidForge v{VERSION} - $(date) ===\n")
+        from datetime import datetime as dt
+        f.write(f"=== VoidForge v{VERSION} - {dt.now()} ===\n")
 
     log(f"Iniciando VoidForge v{VERSION}")
 

@@ -1,7 +1,6 @@
 # Clase base para todos los steps
 
 from abc import ABC, abstractmethod
-from typing import Optional
 
 
 class BaseStep(ABC):

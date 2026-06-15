@@ -11,7 +11,6 @@ from voidforge.ui.progress import ProgressScreen
 from voidforge.ui.execution_screen import ExecutionScreen
 from voidforge.ui.layout import VoidForgeLayout
 from voidforge.ui.dialogs import message_dialog
-from voidforge.ui.banner import get_banner_text
 
 
 class VoidForgeApp:
@@ -72,7 +71,7 @@ class VoidForgeApp:
         try:
             self.loop.run()
         except (urwid.ExitMainLoop, KeyboardInterrupt):
-            raise
+            return
         except Exception as e:
             print(f"\n  [WARN] urwid no disponible en este terminal: {e}")
             self._fallback_text_mode()
@@ -107,9 +106,9 @@ class VoidForgeApp:
             elif choice == "2":
                 self._run_resume()
             elif choice == "3":
-                print("  Paso especifico - proximamente")
+                self._run_specific()
             elif choice == "4":
-                print("  Rango de pasos - proximamente")
+                self._run_range()
             elif choice == "5":
                 self._show_status()
             elif choice == "6":
@@ -134,8 +133,8 @@ class VoidForgeApp:
         actions = {
             "1": self._run_all,
             "2": self._run_resume,
-            "3": lambda: self._show_message("Proximamente.", "Paso especifico"),
-            "4": lambda: self._show_message("Proximamente.", "Rango de pasos"),
+            "3": self._run_specific,
+            "4": self._run_range,
             "5": self._show_status,
             "6": lambda: exit_app(self.loop),
         }
@@ -150,6 +149,24 @@ class VoidForgeApp:
     def _run_resume(self):
         self._prepare_execution()
         self.runner.run_all(resume=True)
+
+    def _run_specific(self):
+        step_num = input("  Numero de paso (0-15): ").strip()
+        try:
+            num = int(step_num)
+            self._prepare_execution()
+            self.runner.run_single(num)
+        except ValueError:
+            print("  Numero invalido")
+
+    def _run_range(self):
+        rng = input("  Rango (ej: 5-10): ").strip()
+        try:
+            start, end = rng.split("-")
+            self._prepare_execution()
+            self.runner.run_range(int(start.strip()), int(end.strip()))
+        except (ValueError, IndexError):
+            print("  Rango invalido. Usa formato: 5-10")
 
     def _prepare_execution(self):
         """Prepara la pantalla de ejecucion con los pasos."""

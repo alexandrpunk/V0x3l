@@ -2,7 +2,7 @@
 
 import os
 from typing import Optional
-from voidforge.config import CHECKPOINT_FILE, TOTAL_STEPS
+from voidforge.config import CHECKPOINT_FILE
 
 
 class StepRunner:
@@ -39,8 +39,8 @@ class StepRunner:
     def run_all(self, resume: bool = False):
         """Ejecuta todos los steps secuencialmente."""
         if resume:
-            start = self._load_checkpoint() or -1
-            start += 1
+            cp = self._load_checkpoint()
+            start = (cp + 1) if cp is not None else 0
         else:
             start = 0
 

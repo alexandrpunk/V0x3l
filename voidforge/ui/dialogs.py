@@ -2,8 +2,6 @@
 
 import urwid
 from typing import Callable, Optional
-from voidforge.ui.banner import get_banner_text
-from voidforge.config import VERSION
 
 
 def confirm_dialog(title: str, message: str, on_yes: Callable,

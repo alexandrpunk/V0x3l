@@ -16,7 +16,7 @@ class BootstrapStep(BaseStep):
             "dialog", "apt-utils", "curl", "ca-certificates",
             "pciutils", "locales", "gnupg", "software-properties-common",
             sudo=True)
-        return ok1 or ok2
+        return ok1 and ok2
 
 
 class SystemPrepStep(BaseStep):

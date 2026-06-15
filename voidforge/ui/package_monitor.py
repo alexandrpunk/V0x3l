@@ -3,7 +3,6 @@
 import re
 import urwid
 from datetime import datetime
-from typing import Optional
 
 
 class PackageMonitor:
@@ -87,7 +86,7 @@ class PackageMonitor:
             pct = int(m.group(1))
             if pct > self.percentage:
                 self.percentage = pct
-                self.progress_bar.set_completion(pct / 100)
+                self.progress_bar.set_completion(pct)
 
         # Contador de paquetes: "Get:1 http://..." o "(45/77)"
         m = re.search(r"\((\d+)/(\d+)\)", line)
