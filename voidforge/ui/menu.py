@@ -1,8 +1,33 @@
-# Menu principal - panel con delineado
+# Menu principal - panel con botones estilizados
 
 import urwid
 import subprocess
 from voidforge.config import ASCII_FILE
+
+
+class MenuButton(urwid.WidgetWrap):
+    """Boton de menu navegable sin los feos [ ] de urwid.Button."""
+
+    def __init__(self, key: str, label: str, on_choice):
+        self.key = key
+        self._on_choice = on_choice
+
+        self._icon = urwid.SelectableIcon(
+            f"   {key}  {label}", cursor_position=0
+        )
+        self._attr = urwid.AttrMap(self._icon, "button_normal", "button_focus")
+        padded = urwid.Padding(self._attr, left=1, right=1)
+        super().__init__(padded)
+
+    def selectable(self):
+        return True
+
+    def keypress(self, size, key):
+        if key in ("enter", " "):
+            if self._on_choice:
+                self._on_choice(self.key)
+            return None
+        return key
 
 
 class MainMenu:
@@ -21,21 +46,23 @@ class MainMenu:
 
         buttons = []
         for key, label in self.choices:
-            btn = urwid.Button(f"  ({key}) {label}")
-            urwid.connect_signal(btn, "click", self._on_click, key)
-            buttons.append(
-                urwid.AttrMap(btn, "button_normal", "button_focus")
-            )
+            btn = MenuButton(key, label, self._on_choice)
+            buttons.append(btn)
 
         list_box = urwid.ListBox(urwid.SimpleFocusListWalker(buttons))
 
-        # Panel con borde
+        menu_content = urwid.Pile([
+            urwid.Padding(list_box, left=1, right=1),
+        ])
+
         panel = urwid.LineBox(
-            urwid.Pile([
-                list_box,
-            ]),
-            title="Menu",
-            title_align="left",
+            menu_content,
+            title="\u2500 Menu \u2500",
+            title_align="center",
+            tlcorner="\u2554", trcorner="\u2557",
+            blcorner="\u255A", brcorner="\u255D",
+            tline="\u2550", bline="\u2550",
+            lline="\u2551", rline="\u2551",
         )
 
         banner_text = ""
@@ -46,13 +73,17 @@ class MainMenu:
                 banner_text = r.stdout
         except Exception:
             pass
+
         self.widget = urwid.Pile([
-            ("pack", urwid.Text(banner_text, align="center")),
+            ("pack", urwid.Padding(
+                urwid.AttrMap(urwid.Text(banner_text, align="center"), "body"),
+                left=2, right=2
+            )),
             ("pack", urwid.Text("")),
             ("weight", 1, panel),
         ])
 
-    def _on_click(self, button, key):
+    def _on_choice(self, key):
         if self.on_choice:
             self.on_choice(key)
 

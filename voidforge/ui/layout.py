@@ -7,28 +7,26 @@ from voidforge.config import VERSION
 class VoidForgeLayout:
     """Layout principal de la aplicacion.
 
-    Proporciona un Frame fijo con:
-    - Header: separador (VoidForge.sh : titulo)
-    - Body: contenido variable (menu, ejecucion, dialogo)
-    - Footer: info contextual + version a la derecha
+    Header: barra con titulo de seccion + separador
+    Body:   contenido variable (menu, ejecucion, dialogo)
+    Footer: info contextual (izquierda) + version (derecha)
     """
 
     def __init__(self, body=None, header_text="Menu principal",
-                 footer_text="Ctrl+Q salir"):
+                 footer_text="Q salir"):
         self._header_text = urwid.Text(
-            f" VoidForge.sh : {header_text}",
+            f"  VoidForge  {header_text}",
             align="left"
         )
         header = urwid.AttrMap(self._header_text, "header_bg")
 
-        # Footer con version a la derecha
         self._footer_left = urwid.Text(f" {footer_text}", align="left")
         self._footer_right = urwid.Text(f" v{VERSION} ", align="right")
-        footer_pile = urwid.Columns([
+        footer_cols = urwid.Columns([
             ("weight", 1, self._footer_left),
             ("pack", self._footer_right),
         ])
-        footer = urwid.AttrMap(footer_pile, "footer_bg")
+        footer = urwid.AttrMap(footer_cols, "footer_bg")
 
         header_pile = urwid.Pile([
             ("pack", header),
@@ -48,24 +46,24 @@ class VoidForgeLayout:
         self.frame.body = widget
 
     def set_header(self, text: str):
-        self._header_text.set_text(f" VoidForge.sh : {text}")
+        self._header_text.set_text(f"  VoidForge  {text}")
 
     def set_footer(self, text: str):
         self._footer_left.set_text(f" {text}")
 
     def show_menu(self, widget):
         self.set_header("Menu principal")
-        self.set_footer(u"\u2191\u2193 navegar | Enter elegir | Ctrl+Q salir")
+        self.set_footer("1-6 elegir | Q salir")
         self.set_body(widget)
 
     def show_execution(self, widget):
-        self.set_header("Ejecutando...")
-        self.set_footer("Ctrl+Q cancelar | Log: /tmp/voidforge.log")
+        self.set_header("Ejecutando")
+        self.set_footer("Q cancelar | Log: /tmp/voidforge.log")
         self.set_body(widget)
 
     def show_result(self, ok: bool, msg: str):
-        mark = "[OK]" if ok else "[ERR]"
-        self.set_footer(f" {mark} {msg}")
+        mark = "OK" if ok else "ERR"
+        self.set_footer(f"[{mark}] {msg}")
 
     def get_widget(self) -> urwid.Frame:
         return self.frame
