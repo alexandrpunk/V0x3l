@@ -71,20 +71,38 @@ class AppearanceStep(BaseStep):
                            capture_output=True)
             subprocess.run(["rm", "-rf", tmpdir])
 
-        # ── GRUB config + initramfs ──
         grub_cfg = "/etc/default/grub"
+
+        # 1. GRUB_THEME (obligatorio para que GRUB use el tema visual)
+        theme_line = f'GRUB_THEME="{grub_theme}/theme.txt"'
+        self.runner.ui.run_cmd("set GRUB_THEME", "bash", "-c",
+            f'grep -q "^GRUB_THEME=" "{grub_cfg}" && '
+            f'sed -i "s|^GRUB_THEME=.*|{theme_line}|" "{grub_cfg}" || '
+            f'echo "{theme_line}" >> "{grub_cfg}"',
+            sudo=True)
+
+        # 2. GRUB_GFXPAYLOAD_LINUX (necesario para Plymouth)
+        self.runner.ui.run_cmd("set gfxpayload", "bash", "-c",
+            f'grep -q "^GRUB_GFXPAYLOAD_LINUX=" "{grub_cfg}" || '
+            f'echo "GRUB_GFXPAYLOAD_LINUX=keep" >> "{grub_cfg}"',
+            sudo=True)
+
+        # 3. Kernel params: quiet splash + NVIDIA si corresponde
         if has_nvidia:
-            subprocess.run(["sed", "-i",
-                's/GRUB_CMDLINE_LINUX_DEFAULT="quiet"/'
-                'GRUB_CMDLINE_LINUX_DEFAULT="quiet splash '
+            self.runner.ui.run_cmd("set kernel nvidia params", "bash", "-c",
+                'sed -i "s/^GRUB_CMDLINE_LINUX_DEFAULT=.*/'
+                'GRUB_CMDLINE_LINUX_DEFAULT=\\"quiet splash '
                 'nvidia-drm.modeset=1 nvidia-drm.fbdev=1 '
-                'nvidia.NVreg_PreserveVideoMemoryAllocations=1"/',
-                grub_cfg], capture_output=True)
+                'nvidia.NVreg_PreserveVideoMemoryAllocations=1\\"/"'
+                f' "{grub_cfg}"',
+                sudo=True)
         else:
-            subprocess.run(["sed", "-i",
-                's/^GRUB_CMDLINE_LINUX_DEFAULT="quiet"/'
-                'GRUB_CMDLINE_LINUX_DEFAULT="quiet splash"/',
-                grub_cfg], capture_output=True)
+            self.runner.ui.run_cmd("set kernel splash", "bash", "-c",
+                f'grep -q " splash" "{grub_cfg}" || '
+                'sed -i "s/^GRUB_CMDLINE_LINUX_DEFAULT=\\"\\(.*\\)\\"/'
+                'GRUB_CMDLINE_LINUX_DEFAULT=\\"\\1 splash\\"/"'
+                f' "{grub_cfg}"',
+                sudo=True)
 
         os.makedirs("/etc/initramfs-tools/conf.d", exist_ok=True)
         with open("/etc/initramfs-tools/conf.d/splash", "w") as f:
