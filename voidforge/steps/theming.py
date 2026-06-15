@@ -42,6 +42,7 @@ class AppearanceStep(BaseStep):
 
         if os.path.isdir(theme_src) and os.path.exists(
                 f"{theme_src}/{theme_name}.plymouth"):
+            os.makedirs(theme_dir, exist_ok=True)
             if not os.path.isfile(theme_file):
                 self.runner.ui.run_cmd("copy plymouth theme",
                     "cp", "-r", f"{theme_src}/.", f"{theme_dir}/", sudo=True)
