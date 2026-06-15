@@ -54,6 +54,16 @@ class PreparationStep(BaseStep):
                 "tee /etc/apt/sources.list.d/pika.list",
                 sudo=True)
 
+            # Pinning: solo instalar paquetes explicitos de PikaOS,
+            # no actualizar el resto del sistema desde este repo
+            self.runner.ui.run_cmd("pika pin", "bash", "-c",
+                'cat > /etc/apt/preferences.d/pika-pin << \'EOF\'\n'
+                'Package: *\nPin: origin ppa.pika-os.com\nPin-Priority: 1\n\n'
+                'Package: pikman-update-manager cosmic-app-library pika-device-manager\n'
+                'Pin: origin ppa.pika-os.com\nPin-Priority: 500\n'
+                'EOF',
+                sudo=True)
+
         # ── Actualizar paquetes ──
         ok &= self.runner.ui.run_cmd("nala update",
             "nala", "update", sudo=True)

@@ -99,9 +99,8 @@ class AppearanceStep(BaseStep):
                 sudo=True)
         else:
             self.runner.ui.run_cmd("set kernel splash", "bash", "-c",
-                f'grep -q " splash" "{grub_cfg}" || '
-                'sed -i "s/^GRUB_CMDLINE_LINUX_DEFAULT=\\"\\(.*\\)\\"/'
-                'GRUB_CMDLINE_LINUX_DEFAULT=\\"\\1 splash\\"/"'
+                'sed -i "s/^GRUB_CMDLINE_LINUX_DEFAULT=.*/'
+                'GRUB_CMDLINE_LINUX_DEFAULT=\\"quiet splash\\"/"'
                 f' "{grub_cfg}"',
                 sudo=True)
 
