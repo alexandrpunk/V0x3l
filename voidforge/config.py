@@ -16,7 +16,6 @@ PALETTE_FILE = BASE_DIR / "collorPalette"
 # Tema Plymouth
 PLYMOUTH_THEME_NAME = "voidforge-boot-theme"
 PLYMOUTH_THEME_SRC = str(THEMES_DIR / "voidforge-boot-theme")
-PLYMOUTH_ZIP_URL = "https://raw.githubusercontent.com/alexandrpunk/VoidForge/main/voidforge-boot-theme.zip"
 
 # ── Cargar paleta de colores desde archivo externo ──
 
