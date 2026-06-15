@@ -39,10 +39,14 @@ class PreparationStep(BaseStep):
         # ── Pika OS Repo ──
         if not os.path.exists("/etc/apt/sources.list.d/pika.list"):
             os.makedirs("/etc/apt/keyrings", exist_ok=True)
-            # Copiar llave ASCII-armored y convertir a binario
-            self.runner.ui.run_cmd("pika key dearmor", "bash", "-c",
-                f"gpg --dearmor < {BASE_DIR}/assets/pika-keyring.gpg.key "
-                "> /etc/apt/keyrings/pika-keyring.gpg",
+            # Desarmar llave ASCII a binario
+            self.runner.ui.run_cmd("pika key dearmor",
+                "gpg", "--dearmor",
+                "--output", "/etc/apt/keyrings/pika-keyring.gpg",
+                f"{BASE_DIR}/assets/pika-keyring.gpg.key",
+                sudo=True)
+            self.runner.ui.run_cmd("chmod pika key",
+                "chmod", "644", "/etc/apt/keyrings/pika-keyring.gpg",
                 sudo=True)
             self.runner.ui.run_cmd("pika repo", "bash", "-c",
                 'echo "deb [arch=amd64 signed-by=/etc/apt/keyrings/pika-keyring.gpg] '
