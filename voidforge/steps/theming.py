@@ -1,4 +1,4 @@
-# Steps de theming: 13 (icons), 14 (Plymouth + GRUB)
+# Step 4: Apariencia (iconos + Plymouth + GRUB)
 
 import os
 import subprocess
@@ -6,46 +6,33 @@ from voidforge.steps.base import BaseStep
 from voidforge.config import PLYMOUTH_THEME_SRC, PLYMOUTH_THEME_NAME
 
 
-class IconsStep(BaseStep):
-    number = 13
-    title = "Instalando tema de iconos Colloid"
-    category = "theming"
-
-    def run(self) -> bool:
-        if os.path.exists("/usr/share/icons/Colloid-catppuccin-green-dark"):
-            return True
-
-        ok = True
-        import tempfile
-        tmpdir = tempfile.mkdtemp()
-
-        ok &= self.runner.ui.run_cmd("clone Colloid",
-            "git", "clone", "--depth", "1",
-            "https://github.com/vinceliuice/Colloid-icon-theme.git",
-            tmpdir, sudo=False)
-
-        if ok:
-            ok &= self.runner.ui.run_cmd("install Colloid",
-                "bash", f"{tmpdir}/install.sh", "-b", "-s",
-                "catppuccin", "-t", "green", sudo=True)
-
-        subprocess.run(["rm", "-rf", tmpdir])
-        return ok
-
-
-class BootThemeStep(BaseStep):
-    number = 14
-    title = "Configurando Plymouth y GRUB"
+class AppearanceStep(BaseStep):
+    number = 4
+    title = "Apariencia"
     category = "theming"
 
     def run(self) -> bool:
         ok = True
         has_nvidia = os.environ.get("HAS_NVIDIA_GPU", "0") == "1"
 
+        # ── Colloid icons ──
+        if not os.path.exists("/usr/share/icons/Colloid-catppuccin-green-dark"):
+            import tempfile
+            tmpdir = tempfile.mkdtemp()
+            ok &= self.runner.ui.run_cmd("clone Colloid",
+                "git", "clone", "--depth", "1",
+                "https://github.com/vinceliuice/Colloid-icon-theme.git",
+                tmpdir, sudo=False)
+            if ok:
+                ok &= self.runner.ui.run_cmd("install Colloid",
+                    "bash", f"{tmpdir}/install.sh", "-b", "-s",
+                    "catppuccin", "-t", "green", sudo=True)
+            subprocess.run(["rm", "-rf", tmpdir])
+
+        # ── Plymouth ──
         self.runner.ui.run_cmd("install plymouth",
             "nala", "install", "-y", "plymouth", "plymouth-themes",
             sudo=True)
-
         os.makedirs("/usr/share/plymouth/themes", exist_ok=True)
 
         theme_src = PLYMOUTH_THEME_SRC
@@ -53,7 +40,8 @@ class BootThemeStep(BaseStep):
         theme_dir = f"/usr/share/plymouth/themes/{theme_name}"
         theme_file = f"{theme_dir}/{theme_name}.plymouth"
 
-        if os.path.isdir(theme_src) and os.path.exists(f"{theme_src}/{theme_name}.plymouth"):
+        if os.path.isdir(theme_src) and os.path.exists(
+                f"{theme_src}/{theme_name}.plymouth"):
             if not os.path.exists(theme_file):
                 subprocess.run(["cp", "-r", theme_src, theme_dir],
                                capture_output=True)
@@ -66,20 +54,24 @@ class BootThemeStep(BaseStep):
                     "update-alternatives", "--set",
                     "default.plymouth", theme_file, sudo=True)
 
+        # ── GRUB theme ──
         grub_theme = "/usr/share/grub/themes/grub-theme-vimix-very-dark-blue"
         if not os.path.exists(f"{grub_theme}/theme.txt"):
             import tempfile
             tmpdir = tempfile.mkdtemp()
             self.runner.ui.run_cmd("clone GRUB theme",
                 "git", "clone", "--depth", "1",
-                "https://github.com/trueNAHO/grub2-theme-vimix-very-dark-blue.git",
+                "https://github.com/trueNAHO/"
+                "grub2-theme-vimix-very-dark-blue.git",
                 tmpdir, sudo=False)
-            subprocess.run(["install", "--directory", "--mode", "755", grub_theme],
-                           capture_output=True)
+            subprocess.run(["install", "--directory", "--mode", "755",
+                            grub_theme], capture_output=True)
             subprocess.run(["cp", "--no-preserve=ownership", "--recursive",
-                           f"{tmpdir}/src/.", grub_theme], capture_output=True)
+                            f"{tmpdir}/src/.", grub_theme],
+                           capture_output=True)
             subprocess.run(["rm", "-rf", tmpdir])
 
+        # ── GRUB config + initramfs ──
         grub_cfg = "/etc/default/grub"
         if has_nvidia:
             subprocess.run(["sed", "-i",
@@ -97,7 +89,6 @@ class BootThemeStep(BaseStep):
         os.makedirs("/etc/initramfs-tools/conf.d", exist_ok=True)
         with open("/etc/initramfs-tools/conf.d/splash", "w") as f:
             f.write("FRAMEBUFFER=y\n")
-
         if has_nvidia:
             for mod in ("nvidia", "nvidia-drm", "nvidia-modeset", "nvidia-uvm"):
                 with open("/etc/initramfs-tools/modules", "a") as f:
@@ -111,4 +102,5 @@ class BootThemeStep(BaseStep):
             "nala", "autoremove", "-y", sudo=True)
         self.runner.ui.run_cmd("nala clean",
             "nala", "clean", sudo=True)
+
         return ok

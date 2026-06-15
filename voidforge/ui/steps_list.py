@@ -88,20 +88,10 @@ class StepsList:
     @staticmethod
     def default_titles() -> list[str]:
         return [
-            "Bootstrap",
-            "Repositorios",
-            "Kernel XanMod",
-            "GPU NVIDIA",
-            "Paquetes del sistema",
-            "Polkit automontaje",
-            "xdg-user-dirs + UFW",
-            "Red + NetworkManager",
-            "Flatpak + apps",
-            "Servicios + Wayland",
-            "TLP + energia",
-            "Oh My Zsh",
-            "LazyVim",
-            "Colloid icons",
-            "Plymouth + GRUB",
-            "DMS (Dank Linux)",
+            "Preparacion del sistema",
+            "Rendimiento y drivers",
+            "Software",
+            "Configuracion",
+            "Apariencia",
+            "Entorno",
         ]

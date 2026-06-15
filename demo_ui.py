@@ -133,12 +133,12 @@ class DemoApp:
         self.loop.draw_screen()
 
         # Simular output
-        if num == 4:
+        if num == 2:
             self.progress.use_package_monitor()
             for line in NALA_OUTPUT_SIMULATION:
                 self.progress.feed_line(line)
                 time.sleep(0.04)
-        elif num == 8:
+        elif num == 4:
             self.progress.use_package_monitor()
             for line in NALA_OUTPUT_SIMULATION[:6] + ["Install complete."]:
                 self.progress.feed_line(line)

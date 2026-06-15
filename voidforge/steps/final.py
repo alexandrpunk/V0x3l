@@ -1,12 +1,12 @@
-# Step 15: DMS (Dank Linux)
+# Step 5: Entorno (gestor de escritorio DMS)
 
 import os
 from voidforge.steps.base import BaseStep
 
 
-class DMSStep(BaseStep):
-    number = 15
-    title = "Instalando DMS (Dank Linux)"
+class DesktopStep(BaseStep):
+    number = 5
+    title = "Entorno"
     category = "final"
 
     def run(self) -> bool:

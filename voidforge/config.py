@@ -1,7 +1,7 @@
 # Configuracion global de VoidForge
 
 VERSION = "2.0.0"
-TOTAL_STEPS = 15
+TOTAL_STEPS = 5
 CHECKPOINT_FILE = "/tmp/voidforge-progress"
 LOG_FILE = "/tmp/voidforge.log"
 

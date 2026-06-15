@@ -89,7 +89,7 @@ class VoidForgeApp:
             print(f"\n  {chr(27)}[1;32mVoidForge.sh : Menu principal{chr(27)}[0m")
             print(f"  {chr(27)}[2;37m{chr(9472) * 60}{chr(27)}[0m")
             print()
-            print(f"  {chr(27)}[1;37m(1){chr(27)}[0m Instalacion completa (pasos 0-15)")
+            print(f"  {chr(27)}[1;37m(1){chr(27)}[0m Instalacion completa (pasos 0-5)")
             print(f"  {chr(27)}[1;37m(2){chr(27)}[0m Reanudar desde ultimo checkpoint")
             print(f"  {chr(27)}[1;37m(3){chr(27)}[0m Ejecutar paso especifico")
             print(f"  {chr(27)}[1;37m(4){chr(27)}[0m Ejecutar rango de pasos")
@@ -151,7 +151,7 @@ class VoidForgeApp:
         self.runner.run_all(resume=True)
 
     def _run_specific(self):
-        step_num = input("  Numero de paso (0-15): ").strip()
+        step_num = input("  Numero de paso (0-5): ").strip()
         try:
             num = int(step_num)
             self._prepare_execution()
@@ -275,20 +275,20 @@ class VoidForgeApp:
     # ===================== Registro de steps =====================
 
     def _register_steps(self):
-        from voidforge.steps.core import BootstrapStep, SystemPrepStep
-        from voidforge.steps.drivers import KernelStep, GPUStep
-        from voidforge.steps.packages import MegaInstallStep, FlatpakStep, ShellStep, EditorStep
-        from voidforge.steps.system import PolkitStep, XdgUfwStep, NetworkStep, ServicesStep, TLPStep
-        from voidforge.steps.theming import IconsStep, BootThemeStep
-        from voidforge.steps.final import DMSStep
+        from voidforge.steps.core import PreparationStep
+        from voidforge.steps.drivers import PerformanceStep
+        from voidforge.steps.packages import SoftwareStep
+        from voidforge.steps.system import ConfigurationStep
+        from voidforge.steps.theming import AppearanceStep
+        from voidforge.steps.final import DesktopStep
 
         all_steps = [
-            BootstrapStep, SystemPrepStep,
-            KernelStep, GPUStep,
-            MegaInstallStep, FlatpakStep, ShellStep, EditorStep,
-            PolkitStep, XdgUfwStep, NetworkStep, ServicesStep, TLPStep,
-            IconsStep, BootThemeStep,
-            DMSStep,
+            PreparationStep,
+            PerformanceStep,
+            SoftwareStep,
+            ConfigurationStep,
+            AppearanceStep,
+            DesktopStep,
         ]
 
         for step_cls in all_steps:

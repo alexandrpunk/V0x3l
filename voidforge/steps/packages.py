@@ -1,17 +1,20 @@
-# Steps de paquetes: 4 (mega), 8 (flatpak), 11 (zsh), 12 (lazyvim)
+# Step 2: Software (mega-install + flatpak + zsh + lazyvim)
 
 import subprocess
 import os
 from voidforge.steps.base import BaseStep
 
 
-class MegaInstallStep(BaseStep):
-    number = 4
-    title = "Instalando paquetes del sistema"
+class SoftwareStep(BaseStep):
+    number = 2
+    title = "Software"
     category = "packages"
 
     def run(self) -> bool:
-        return self.runner.ui.run_cmd("mega-install",
+        ok = True
+
+        # ── Mega-install de paquetes ──
+        ok &= self.runner.ui.run_cmd("mega-install",
             "nala", "install", "--no-install-recommends", "-y",
             "wayland-protocols", "libwayland-dev", "libegl1",
             "libgl1-mesa-dri", "mesa-vulkan-drivers", "xwayland",
@@ -30,16 +33,7 @@ class MegaInstallStep(BaseStep):
             "flatpak", "tlp", "tlp-rdw", "fonts-powerline",
             sudo=True)
 
-
-class FlatpakStep(BaseStep):
-    number = 8
-    title = "Configurando Flatpak y aplicaciones"
-    category = "packages"
-
-    def run(self) -> bool:
-        ok = True
-
-        # Flathub
+        # ── Flatpak ──
         result = subprocess.run(
             ["flatpak", "remotes"],
             capture_output=True, text=True
@@ -50,7 +44,6 @@ class FlatpakStep(BaseStep):
                 "https://dl.flathub.org/repo/flathub.flatpakrepo",
                 sudo=True)
 
-        # Apps
         for app in ("org.gnome.Papers", "net.nokyan.Resources",
                      "org.gnome.Showtime"):
             result = subprocess.run(
@@ -62,27 +55,16 @@ class FlatpakStep(BaseStep):
                     "flatpak", "install", "--system", "-y", "flathub", app,
                     sudo=True)
 
-        # Override
         override_path = "/etc/flatpak/overrides/global"
         if not os.path.exists(override_path):
             os.makedirs("/etc/flatpak/overrides", exist_ok=True)
             with open(override_path, "w") as f:
                 f.write("[Context]\nfilesystems=xdg-run/gvfs:host;host:ro;\n")
 
-        return ok
-
-
-class ShellStep(BaseStep):
-    number = 11
-    title = "Configurando Oh My Zsh con tema agnoster"
-    category = "packages"
-
-    def run(self) -> bool:
-        ok = True
+        # ── Oh My Zsh ──
         user = os.environ.get("SUDO_USER", os.environ.get("USER", ""))
         home = f"/home/{user}" if user else "/root"
 
-        # Cambiar shell a zsh
         zsh_path = subprocess.run(
             ["which", "zsh"], capture_output=True, text=True
         ).stdout.strip()
@@ -90,42 +72,27 @@ class ShellStep(BaseStep):
             self.runner.ui.run_cmd("chsh",
                 "chsh", "-s", zsh_path, user, sudo=True)
 
-        # Oh My Zsh
         if not os.path.exists(f"{home}/.oh-my-zsh"):
             ok &= self.runner.ui.run_cmd("install ohmyzsh",
                 "sudo", "-u", user, "bash", "-c",
-                f'sh -c "$(curl -fsSL '
+                'sh -c "$(curl -fsSL '
                 'https://raw.githubusercontent.com/ohmyzsh/ohmyzsh/master/'
                 'tools/install.sh)" "" --unattended && '
-                f'sed -i \'s/^ZSH_THEME=.*/ZSH_THEME="agnoster"/\' '
+                f'sed -i \"s/^ZSH_THEME=.*/ZSH_THEME=\\"agnoster\\"/\" '
                 f'{home}/.zshrc',
                 sudo=False)
 
-        return ok
-
-
-class EditorStep(BaseStep):
-    number = 12
-    title = "Instalando LazyVim"
-    category = "packages"
-
-    def run(self) -> bool:
-        ok = True
-        user = os.environ.get("SUDO_USER", os.environ.get("USER", ""))
-        home = f"/home/{user}" if user else "/root"
+        # ── LazyVim ──
         nvim_dir = f"{home}/.config/nvim"
-
-        if os.path.exists(f"{nvim_dir}/init.lua"):
-            return True
-
-        ok &= self.runner.ui.run_cmd("install lazyvim",
-            "sudo", "-u", user, "bash", "-c",
-            f"mv {nvim_dir} {nvim_dir}.bak 2>/dev/null || true; "
-            f"mv {home}/.local/share/nvim {home}/.local/share/nvim.bak "
-            f"2>/dev/null || true; "
-            f"git clone https://github.com/LazyVim/starter {nvim_dir} "
-            f"2>/dev/null; "
-            f"rm -rf {nvim_dir}/.git 2>/dev/null || true",
-            sudo=False)
+        if not os.path.exists(f"{nvim_dir}/init.lua"):
+            ok &= self.runner.ui.run_cmd("install lazyvim",
+                "sudo", "-u", user, "bash", "-c",
+                f"mv {nvim_dir} {nvim_dir}.bak 2>/dev/null || true; "
+                f"mv {home}/.local/share/nvim {home}/.local/share/nvim.bak "
+                f"2>/dev/null || true; "
+                f"git clone https://github.com/LazyVim/starter {nvim_dir} "
+                f"2>/dev/null; "
+                f"rm -rf {nvim_dir}/.git 2>/dev/null || true",
+                sudo=False)
 
         return ok

@@ -36,7 +36,7 @@ class MainMenu:
     def __init__(self, on_choice):
         self.on_choice = on_choice
         self.choices = [
-            ("1", "Instalacion completa (pasos 0-15)"),
+            ("1", "Instalacion completa (pasos 0-5)"),
             ("2", "Reanudar desde ultimo checkpoint"),
             ("3", "Ejecutar paso especifico"),
             ("4", "Ejecutar rango de pasos"),
