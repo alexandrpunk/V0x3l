@@ -3,14 +3,14 @@
 # V0x3l — Bootstrap entry point
 # ============================================================
 # Uso:
-#   curl -fsSL https://raw.githubusercontent.com/alexandrpunk/V0x3l/refactor/install.sh | bash
+#   curl -fsSL https://raw.githubusercontent.com/alexandrpunk/V0x3l/development/install.sh | bash
 # ============================================================
 
 set -euo pipefail
 
 REPO_URL="https://github.com/alexandrpunk/V0x3l.git"
 INSTALL_DIR="${HOME}/.local/share/v0x3l"
-VOIDFORGE_BRANCH="${VOIDFORGE_BRANCH:-refactor}"
+V0X3L_BRANCH="${V0X3L_BRANCH:-development}"
 
 echo ""
 echo "  ╔═══════════════════════════════════════════════════╗"
@@ -36,13 +36,13 @@ fi
 echo -e "  [OK]  Git listo"
 
 # Clonar repositorio
-echo "  [..] Clonando: $REPO_URL (rama: $VOIDFORGE_BRANCH)"
+echo "  [..] Clonando: $REPO_URL (rama: $V0X3L_BRANCH)"
 echo "  [..] Destino: $INSTALL_DIR"
 sudo rm -rf "$INSTALL_DIR" 2>/dev/null
 rm -rf "$INSTALL_DIR" 2>/dev/null
 mkdir -p "$(dirname "$INSTALL_DIR")" 2>/dev/null || true
-if ! git clone --depth 1 --branch "$VOIDFORGE_BRANCH" "$REPO_URL" "$INSTALL_DIR"; then
-    echo -e "  [ERR] Error al descargar desde $REPO_URL (rama: $VOIDFORGE_BRANCH)."
+if ! git clone --depth 1 --branch "$V0X3L_BRANCH" "$REPO_URL" "$INSTALL_DIR"; then
+    echo -e "  [ERR] Error al descargar desde $REPO_URL (rama: $V0X3L_BRANCH)."
     echo "  [ERR] Verifica tu conexion a internet y que la rama exista."
     exit 1
 fi

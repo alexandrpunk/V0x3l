@@ -1,9 +1,13 @@
 <p align="center">
-  <img src="logo.png" alt="V0x3l" width="250" />
+  <img src="logo.png" alt="V0x3l" width="220" />
 </p>
 
 <p align="center">
-  <b>Tu sistema. Tus reglas. Tu forja.</b>
+  <b>V0x3l</b> — Post-instalador modular para Ubuntu Server 24.04+ con interfaz TUI (urwid).
+</p>
+
+<p align="center">
+  Automatiza toda la configuración posterior a la instalación: kernel XanMod Edge, drivers NVIDIA 595-open con soporte Optimus, Wayland + Nautilus + PipeWire, Flatpak con Flathub, TLP para optimización energética, Plymouth con tema propio, GRUB Vimix, Oh My Zsh con agnoster, LazyVim, firewall UFW, y gestor de escritorio DMS.
 </p>
 
 <p align="center">
@@ -12,67 +16,73 @@
   <img src="https://img.shields.io/badge/Python-3.12+-blue?logo=python" />
 </p>
 
+<p align="center"><i>Tu sistema. Tus reglas. Tu forja.</i></p>
+
 ---
 
-# V0x3l
-
-Post-instalador modular para Ubuntu Server 24.04+ con interfaz TUI (urwid). Automatiza: kernel XanMod, drivers NVIDIA, Wayland, PipeWire, Flatpak, TLP, Plymouth, GRUB, Oh My Zsh, LazyVim y mas.
-
-## Una linea
+## Instalación
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/alexandrpunk/V0x3l/refactor/install.sh | bash
+curl -fsSL https://raw.githubusercontent.com/alexandrpunk/V0x3l/development/install.sh | bash
 ```
 
 ## Requisitos
 
 - Ubuntu Server 24.04 LTS o superior
 - Acceso root (sudo)
-- Conexion a internet
+- Conexión a internet
 
-## Caracteristicas
+## Características
 
-- Interfaz TUI con urwid (split panel)
-- 6 secciones modulares
-- Checkpoint reanudable
-- Monitor de paquetes en vivo
-- Navegacion por teclado (1-6 + flechas)
-- Proyecto configurable via `.env`
+- **Interfaz TUI**: urwid con split panel (pasos a la izquierda, output en vivo a la derecha)
+- **6 secciones modulares**: Preparación, Rendimiento, Software, Configuración, Apariencia, Entorno
+- **Checkpoint reanudable**: continúa desde donde quedó si falla
+- **Monitor de paquetes**: barra de progreso, velocidad, contador durante instalaciones
+- **Navegación**: teclas 1-6 para acciones directas, flechas para navegar
+- **.env configurable**: nombre del proyecto, versión, rutas, repositorio desde archivo central
 
 ## Uso
 
 ```bash
+# Desde el repo clonado
 sudo python3 -m v0x3l
-python3 demo_ui.py  # Demo simulada
+
+# Demo de la interfaz (no modifica el sistema)
+python3 demo_ui.py
 ```
 
-## Pasos
+## Secciones
 
-| # | Seccion | Que hace |
-|---|---------|----------|
-| 0 | Preparacion del sistema | herramientas + repos + locale + timezone |
-| 1 | Rendimiento y drivers | kernel XanMod + NVIDIA |
-| 2 | Software | mega-install + flatpak + zsh + lazyvim |
-| 3 | Configuracion | polkit + ufw + red + servicios + tlp |
-| 4 | Apariencia | iconos + plymouth + grub |
-| 5 | Entorno | gestor de escritorio DMS |
+| # | Sección | Descripción |
+|---|---------|-------------|
+| 0 | Preparación del sistema | herramientas base, repos, locale, zona horaria |
+| 1 | Rendimiento y drivers | kernel XanMod Edge + GPU NVIDIA |
+| 2 | Software | Wayland, Nautilus, PipeWire, Flatpak, Zsh, LazyVim |
+| 3 | Configuración | Polkit, UFW, red, servicios, TLP |
+| 4 | Apariencia | Colloid icons, Plymouth, GRUB Vimix |
+| 5 | Entorno | Gestor de escritorio DMS |
 
-## Personalizacion
+## Personalización
 
-Editar `.env` en la raiz del proyecto para cambiar:
+Editar `.env` en la raíz del proyecto:
 
-| Variable | Por defecto | Descripcion |
-|----------|-------------|-------------|
+| Variable | Defecto | Descripción |
+|----------|---------|-------------|
 | `PROJECT_NAME` | V0x3l | Nombre del proyecto |
-| `PROJECT_VERSION` | 1.0.0 | Version |
-| `UBUNTU_MIN_VERSION` | 24 | Minima version de Ubuntu |
+| `PROJECT_VERSION` | 1.0.0 | Versión |
+| `UBUNTU_MIN_VERSION` | 24 | Versión mínima de Ubuntu |
 | `LOG_FILE` | /tmp/v0x3l.log | Archivo de log |
-| `CHECKPOINT_FILE` | /tmp/v0x3l-progress | Checkpoint reanudable |
-| `TLP_CONF_NAME` | 01-v0x3l.conf | Nombre config TLP |
+| `CHECKPOINT_FILE` | /tmp/v0x3l-progress | Checkpoint |
 | `PLYMOUTH_THEME_NAME` | v0x3l-boot-theme | Tema Plymouth |
-| `REPO_URL` | https://github.com/alexandrpunk/V0x3l.git | Repositorio |
+| `REPO_URL` | ... | URL del repositorio |
+| `REPO_BRANCH` | development | Rama por defecto |
 
-## License
+## Versiones
+
+- `main` — versiones estables
+- `development` — desarrollo activo
+
+## Licencia
 
 MIT
 
