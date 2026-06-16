@@ -10,7 +10,7 @@ from v0x3l.ui.menu import MainMenu
 from v0x3l.ui.progress import ProgressScreen
 from v0x3l.ui.execution_screen import ExecutionScreen
 from v0x3l.ui.layout import V0x3lLayout
-from v0x3l.ui.dialogs import message_dialog
+from v0x3l.ui.dialogs import message_dialog, error_dialog
 
 
 class V0x3lApp:
@@ -165,11 +165,15 @@ class V0x3lApp:
 
     def _run_all(self):
         self._prepare_execution()
-        self.runner.run_all(resume=False)
+        ok, failed_step = self.runner.run_all(resume=False)
+        if not ok and failed_step is not None:
+            self._show_error(failed_step)
 
     def _run_resume(self):
         self._prepare_execution()
-        self.runner.run_all(resume=True)
+        ok, failed_step = self.runner.run_all(resume=True)
+        if not ok and failed_step is not None:
+            self._show_error(failed_step)
 
     def _run_specific(self):
         step_num = input("  Numero de paso (0-5): ").strip()
@@ -294,6 +298,41 @@ class V0x3lApp:
         if self.current_progress:
             self.current_progress.update_spinner()
         self.spinner_handle = loop.set_alarm_in(0.15, self._tick_spinner)
+
+    def _show_error(self, failed_step: int):
+        """Muestra dialogo de error cuando un paso falla."""
+        import shutil
+        from v0x3l.config import LOG_FILE
+
+        # Copiar log al home del usuario
+        user = os.environ.get("SUDO_USER", os.environ.get("USER", ""))
+        home_dir = f"/home/{user}" if user and os.path.exists(f"/home/{user}") else os.path.expanduser("~")
+        log_dest = f"{home_dir}/v0x3l-error.log"
+
+        try:
+            shutil.copy(LOG_FILE, log_dest)
+        except Exception:
+            log_dest = LOG_FILE
+
+        msg = (f"  {chr(27)}[1;31mError en paso {failed_step}{chr(27)}[0m]\n\n"
+               f"  Se detuvo la instalacion debido a un fallo.\n\n"
+               f"  Revisa el log para mas detalles.")
+
+        def close():
+            self._show_menu()
+            if self.loop:
+                self.loop.draw_screen()
+
+        dialog = error_dialog("Error de instalacion", msg, log_dest, close)
+        overlay = urwid.Overlay(
+            dialog,
+            urwid.SolidFill(" "),
+            align="center", width=("relative", 60),
+            valign="middle", height=("relative", 40),
+        )
+        self.layout.set_body(overlay)
+        if self.loop:
+            self.loop.draw_screen()
 
     # ===================== Registro de steps =====================
 

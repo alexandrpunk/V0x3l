@@ -1,7 +1,9 @@
 # Menu principal - panel con botones estilizados
 
-import urwid
 import subprocess
+
+import urwid
+
 from v0x3l.config import ASCII_FILE
 
 
@@ -37,11 +39,6 @@ class MainMenu:
         self.on_choice = on_choice
         self.choices = [
             ("1", "Instalacion completa (pasos 0-5)"),
-            ("2", "Reanudar desde ultimo checkpoint"),
-            ("3", "Ejecutar paso especifico"),
-            ("4", "Ejecutar rango de pasos"),
-            ("5", "Ver estado actual"),
-            ("6", "Salir"),
             ("2", "Reanudar desde ultimo checkpoint"),
             ("3", "Ejecutar paso especifico"),
             ("4", "Ejecutar rango de pasos"),

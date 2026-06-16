@@ -36,8 +36,8 @@ class StepRunner:
         self.steps.append(step)
         self.steps.sort(key=lambda s: s.number)
 
-    def run_all(self, resume: bool = False):
-        """Ejecuta todos los steps secuencialmente."""
+    def run_all(self, resume: bool = False) -> tuple[bool, int | None]:
+        """Ejecuta todos los steps secuencialmente. Retorna (ok, failed_step_num)."""
         if resume:
             cp = self._load_checkpoint()
             start = (cp + 1) if cp is not None else 0
@@ -50,12 +50,12 @@ class StepRunner:
             if step.should_skip(self.skip_steps):
                 continue
             if not self.ui.run_step(step):
-                return False
+                return False, step.number
 
         self.clear_checkpoint()
         if hasattr(self.ui, 'on_all_done'):
             self.ui.on_all_done()
-        return True
+        return True, None
 
     def run_single(self, step_num: int) -> bool:
         """Ejecuta un step especifico."""
