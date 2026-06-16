@@ -12,7 +12,7 @@
 
 <p align="center">
   <img src="https://img.shields.io/badge/Ubuntu-26.04+-E95420?logo=ubuntu" />
-  <img src="https://img.shields.io/badge/license-MIT-green" />
+  <img src="https://img.shields.io/badge/license-GPLv3-blue" />
   <img src="https://img.shields.io/badge/Python-3.12+-blue?logo=python" />
 </p>
 
@@ -106,7 +106,7 @@ Proyectos y temas utilizados:
 
 ## Licencia
 
-MIT
+GPL-3.0
 
 ---
 
