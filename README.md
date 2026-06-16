@@ -77,6 +77,28 @@ Editar `.env` en la raíz del proyecto:
 | `REPO_URL` | ... | URL del repositorio |
 | `REPO_BRANCH` | development | Rama por defecto |
 
+## Recursos
+
+Proyectos y temas utilizados:
+
+| Proyecto | Enlace |
+|----------|--------|
+| XanMod Edge kernel | https://xanmod.org/ |
+| NVIDIA Drivers | https://developer.nvidia.com/ |
+| Wayland | https://wayland.freedesktop.org/ |
+| Nautilus | https://gitlab.gnome.org/GNOME/nautilus |
+| PipeWire | https://pipewire.org/ |
+| Flatpak | https://flatpak.org/ |
+| Flathub | https://flathub.org/ |
+| TLP | https://linrunner.de/tlp |
+| Plymouth | https://wiki.archlinux.org/title/Plymouth |
+| GRUB Vimix | https://github.com/vinceliuice/vimix-grub2-theme |
+| Oh My Zsh | https://ohmyz.sh/ |
+| LazyVim | https://lazyvim.org/ |
+| UFW | https://help.ubuntu.com/community/UFW |
+| DMS | https://github.com/cybik/dms |
+| urwid | https://urwid.org/ |
+
 ## Versiones
 
 - `main` — versiones estables
