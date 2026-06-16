@@ -21,8 +21,8 @@ echo ""
 # Verificar sistema
 if [ -f /etc/os-release ]; then
     . /etc/os-release
-    if [ "$ID" != "ubuntu" ] || [ "${VERSION_ID%%.*}" -lt 24 ]; then
-        echo -e "  [ERR] Se requiere Ubuntu 24.04 o superior."
+    if [ "$ID" != "ubuntu" ] || [ "${VERSION_ID%%.*}" -lt 26 ]; then
+        echo -e "  [ERR] Se requiere Ubuntu 26.04 o superior."
         exit 1
     fi
 fi

@@ -24,7 +24,7 @@ def env(key: str, default: str = "") -> str:
 # ── Variables del proyecto ──
 PROJECT_NAME = env("PROJECT_NAME", "V0x3l")
 VERSION = env("PROJECT_VERSION", "1.0.0")
-UBUNTU_MIN = int(env("UBUNTU_MIN_VERSION", "24"))
+UBUNTU_MIN = int(env("UBUNTU_MIN_VERSION", "26"))
 
 # ── Rutas runtime ──
 LOG_FILE = env("LOG_FILE", "/tmp/v0x3l.log")

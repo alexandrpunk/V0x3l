@@ -3,7 +3,7 @@
 </p>
 
 <p align="center">
-  <b>V0x3l</b> — Post-instalador modular para Ubuntu Server 24.04+ con interfaz TUI (urwid).
+  <b>V0x3l</b> — Post-instalador modular para Ubuntu Server 26.04+ con interfaz TUI (urwid).
 </p>
 
 <p align="center">
@@ -11,7 +11,7 @@
 </p>
 
 <p align="center">
-  <img src="https://img.shields.io/badge/Ubuntu-24.04+-E95420?logo=ubuntu" />
+  <img src="https://img.shields.io/badge/Ubuntu-26.04+-E95420?logo=ubuntu" />
   <img src="https://img.shields.io/badge/license-MIT-green" />
   <img src="https://img.shields.io/badge/Python-3.12+-blue?logo=python" />
 </p>
@@ -28,7 +28,7 @@ curl -fsSL https://raw.githubusercontent.com/alexandrpunk/V0x3l/development/inst
 
 ## Requisitos
 
-- Ubuntu Server 24.04 LTS o superior
+- Ubuntu Server 26.04 LTS o superior
 - Acceso root (sudo)
 - Conexión a internet
 
@@ -70,7 +70,7 @@ Editar `.env` en la raíz del proyecto:
 |----------|---------|-------------|
 | `PROJECT_NAME` | V0x3l | Nombre del proyecto |
 | `PROJECT_VERSION` | 1.0.0 | Versión |
-| `UBUNTU_MIN_VERSION` | 24 | Versión mínima de Ubuntu |
+| `UBUNTU_MIN_VERSION` | 26 | Versión mínima de Ubuntu |
 | `LOG_FILE` | /tmp/v0x3l.log | Archivo de log |
 | `CHECKPOINT_FILE` | /tmp/v0x3l-progress | Checkpoint |
 | `PLYMOUTH_THEME_NAME` | v0x3l-boot-theme | Tema Plymouth |

@@ -2,7 +2,7 @@
 
 ## What this is
 
-Post-instalador modular para Ubuntu Server 24.04+ escrito en Python con interfaz TUI urwid.  
+Post-instalador modular para Ubuntu Server 26.04+ escrito en Python con interfaz TUI urwid.  
 El nombre del proyecto, versión, repo y rutas se configuran desde `.env`.
 
 ## Estructura
