@@ -43,6 +43,20 @@ def input_dialog(title: str, prompt: str, on_submit: Callable,
     return dialog, edit
 
 
+def message_dialog(title: str, message: str, on_close: Callable):
+    """Dialogo de mensaje informativo."""
+    body = [
+        urwid.Text(message, align="center"),
+        urwid.Text(""),
+        urwid.Button("  OK  ", on_press=lambda _: on_close()),
+    ]
+    dialog = urwid.LineBox(
+        urwid.Pile(body),
+        title=title
+    )
+    return dialog
+
+
 def error_dialog(title: str, message: str, log_path: str, on_close: Callable):
     """Dialogo de error con informacion de log."""
     body = [
