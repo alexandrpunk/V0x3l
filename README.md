@@ -62,42 +62,13 @@ python3 demo_ui.py
 | 4 | Apariencia | Colloid icons, Plymouth, GRUB Vimix |
 | 5 | Entorno | Gestor de escritorio DMS |
 
-## Personalización
-
-Editar `.env` en la raíz del proyecto:
-
-| Variable | Defecto | Descripción |
-|----------|---------|-------------|
-| `PROJECT_NAME` | V0x3l | Nombre del proyecto |
-| `PROJECT_VERSION` | 1.0.0 | Versión |
-| `UBUNTU_MIN_VERSION` | 26 | Versión mínima de Ubuntu |
-| `LOG_FILE` | /tmp/v0x3l.log | Archivo de log |
-| `CHECKPOINT_FILE` | /tmp/v0x3l-progress | Checkpoint |
-| `PLYMOUTH_THEME_NAME` | v0x3l-boot-theme | Tema Plymouth |
-| `REPO_URL` | ... | URL del repositorio |
-| `REPO_BRANCH` | development | Rama por defecto |
-
 ## Recursos
 
-Proyectos y temas utilizados:
+Recursos utilizados:
 
 | Proyecto | Enlace |
 |----------|--------|
-| XanMod Edge kernel | https://xanmod.org/ |
-| NVIDIA Drivers | https://developer.nvidia.com/ |
-| Wayland | https://wayland.freedesktop.org/ |
-| Nautilus | https://gitlab.gnome.org/GNOME/nautilus |
-| PipeWire | https://pipewire.org/ |
-| Flatpak | https://flatpak.org/ |
-| Flathub | https://flathub.org/ |
-| TLP | https://linrunner.de/tlp |
-| Plymouth | https://wiki.archlinux.org/title/Plymouth |
 | GRUB Vimix | https://github.com/vinceliuice/vimix-grub2-theme |
-| Oh My Zsh | https://ohmyz.sh/ |
-| LazyVim | https://lazyvim.org/ |
-| UFW | https://help.ubuntu.com/community/UFW |
-| DMS | https://github.com/cybik/dms |
-| urwid | https://urwid.org/ |
 
 ## Versiones
 
@@ -110,4 +81,4 @@ GPL-3.0
 
 ---
 
-**Tu sistema. Tus reglas. Tu forja.**
+**> sudo make it yours**
