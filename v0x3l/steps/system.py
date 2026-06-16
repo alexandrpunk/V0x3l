@@ -103,7 +103,15 @@ class ConfigurationStep(BaseStep):
             with open(env_file, "w") as f:
                 f.write("GDK_BACKEND=wayland\nQT_QPA_PLATFORM=wayland\n"
                         "SDL_VIDEODRIVER=wayland\nMOZ_ENABLE_WAYLAND=1\n"
+                        "XCURSOR_THEME=catppuccin-mocha-dark-cursors\n"
                         "XDG_CURRENT_DESKTOP=niri\nXDG_SESSION_TYPE=wayland\n")
+
+        # ── Cursor theme default ──
+        cursor_dir = "/usr/share/icons/default"
+        if not os.path.exists(f"{cursor_dir}/index.theme"):
+            os.makedirs(cursor_dir, exist_ok=True)
+            with open(f"{cursor_dir}/index.theme", "w") as f:
+                f.write("[Icon Theme]\nName=Default\nInherits=catppuccin-mocha-dark-cursors\n")
 
         # ---- TLP ----
         tlp_conf = f"/etc/tlp.d/{TLP_CONF_NAME}"

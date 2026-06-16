@@ -1,0 +1,41 @@
+# Designed for any resolution
+
+# Global Property
+title-text: ""
+desktop-color: "#1a1b29"
+terminal-font: "Fira Code Regular 22"
+terminal-box: "terminal_box_*.png"
+terminal-left: "0"
+terminal-top: "0"
+terminal-width: "100%"
+terminal-height: "100%"
+terminal-border: "0"
+
+# Show the boot menu
++ boot_menu {
+  left = 25%
+  top = 33%
+  width = 50%
+  height = 33%
+  item_font = "Fira Code Regular 22"
+  item_color = "#cccccc"
+  selected_item_color = "#ffffff"
+  icon_width = 28
+  icon_height = 28
+  item_height = 24
+  item_spacing = 12
+  item_icon_space = 12
+  selected_item_pixmap_style = "select_*.png"
+}
+
+# Show a countdown message using the label component
++ label {
+  top = 83%
+  left = 0%
+  width = 100%
+  align = "center"
+  id = "__timeout__"
+  text = "Booting in %d seconds"
+  color = "#cccccc"
+  font = "Fira Code Regular 22"
+}

@@ -37,6 +37,7 @@ REPO_BRANCH = env("REPO_BRANCH", "refactor")
 # ── Rutas del proyecto ──
 ASSETS_DIR = BASE_DIR / "assets"
 THEMES_DIR = ASSETS_DIR / "themes"
+CURSORS_DIR = ASSETS_DIR / "cursors"
 ASCII_FILE = BASE_DIR / "ascii.sh"
 PALETTE_FILE = BASE_DIR / "collorPalette"
 
@@ -44,6 +45,12 @@ PALETTE_FILE = BASE_DIR / "collorPalette"
 TLP_CONF_NAME = env("TLP_CONF_NAME", "01-v0x3l.conf")
 PLYMOUTH_THEME_NAME = env("PLYMOUTH_THEME_NAME", "v0x3l-boot-theme")
 PLYMOUTH_THEME_SRC = str(THEMES_DIR / PLYMOUTH_THEME_NAME)
+CURSOR_THEME_NAME = env("CURSOR_THEME_NAME", "catppuccin-mocha-dark-cursors")
+CURSOR_THEME_SRC = str(CURSORS_DIR / f"{CURSOR_THEME_NAME}.zip")
+GRUB_THEME_NAME = env("GRUB_THEME_NAME", "grub-theme-vimix-very-dark-blue")
+GRUB_THEME_SRC = str(THEMES_DIR / "grub-vimix")
+COLLOID_THEME_NAME = env("COLLOID_THEME_NAME", "Colloid-catppuccin-green-dark")
+COLLOID_DIR = str(THEMES_DIR / "colloid-icon-theme")
 
 # ── Steps ──
 TOTAL_STEPS = 5

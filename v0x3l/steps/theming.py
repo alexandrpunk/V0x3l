@@ -1,9 +1,16 @@
-# Step 4: Apariencia (iconos + Plymouth + GRUB)
+# Step 4: Apariencia (iconos + cursors + Plymouth + GRUB)
 
 import os
 import subprocess
+import tempfile
+import shutil
 from v0x3l.steps.base import BaseStep
-from v0x3l.config import PLYMOUTH_THEME_SRC, PLYMOUTH_THEME_NAME
+from v0x3l.config import (
+    PLYMOUTH_THEME_SRC, PLYMOUTH_THEME_NAME,
+    CURSOR_THEME_SRC, CURSOR_THEME_NAME,
+    GRUB_THEME_SRC, GRUB_THEME_NAME,
+    COLLOID_DIR, COLLOID_THEME_NAME,
+)
 
 
 class AppearanceStep(BaseStep):
@@ -15,19 +22,22 @@ class AppearanceStep(BaseStep):
         ok = True
         has_nvidia = os.environ.get("HAS_NVIDIA_GPU", "0") == "1"
 
+        # ── Catppuccin cursors ──
+        if not os.path.exists(f"/usr/share/icons/{CURSOR_THEME_NAME}"):
+            if os.path.isfile(CURSOR_THEME_SRC):
+                tmpdir = tempfile.mkdtemp()
+                shutil.copy(CURSOR_THEME_SRC, f"{tmpdir}/cursors.zip")
+                self.runner.ui.run_cmd("extract cursors",
+                    "unzip", "-q", f"{tmpdir}/cursors.zip", "-d", "/usr/share/icons/", sudo=True)
+                subprocess.run(["rm", "-rf", tmpdir])
+            else:
+                ok = False
+
         # ── Colloid icons ──
-        if not os.path.exists("/usr/share/icons/Colloid-catppuccin-green-dark"):
-            import tempfile
-            tmpdir = tempfile.mkdtemp()
-            ok &= self.runner.ui.run_cmd("clone Colloid",
-                "git", "clone", "--depth", "1",
-                "https://github.com/vinceliuice/Colloid-icon-theme.git",
-                tmpdir, sudo=False)
-            if ok:
-                ok &= self.runner.ui.run_cmd("install Colloid",
-                    "bash", f"{tmpdir}/install.sh", "-b", "-s",
-                    "catppuccin", "-t", "green", sudo=True)
-            subprocess.run(["rm", "-rf", tmpdir])
+        if not os.path.exists(f"/usr/share/icons/{COLLOID_THEME_NAME}") and os.path.isdir(COLLOID_DIR):
+            ok &= self.runner.ui.run_cmd("install Colloid",
+                "bash", f"{COLLOID_DIR}/install.sh", "-b", "-s",
+                "catppuccin", "-t", "green", sudo=True)
 
         # ── Plymouth ──
         self.runner.ui.run_cmd("install plymouth",
@@ -56,21 +66,12 @@ class AppearanceStep(BaseStep):
                     "default.plymouth", theme_file, sudo=True)
 
         # ── GRUB theme ──
-        grub_theme = "/usr/share/grub/themes/grub-theme-vimix-very-dark-blue"
-        if not os.path.exists(f"{grub_theme}/theme.txt"):
-            import tempfile
-            tmpdir = tempfile.mkdtemp()
-            self.runner.ui.run_cmd("clone GRUB theme",
-                "git", "clone", "--depth", "1",
-                "https://github.com/trueNAHO/"
-                "grub2-theme-vimix-very-dark-blue.git",
-                tmpdir, sudo=False)
-            subprocess.run(["install", "--directory", "--mode", "755",
-                            grub_theme], capture_output=True)
-            subprocess.run(["cp", "--no-preserve=ownership", "--recursive",
-                            f"{tmpdir}/src/.", grub_theme],
-                           capture_output=True)
-            subprocess.run(["rm", "-rf", tmpdir])
+        grub_theme = f"/usr/share/grub/themes/{GRUB_THEME_NAME}"
+        if os.path.isdir(GRUB_THEME_SRC):
+            os.makedirs(grub_theme, exist_ok=True)
+            if not os.path.exists(f"{grub_theme}/theme.txt"):
+                self.runner.ui.run_cmd("copy GRUB theme",
+                    "cp", "-r", f"{GRUB_THEME_SRC}/.", f"{grub_theme}/", sudo=True)
 
         grub_cfg = "/etc/default/grub"
 
