@@ -2,8 +2,8 @@
 
 import os
 import subprocess
-from voidforge.steps.base import BaseStep
-from voidforge.config import BASE_DIR
+from v0x3l.steps.base import BaseStep
+from v0x3l.config import BASE_DIR
 
 
 class PreparationStep(BaseStep):

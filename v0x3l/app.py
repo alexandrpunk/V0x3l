@@ -3,14 +3,14 @@
 import os
 import sys
 import urwid
-from voidforge.config import PALETTE, TOTAL_STEPS, VERSION, LOG_FILE, PROJECT_NAME
-from voidforge.shell import run, log
-from voidforge.runner import StepRunner
-from voidforge.ui.menu import MainMenu
-from voidforge.ui.progress import ProgressScreen
-from voidforge.ui.execution_screen import ExecutionScreen
-from voidforge.ui.layout import V0x3lLayout
-from voidforge.ui.dialogs import message_dialog
+from v0x3l.config import PALETTE, TOTAL_STEPS, VERSION, LOG_FILE, PROJECT_NAME
+from v0x3l.shell import run, log
+from v0x3l.runner import StepRunner
+from v0x3l.ui.menu import MainMenu
+from v0x3l.ui.progress import ProgressScreen
+from v0x3l.ui.execution_screen import ExecutionScreen
+from v0x3l.ui.layout import V0x3lLayout
+from v0x3l.ui.dialogs import message_dialog
 
 
 class V0x3lApp:
@@ -298,12 +298,12 @@ class V0x3lApp:
     # ===================== Registro de steps =====================
 
     def _register_steps(self):
-        from voidforge.steps.core import PreparationStep
-        from voidforge.steps.drivers import PerformanceStep
-        from voidforge.steps.packages import SoftwareStep
-        from voidforge.steps.system import ConfigurationStep
-        from voidforge.steps.theming import AppearanceStep
-        from voidforge.steps.final import DesktopStep
+        from v0x3l.steps.core import PreparationStep
+        from v0x3l.steps.drivers import PerformanceStep
+        from v0x3l.steps.packages import SoftwareStep
+        from v0x3l.steps.system import ConfigurationStep
+        from v0x3l.steps.theming import AppearanceStep
+        from v0x3l.steps.final import DesktopStep
 
         all_steps = [
             PreparationStep,

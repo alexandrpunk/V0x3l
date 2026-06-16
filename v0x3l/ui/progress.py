@@ -2,7 +2,7 @@
 
 import urwid
 from typing import Optional
-from voidforge.ui.package_monitor import PackageMonitor
+from v0x3l.ui.package_monitor import PackageMonitor
 
 
 class ProgressScreen:

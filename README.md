@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="voidforge-logo.png" alt="V0x3l" width="250" />
+  <img src="logo.png" alt="V0x3l" width="250" />
 </p>
 
 <p align="center">
@@ -42,7 +42,7 @@ curl -fsSL https://raw.githubusercontent.com/alexandrpunk/V0x3l/refactor/install
 ## Uso
 
 ```bash
-sudo python3 -m voidforge
+sudo python3 -m v0x3l
 python3 demo_ui.py  # Demo simulada
 ```
 

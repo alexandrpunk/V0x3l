@@ -11,14 +11,14 @@ sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 os.environ["LOG_FILE"] = "/dev/null"
 
 import urwid
-from voidforge.config import PALETTE, VERSION, TOTAL_STEPS
-from voidforge.ui.menu import MainMenu
-from voidforge.ui.progress import ProgressScreen
-from voidforge.ui.execution_screen import ExecutionScreen
-from voidforge.ui.layout import V0x3lLayout
-from voidforge.ui.steps_list import StepsList
-from voidforge.ui.dialogs import message_dialog
-from voidforge.ui.banner import get_banner_text
+from v0x3l.config import PALETTE, VERSION, TOTAL_STEPS
+from v0x3l.ui.menu import MainMenu
+from v0x3l.ui.progress import ProgressScreen
+from v0x3l.ui.execution_screen import ExecutionScreen
+from v0x3l.ui.layout import V0x3lLayout
+from v0x3l.ui.steps_list import StepsList
+from v0x3l.ui.dialogs import message_dialog
+from v0x3l.ui.banner import get_banner_text
 
 
 NALA_OUTPUT_SIMULATION = [

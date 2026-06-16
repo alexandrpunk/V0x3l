@@ -1,12 +1,12 @@
-# Banner - muestra el logo de VoidForge en el terminal
+# Banner - muestra el logo de V0x3l en el terminal
 
 import subprocess
 from pathlib import Path
-from voidforge.config import BASE_DIR
+from v0x3l.config import BASE_DIR
 
 ASCII_FILE = BASE_DIR / "ascii.sh"
-LOGO_PNG = BASE_DIR / "voidforge-logo.png"
-LOGO_SVG = BASE_DIR / "voidforge-logo.svg"
+LOGO_PNG = BASE_DIR / "logo.png"
+LOGO_SVG = BASE_DIR / "logo.svg"
 
 FALLBACK_TEXT = (
     "   ___      _      __ _                   \n"
@@ -96,7 +96,7 @@ def _try_ascii_sh() -> str | None:
 
 
 def get_banner_text() -> str:
-    """Retorna el texto del banner (logo ASCII de VoidForge).
+    """Retorna el texto del banner (logo ASCII de V0x3l).
 
     Orden de prioridad:
     1. Conversion del PNG a ASCII via Pillow

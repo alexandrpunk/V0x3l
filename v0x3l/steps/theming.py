@@ -2,8 +2,8 @@
 
 import os
 import subprocess
-from voidforge.steps.base import BaseStep
-from voidforge.config import PLYMOUTH_THEME_SRC, PLYMOUTH_THEME_NAME
+from v0x3l.steps.base import BaseStep
+from v0x3l.config import PLYMOUTH_THEME_SRC, PLYMOUTH_THEME_NAME
 
 
 class AppearanceStep(BaseStep):

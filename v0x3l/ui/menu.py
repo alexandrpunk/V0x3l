@@ -2,7 +2,7 @@
 
 import urwid
 import subprocess
-from voidforge.config import ASCII_FILE
+from v0x3l.config import ASCII_FILE
 
 
 class MenuButton(urwid.WidgetWrap):

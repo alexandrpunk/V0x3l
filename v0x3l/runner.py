@@ -2,7 +2,7 @@
 
 import os
 from typing import Optional
-from voidforge.config import CHECKPOINT_FILE
+from v0x3l.config import CHECKPOINT_FILE
 
 
 class StepRunner:

@@ -11,7 +11,7 @@ El nombre del proyecto, versión, repo y rutas se configuran desde `.env`.
 V0x3l/
 ├── .env                     # Configuracion centralizada
 ├── install.sh               # Bootstrap bash (curl | bash)
-├── voidforge/               # Paquete Python
+├── v0x3l/               # Paquete Python
 │   ├── __main__.py          # Entry point
 │   ├── app.py               # Event loop urwid + menu + dispatch
 │   ├── config.py            # Carga .env + defaults
@@ -33,7 +33,7 @@ V0x3l/
 curl -fsSL https://raw.githubusercontent.com/alexandrpunk/V0x3l/refactor/install.sh | bash
 
 # Desde repo clonado
-sudo python3 -m voidforge
+sudo python3 -m v0x3l
 
 # Demo
 python3 demo_ui.py
@@ -54,6 +54,6 @@ Editar `.env` para cambiar:
 ## Verification
 
 ```bash
-python3 -m py_compile voidforge/*.py voidforge/**/*.py && echo "Syntax OK"
+python3 -m py_compile v0x3l/*.py v0x3l/**/*.py && echo "Syntax OK"
 python3 demo_ui.py
 ```

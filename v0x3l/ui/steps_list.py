@@ -1,7 +1,7 @@
 # StepsList - panel izquierdo con la lista de pasos e iconos de estado
 
 import urwid
-from voidforge.config import TOTAL_STEPS
+from v0x3l.config import TOTAL_STEPS
 
 
 class StepsList:

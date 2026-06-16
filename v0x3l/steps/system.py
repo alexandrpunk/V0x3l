@@ -2,8 +2,8 @@
 
 import os
 import subprocess
-from voidforge.steps.base import BaseStep
-from voidforge.config import TLP_CONF_NAME
+from v0x3l.steps.base import BaseStep
+from v0x3l.config import TLP_CONF_NAME
 
 
 class ConfigurationStep(BaseStep):

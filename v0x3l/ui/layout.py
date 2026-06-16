@@ -1,7 +1,7 @@
 # Layout principal con Frame (header + body + footer)
 
 import urwid
-from voidforge.config import VERSION, PROJECT_NAME
+from v0x3l.config import VERSION, PROJECT_NAME
 
 
 class V0x3lLayout:

@@ -71,4 +71,4 @@ echo ""
 echo -e "  Iniciando V0x3l..."
 echo ""
 cd "$INSTALL_DIR"
-sudo python3 -m voidforge "$@" < /dev/tty
+sudo python3 -m v0x3l "$@" < /dev/tty

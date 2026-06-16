@@ -1,8 +1,8 @@
 # ExecutionScreen - pantalla dividida: pasos (izquierda) + output (derecha)
 
 import urwid
-from voidforge.config import TOTAL_STEPS
-from voidforge.ui.steps_list import StepsList
+from v0x3l.config import TOTAL_STEPS
+from v0x3l.ui.steps_list import StepsList
 
 
 class ExecutionScreen:

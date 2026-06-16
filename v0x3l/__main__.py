@@ -7,8 +7,8 @@ import subprocess
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-from voidforge.config import LOG_FILE, VERSION, PROJECT_NAME, UBUNTU_MIN
-from voidforge.shell import log
+from v0x3l.config import LOG_FILE, VERSION, PROJECT_NAME, UBUNTU_MIN
+from v0x3l.shell import log
 
 
 def ensure_urwid() -> bool:
@@ -54,7 +54,7 @@ def main():
     if not ensure_urwid():
         sys.exit(1)
 
-    from voidforge.app import V0x3lApp
+    from v0x3l.app import V0x3lApp
     app = V0x3lApp()
     sys.stdout.flush()
     app.run()

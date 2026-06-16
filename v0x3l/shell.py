@@ -4,7 +4,7 @@ import subprocess
 import os
 from datetime import datetime
 from typing import Optional, Callable
-from voidforge.config import LOG_FILE
+from v0x3l.config import LOG_FILE
 
 INSTALL_COMMANDS = (
     "nala install",

@@ -1,7 +1,7 @@
 # Step 5: Entorno (gestor de escritorio DMS)
 
 import os
-from voidforge.steps.base import BaseStep
+from v0x3l.steps.base import BaseStep
 
 
 class DesktopStep(BaseStep):
