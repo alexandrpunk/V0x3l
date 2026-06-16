@@ -42,6 +42,11 @@ class MainMenu:
             ("4", "Ejecutar rango de pasos"),
             ("5", "Ver estado actual"),
             ("6", "Salir"),
+            ("2", "Reanudar desde ultimo checkpoint"),
+            ("3", "Ejecutar paso especifico"),
+            ("4", "Ejecutar rango de pasos"),
+            ("5", "Ver estado actual"),
+            ("6", "Salir"),
         ]
 
         buttons = []

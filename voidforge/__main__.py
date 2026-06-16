@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-# VoidForge v2 - Entry point
+# V0x3l v2 - Entry point
 
 import sys
 import os
@@ -7,7 +7,7 @@ import subprocess
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-from voidforge.config import LOG_FILE, VERSION
+from voidforge.config import LOG_FILE, VERSION, PROJECT_NAME, UBUNTU_MIN
 from voidforge.shell import log
 
 
@@ -40,12 +40,12 @@ def main():
     os.makedirs(os.path.dirname(LOG_FILE) or ".", exist_ok=True)
     with open(LOG_FILE, "w") as f:
         from datetime import datetime as dt
-        f.write(f"=== VoidForge v{VERSION} - {dt.now()} ===\n")
+        f.write(f"=== {PROJECT_NAME} v{VERSION} - {dt.now()} ===\n")
 
-    log(f"Iniciando VoidForge v{VERSION}")
+    log(f"Iniciando {PROJECT_NAME} v{VERSION}")
 
     if os.geteuid() != 0:
-        print("VoidForge requiere permisos de administrador (sudo).")
+        print(f"{PROJECT_NAME} requiere permisos de administrador (sudo).")
         sys.exit(1)
 
     if not _check_system():
@@ -54,8 +54,8 @@ def main():
     if not ensure_urwid():
         sys.exit(1)
 
-    from voidforge.app import VoidForgeApp
-    app = VoidForgeApp()
+    from voidforge.app import V0x3lApp
+    app = V0x3lApp()
     sys.stdout.flush()
     app.run()
 
@@ -75,8 +75,8 @@ def _check_system() -> bool:
             log(f"ERROR: Sistema no compatible: {os_id}")
             return False
         major = int(version.split(".")[0])
-        if major < 24:
-            log(f"ERROR: Ubuntu {version} no compatible. Se requiere 24.04+")
+        if major < UBUNTU_MIN:
+            log(f"ERROR: Ubuntu {version} no compatible. Se requiere {UBUNTU_MIN}.04+")
             return False
         log(f"Sistema detectado: Ubuntu {version}")
         return True

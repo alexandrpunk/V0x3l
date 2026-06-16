@@ -1,10 +1,10 @@
 # Layout principal con Frame (header + body + footer)
 
 import urwid
-from voidforge.config import VERSION
+from voidforge.config import VERSION, PROJECT_NAME
 
 
-class VoidForgeLayout:
+class V0x3lLayout:
     """Layout principal de la aplicacion.
 
     Header: barra con titulo de seccion + separador
@@ -15,7 +15,7 @@ class VoidForgeLayout:
     def __init__(self, body=None, header_text="Menu principal",
                  footer_text="Q salir"):
         self._header_text = urwid.Text(
-            f"  VoidForge  {header_text}",
+            f"  {PROJECT_NAME}  {header_text}",
             align="left"
         )
         header = urwid.AttrMap(self._header_text, "header_bg")
@@ -46,7 +46,7 @@ class VoidForgeLayout:
         self.frame.body = widget
 
     def set_header(self, text: str):
-        self._header_text.set_text(f"  VoidForge  {text}")
+        self._header_text.set_text(f"  {PROJECT_NAME}  {text}")
 
     def set_footer(self, text: str):
         self._footer_left.set_text(f" {text}")
@@ -58,7 +58,7 @@ class VoidForgeLayout:
 
     def show_execution(self, widget):
         self.set_header("Ejecutando")
-        self.set_footer("Q cancelar | Log: /tmp/voidforge.log")
+        self.set_footer("Q cancelar | Log: /tmp/v0x3l.log")
         self.set_body(widget)
 
     def show_result(self, ok: bool, msg: str):

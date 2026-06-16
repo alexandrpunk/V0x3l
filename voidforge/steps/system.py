@@ -3,6 +3,7 @@
 import os
 import subprocess
 from voidforge.steps.base import BaseStep
+from voidforge.config import TLP_CONF_NAME
 
 
 class ConfigurationStep(BaseStep):
@@ -15,7 +16,7 @@ class ConfigurationStep(BaseStep):
         user = os.environ.get("SUDO_USER", os.environ.get("USER", ""))
         home = f"/home/{user}" if user else "/root"
 
-        # ── Polkit automontaje ──
+        # ---- Polkit automontaje ----
         rule_path = "/etc/polkit-1/rules.d/90-udisks2-automount.rules"
         if not os.path.exists(rule_path):
             os.makedirs("/etc/polkit-1/rules.d", exist_ok=True)
@@ -27,13 +28,13 @@ class ConfigurationStep(BaseStep):
             with open(rule_path, "w") as f:
                 f.write(rule)
 
-        # ── xdg-user-dirs ──
+        # ---- xdg-user-dirs ----
         if not os.path.exists(f"{home}/Documentos") and not os.path.exists(
                 f"{home}/Documents"):
             subprocess.run(["sudo", "-u", user, "xdg-user-dirs-update"],
                            capture_output=True)
 
-        # ── UFW ──
+        # ---- UFW ----
         result = subprocess.run(["ufw", "status"],
                                 capture_output=True, text=True)
         if "active" not in result.stdout:
@@ -46,7 +47,7 @@ class ConfigurationStep(BaseStep):
             self.runner.ui.run_cmd("ufw allow ssh",
                 "ufw", "allow", "ssh", sudo=True)
 
-        # ── Red + NetworkManager ──
+        # ---- Red + NetworkManager ----
         self.runner.ui.run_cmd("mask wait-online",
             "systemctl", "mask", "systemd-networkd-wait-online.service",
             sudo=True)
@@ -81,7 +82,7 @@ class ConfigurationStep(BaseStep):
             self.runner.ui.run_cmd("netplan apply",
                 "netplan", "apply", sudo=True)
 
-        # ── Servicios ──
+        # ---- Servicios ----
         for svc in ("udisks2.service", "bluetooth.service"):
             self.runner.ui.run_cmd(f"enable {svc}",
                 "systemctl", "enable", "--now", svc, sudo=True)
@@ -104,8 +105,8 @@ class ConfigurationStep(BaseStep):
                         "SDL_VIDEODRIVER=wayland\nMOZ_ENABLE_WAYLAND=1\n"
                         "XDG_CURRENT_DESKTOP=niri\nXDG_SESSION_TYPE=wayland\n")
 
-        # ── TLP ──
-        tlp_conf = "/etc/tlp.d/01-voidforge.conf"
+        # ---- TLP ----
+        tlp_conf = f"/etc/tlp.d/{TLP_CONF_NAME}"
         if not os.path.exists(tlp_conf):
             os.makedirs("/etc/tlp.d", exist_ok=True)
             config = ("TLP_ENABLE=1\nCPU_SCALING_GOVERNOR_ON_AC=powersave\n"

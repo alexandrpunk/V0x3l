@@ -1,24 +1,24 @@
-# VoidForge App - urwid event loop y logica principal
+# V0x3l App - urwid event loop y logica principal
 
 import os
 import sys
 import urwid
-from voidforge.config import PALETTE, TOTAL_STEPS, VERSION, LOG_FILE
+from voidforge.config import PALETTE, TOTAL_STEPS, VERSION, LOG_FILE, PROJECT_NAME
 from voidforge.shell import run, log
 from voidforge.runner import StepRunner
 from voidforge.ui.menu import MainMenu
 from voidforge.ui.progress import ProgressScreen
 from voidforge.ui.execution_screen import ExecutionScreen
-from voidforge.ui.layout import VoidForgeLayout
+from voidforge.ui.layout import V0x3lLayout
 from voidforge.ui.dialogs import message_dialog
 
 
-class VoidForgeApp:
+class V0x3lApp:
     """Aplicacion principal con event loop urwid."""
 
     def __init__(self):
         self.loop = None
-        self.layout = VoidForgeLayout()
+        self.layout = V0x3lLayout()
         self.exec_screen: ExecutionScreen | None = None
         self.runner = StepRunner(self, self)
         self._register_steps()
@@ -107,7 +107,7 @@ class VoidForgeApp:
                 pass
         print()
         while True:
-            print(f"\n  {chr(27)}[1;32mVoidForge.sh : Menu principal{chr(27)}[0m")
+            print(f"\n  {chr(27)}[1;32m{PROJECT_NAME} : Menu principal{chr(27)}[0m")
             print(f"  {chr(27)}[2;37m{chr(9472) * 60}{chr(27)}[0m")
             print()
             print(f"  {chr(27)}[1;37m(1){chr(27)}[0m Instalacion completa (pasos 0-5)")
@@ -207,7 +207,9 @@ class VoidForgeApp:
                f"  Pasos: {TOTAL_STEPS}")
         self._show_message(msg, "Estado actual")
 
-    def _show_message(self, text: str, title: str = "VoidForge"):
+    def _show_message(self, text: str, title: str = None):
+        if title is None:
+            title = PROJECT_NAME
         def close():
             self._show_menu()
             if self.loop:

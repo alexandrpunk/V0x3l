@@ -1,29 +1,20 @@
 #!/bin/bash
 # ============================================================
-# VoidForge v2 — Bootstrap entry point
-# Instala dependencias y lanza VoidForge
+# V0x3l — Bootstrap entry point
 # ============================================================
-#
 # Uso:
-#   curl -fsSL https://raw.githubusercontent.com/alexandrpunk/VoidForge/refactor/install.sh | bash
+#   curl -fsSL https://raw.githubusercontent.com/alexandrpunk/V0x3l/refactor/install.sh | bash
 # ============================================================
 
 set -euo pipefail
 
-# Limpiar al salir (borra el repo clonado)
-cleanup() {
-    cd /tmp 2>/dev/null || true
-    sudo rm -rf "${INSTALL_DIR}" 2>/dev/null || true
-}
-trap cleanup EXIT
-
-REPO_URL="https://github.com/alexandrpunk/VoidForge.git"
-INSTALL_DIR="${HOME}/.local/share/voidforge"
+REPO_URL="https://github.com/alexandrpunk/V0x3l.git"
+INSTALL_DIR="${HOME}/.local/share/v0x3l"
 VOIDFORGE_BRANCH="${VOIDFORGE_BRANCH:-refactor}"
 
 echo ""
 echo "  ╔═══════════════════════════════════════════════════╗"
-echo "  ║              VoidForge v2 Initializing            ║"
+echo "  ║              V0x3l Initializing                   ║"
 echo "  ╚═══════════════════════════════════════════════════╝"
 echo ""
 
@@ -47,13 +38,11 @@ echo -e "  [OK]  Git listo"
 # Clonar repositorio
 echo "  [..] Clonando: $REPO_URL (rama: $VOIDFORGE_BRANCH)"
 echo "  [..] Destino: $INSTALL_DIR"
-# Eliminar el directorio si existe (intenta con y sin sudo)
 sudo rm -rf "$INSTALL_DIR" 2>/dev/null
 rm -rf "$INSTALL_DIR" 2>/dev/null
 mkdir -p "$(dirname "$INSTALL_DIR")" 2>/dev/null || true
 if ! git clone --depth 1 --branch "$VOIDFORGE_BRANCH" "$REPO_URL" "$INSTALL_DIR"; then
     echo -e "  [ERR] Error al descargar desde $REPO_URL (rama: $VOIDFORGE_BRANCH)."
-    echo "  [ERR] Comando: git clone --depth 1 --branch $VOIDFORGE_BRANCH $REPO_URL $INSTALL_DIR"
     echo "  [ERR] Verifica tu conexion a internet y que la rama exista."
     exit 1
 fi
@@ -66,15 +55,20 @@ if ! python3 -c "import urwid" 2>/dev/null; then
     if python3 -c "import urwid" 2>/dev/null; then
         echo -e "  [OK]  python3-urwid instalado"
     else
-        echo -e "  [WARN] No se pudo instalar python3-urwid. Ejecuta: sudo apt install python3-urwid"
+        echo -e "  [WARN] No se pudo instalar python3-urwid."
     fi
 else
     echo -e "  [OK]  python3-urwid"
 fi
 
-# Lanzar VoidForge
+cleanup() {
+    cd /tmp 2>/dev/null || true
+    sudo rm -rf "${INSTALL_DIR}" 2>/dev/null || true
+}
+trap cleanup EXIT
+
 echo ""
-echo -e "  Iniciando VoidForge..."
+echo -e "  Iniciando V0x3l..."
 echo ""
 cd "$INSTALL_DIR"
 sudo python3 -m voidforge "$@" < /dev/tty

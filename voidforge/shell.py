@@ -4,8 +4,7 @@ import subprocess
 import os
 from datetime import datetime
 from typing import Optional, Callable
-
-LOG_FILE = "/tmp/voidforge.log"
+from voidforge.config import LOG_FILE
 
 INSTALL_COMMANDS = (
     "nala install",

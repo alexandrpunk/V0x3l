@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-# VoidForge UI Demo
+# V0x3l UI Demo
 # Uso: python3 demo_ui.py
 
 import sys
@@ -15,7 +15,7 @@ from voidforge.config import PALETTE, VERSION, TOTAL_STEPS
 from voidforge.ui.menu import MainMenu
 from voidforge.ui.progress import ProgressScreen
 from voidforge.ui.execution_screen import ExecutionScreen
-from voidforge.ui.layout import VoidForgeLayout
+from voidforge.ui.layout import V0x3lLayout
 from voidforge.ui.steps_list import StepsList
 from voidforge.ui.dialogs import message_dialog
 from voidforge.ui.banner import get_banner_text
@@ -58,7 +58,7 @@ SUMMARY_LINES = [
 class DemoApp:
     def __init__(self):
         self.loop = None
-        self.layout = VoidForgeLayout()
+        self.layout = V0x3lLayout()
         self.exec_screen: ExecutionScreen | None = None
         self.progress = None
         self.spinner_handle = None
@@ -212,10 +212,10 @@ class DemoApp:
         msg = "Instalacion completada!\n\n"
         for line in SUMMARY_LINES:
             msg += f"  {line}\n"
-        msg += f"\n  Log: /tmp/voidforge.log"
-        self._show_msg(msg, "VoidForge - Listo!")
+        msg += f"\n  Log: /tmp/v0x3l.log"
+        self._show_msg(msg, "V0x3l - Listo!")
 
-    def _show_msg(self, text, title="VoidForge"):
+    def _show_msg(self, text, title="V0x3l"):
         def close():
             self._show_menu()
         dialog = message_dialog(title, text, close)
@@ -229,7 +229,7 @@ class DemoApp:
 
 
 if __name__ == "__main__":
-    print("VoidForge Demo - Interfaz con split panel")
+    print("V0x3l Demo - Interfaz con split panel")
     print("[1] Demo completa | [6] Salir")
     time.sleep(1.5)
     DemoApp().run()
