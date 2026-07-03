@@ -1,7 +1,8 @@
 # Step 2: Software (mega-install + flatpak + zsh + lazyvim)
 
-import subprocess
 import os
+import subprocess
+
 from v0x3l.steps.base import BaseStep
 
 
@@ -31,8 +32,6 @@ class SoftwareStep(BaseStep):
             "ubuntu-restricted-extras", "gstreamer1.0-plugins-bad",
             "gstreamer1.0-libav", "ffmpegthumbnailer",
             "flatpak", "tlp", "tlp-rdw", "fonts-powerline",
-            "pikman-update-manager", "cosmic-app-library",
-            "pika-device-manager",
             sudo=True)
 
         # ── Flatpak ──

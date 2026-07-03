@@ -9,7 +9,7 @@ class StepsList:
 
     Iconos unicode:
       \u25CB  pendiente (circulo vacio)
-      \u25B8  en curso (triangulo derecha, resaltado)
+      \u25B6  en curso (triangulo derecha, resaltado)
       \u2713  completado (check verde)
       \u2717  fallido (cruz roja)
     """
@@ -18,14 +18,14 @@ class StepsList:
 
     STATUS_ICONS = {
         "pending": "\u25CB",
-        "running": "\u25B8",
+        "running": "\u25B6",
         "done":    "\u2713",
         "failed":  "\u2717",
     }
 
     STATUS_ATTRS = {
         "pending": ("dim", None),
-        "running": ("title", "button_focus"),
+        "running": ("step_active", None),
         "done":    ("ok", None),
         "failed":  ("error", None),
     }
@@ -40,7 +40,7 @@ class StepsList:
         for i in range(TOTAL_STEPS + 1):
             title = (StepsList.STEP_TITLES[i]
                      if i < len(StepsList.STEP_TITLES) else f"Paso {i}")
-            text = urwid.Text(f"  \u25CB  {title}")
+            text = urwid.Text(f"  {i}  \u25CB  {title}")
             attr = self.STATUS_ATTRS["pending"]
             item = urwid.AttrMap(text, attr[0], attr[1])
             self.items.append(item)
@@ -70,7 +70,7 @@ class StepsList:
         icon = self.STATUS_ICONS.get(status, "\u25CB")
         attr = self.STATUS_ATTRS.get(status, ("dim", None))
 
-        text = urwid.Text(f"  {icon}  {title}")
+        text = urwid.Text(f"  {idx}  {icon}  {title}")
         self.items[idx] = urwid.AttrMap(text, attr[0], attr[1])
         self.walker[idx] = self.items[idx]
 

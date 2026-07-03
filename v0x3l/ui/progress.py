@@ -16,7 +16,7 @@ class ProgressScreen:
         self.spinner_idx = 0
 
         self.header = urwid.Text(
-            f" [{step_num}/{total}] {title}",
+            f" \u25B6 {title}  \u2502  {step_num}/{total}",
             align="left"
         )
         self.spinner_widget = urwid.Text("")
@@ -27,7 +27,7 @@ class ProgressScreen:
         self.pile = urwid.Pile([
             ("pack", urwid.Text("")),
             ("pack", urwid.AttrMap(self.header, "title")),
-            ("pack", urwid.Text("")),
+            ("pack", urwid.AttrMap(urwid.Text("\u2500" * 200), "separator")),
             ("pack", self.spinner_widget),
             ("pack", self.cmd_widget),
             ("pack", urwid.Text("")),
@@ -40,7 +40,7 @@ class ProgressScreen:
         pkg_widget = self._pkg_monitor.get_widget()
         panel = urwid.Padding(
             urwid.LineBox(pkg_widget,
-                          title="\u2500 Paquetes \u2500",
+                          title=" \u25C6 Paquetes ",
                           title_align="center",
                           tlcorner="\u2554", trcorner="\u2557",
                           blcorner="\u255A", brcorner="\u255D",
@@ -62,12 +62,12 @@ class ProgressScreen:
         self.spinner_idx = (self.spinner_idx + 1) % len(self.spinner_frames)
         frame = self.spinner_frames[self.spinner_idx]
         self.spinner_widget.set_text(
-            f"  {frame} Procesando..."
+            f"  {frame}  Procesando..."
         )
         return True
 
     def show_command(self, desc: str):
-        self.cmd_widget.set_text(f"  \u25b8 {desc}")
+        self.cmd_widget.set_text(f"  \u25B8 {desc}")
 
     def append_output(self, line: str):
         MAX_LINES = 100
@@ -80,7 +80,7 @@ class ProgressScreen:
             self.output_box.set_focus(len(self.output_walker) - 1)
 
     def show_result(self, ok: bool, msg: str):
-        mark = "OK" if ok else "ERR"
+        mark = "\u2714 OK" if ok else "\u2718 ERR"
         color = "ok" if ok else "error"
         self.spinner_widget.set_text("")
         self.cmd_widget.set_text("")

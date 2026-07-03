@@ -104,7 +104,7 @@ class ConfigurationStep(BaseStep):
                 f.write("GDK_BACKEND=wayland\nQT_QPA_PLATFORM=wayland\n"
                         "SDL_VIDEODRIVER=wayland\nMOZ_ENABLE_WAYLAND=1\n"
                         "XCURSOR_THEME=catppuccin-mocha-dark-cursors\n"
-                        "XDG_CURRENT_DESKTOP=niri\nXDG_SESSION_TYPE=wayland\n")
+                        "XDG_CURRENT_DESKTOP=sway\nXDG_SESSION_TYPE=wayland\n")
 
         # ── Cursor theme default ──
         cursor_dir = "/usr/share/icons/default"

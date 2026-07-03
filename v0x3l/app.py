@@ -107,7 +107,7 @@ class V0x3lApp:
                 pass
         print()
         while True:
-            print(f"\n  {chr(27)}[1;32m{PROJECT_NAME} : Menu principal{chr(27)}[0m")
+            print(f"\n  {chr(27)}[1;32m{chr(9670)} {PROJECT_NAME}{chr(27)}[0m")
             print(f"  {chr(27)}[2;37m{chr(9472) * 60}{chr(27)}[0m")
             print()
             print(f"  {chr(27)}[1;37m(1){chr(27)}[0m Instalacion completa (pasos 0-5)")
@@ -245,7 +245,7 @@ class V0x3lApp:
         if self.exec_screen:
             self.exec_screen.set_output(self.current_progress.get_widget())
 
-        self.layout.set_header(f"Paso {step.number}/{TOTAL_STEPS} - {step.title}")
+        self.layout.set_header(f"\u25B6 {step.title}  \u2502  Paso {step.number}/{TOTAL_STEPS}")
 
         # Iniciar animacion spinner
         self.spinner_handle = self.loop.set_alarm_in(
@@ -314,7 +314,7 @@ class V0x3lApp:
         except Exception:
             log_dest = LOG_FILE
 
-        msg = (f"  {chr(27)}[1;31mError en paso {failed_step}{chr(27)}[0m]\n\n"
+        msg = (f"\n  Error en paso {failed_step}\n\n"
                f"  Se detuvo la instalacion debido a un fallo.\n\n"
                f"  Revisa el log para mas detalles.")
 

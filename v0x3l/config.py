@@ -79,22 +79,27 @@ def load_palette(path: Path) -> list:
                     palette.append((name, fg16, bg16))
     except (FileNotFoundError, OSError):
         palette = [
-            ("header_bg", "light green, bold", "black", "", "#74BF04", "#534E48"),
-            ("footer_bg", "dark gray", "black", "", "#534E48", "#000000"),
-            ("body", "white", "black", "", "#DCD2BF", "#000000"),
-            ("body_focus", "black", "light gray", "", "#000000", "#D1C6B2"),
+            ("header_bg", "black, bold", "light green", "", "#534E48", "#74BF04"),
+            ("footer_bg", "light beige", "dark gray", "", "#DCD2BF", "#1A1A1A"),
+            ("body", "light beige", "black", "", "#DCD2BF", "#000000"),
+            ("body_focus", "black", "light beige", "", "#000000", "#D1C6B2"),
             ("dim", "dark gray", "black", "", "#534E48", "#000000"),
-            ("button_normal", "white", "black", "", "#DCD2BF", "#000000"),
+            ("button_normal", "light beige", "black", "", "#DCD2BF", "#000000"),
             ("button_focus", "black", "light green", "", "#000000", "#74BF04"),
+            ("hotkey", "light green, bold", "black", "", "#74BF04", "#000000"),
             ("ok", "light green", "black", "", "#74BF04", "#000000"),
-            ("warn", "yellow", "black", "", "#D1C6B2", "#000000"),
+            ("warn", "yellow", "black", "", "#E8C547", "#000000"),
             ("error", "light red", "black", "", "#FF6B6B", "#000000"),
-            ("info", "dark gray", "black", "", "#534E48", "#000000"),
+            ("info", "dark gray", "black", "", "#888888", "#000000"),
             ("title", "light green, bold", "black", "", "#74BF04", "#000000"),
+            ("panel_title", "light green, bold", "black", "", "#74BF04", "#000000"),
+            ("separator", "dark gray", "black", "", "#3A3A3A", "#000000"),
+            ("muted", "dark gray", "black", "", "#333333", "#000000"),
+            ("step_active", "black, bold", "light green", "", "#000000", "#74BF04"),
             ("progress_done", "light green", "black", "", "#74BF04", "#000000"),
             ("progress_bar", "dark green", "black", "", "#467302", "#000000"),
-            ("pkg_name", "white, bold", "black", "", "#DCD2BF", "#000000"),
-            ("pkg_speed", "dark gray", "black", "", "#534E48", "#000000"),
+            ("pkg_name", "light beige, bold", "black", "", "#DCD2BF", "#000000"),
+            ("pkg_speed", "dark gray", "black", "", "#888888", "#000000"),
         ]
     return palette
 

@@ -23,7 +23,7 @@ class ExecutionScreen:
         self.columns = urwid.Columns([
             ("weight", 1, self.steps.get_widget()),
             ("weight", 2, self._right_box),
-        ], dividechars=1)
+        ], dividechars=2)
 
         self.widget = urwid.Padding(self.columns, left=1, right=1)
 
@@ -31,7 +31,7 @@ class ExecutionScreen:
         """Crea un LineBox con bordes dobles unicode."""
         return urwid.LineBox(
             widget,
-            title=f"\u2500 {title} \u2500",
+            title=f" \u25C6 {title} ",
             title_align="center",
             tlcorner="\u2554", trcorner="\u2557",
             blcorner="\u255A", brcorner="\u255D",

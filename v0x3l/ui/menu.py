@@ -1,23 +1,29 @@
 # Menu principal - panel con botones estilizados
 
-import subprocess
-
 import urwid
-
-from v0x3l.config import ASCII_FILE
+from v0x3l.ui.banner import get_banner_text
 
 
 class MenuButton(urwid.WidgetWrap):
-    """Boton de menu navegable sin los feos [ ] de urwid.Button."""
+    """Boton de menu navegable con hotkey resaltado.
+
+    Muestra el numero de opcion en color accent y el label en color body.
+    Al obtener foco, todo el boton se resalta en verde.
+    """
 
     def __init__(self, key: str, label: str, on_choice):
         self.key = key
         self._on_choice = on_choice
 
-        self._icon = urwid.SelectableIcon(
-            f"   {key}  {label}", cursor_position=0
+        text = urwid.Text([
+            ("hotkey", f"  {key} "),
+            ("body", f" \u25B8 {label}"),
+        ])
+        self._attr = urwid.AttrMap(
+            text,
+            attr_map={"body": "button_normal"},
+            focus_map={"body": "button_focus", "hotkey": "button_focus"},
         )
-        self._attr = urwid.AttrMap(self._icon, "button_normal", "button_focus")
         padded = urwid.Padding(self._attr, left=1, right=1)
         super().__init__(padded)
 
@@ -54,12 +60,14 @@ class MainMenu:
         list_box = urwid.ListBox(urwid.SimpleFocusListWalker(buttons))
 
         menu_content = urwid.Pile([
+            ("pack", urwid.Text("")),
             urwid.Padding(list_box, left=1, right=1),
+            ("pack", urwid.Text("")),
         ])
 
         panel = urwid.LineBox(
             menu_content,
-            title="\u2500 Menu \u2500",
+            title="\u2500 Opciones \u2500",
             title_align="center",
             tlcorner="\u2554", trcorner="\u2557",
             blcorner="\u255A", brcorner="\u255D",
@@ -67,19 +75,16 @@ class MainMenu:
             lline="\u2551", rline="\u2551",
         )
 
-        banner_text = ""
-        try:
-            r = subprocess.run(["bash", str(ASCII_FILE)],
-                               capture_output=True, text=True, timeout=5)
-            if r.returncode == 0 and r.stdout.strip():
-                banner_text = r.stdout
-        except Exception:
-            pass
+        banner_text = get_banner_text()
 
         self.widget = urwid.Pile([
             ("pack", urwid.Padding(
-                urwid.AttrMap(urwid.Text(banner_text, align="center"), "body"),
+                urwid.AttrMap(urwid.Text(banner_text, align="center"), "title"),
                 left=2, right=2
+            )),
+            ("pack", urwid.AttrMap(
+                urwid.Text("Modular post-installer for Ubuntu Server", align="center"),
+                "dim"
             )),
             ("pack", urwid.Text("")),
             ("weight", 1, panel),

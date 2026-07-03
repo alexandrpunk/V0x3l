@@ -24,9 +24,9 @@ class PackageMonitor:
         self.last_lines: list[str] = []
 
         # ── Widgets urwid ──
-        self.spinner_frames = ["⣾", "⣽", "⣻", "⢿", "⡿", "⣟", "⣯", "⣷"]
+        self.spinner_frames = ["\u2503", "\u2501"]
         self.spinner_idx = 0
-        self.spinner_widget = urwid.Text("   ⣾ Iniciando...")
+        self.spinner_widget = urwid.Text("   \u2503 Iniciando...")
 
         self.progress_bar = urwid.ProgressBar("progress_bar", "progress_done")
         self.progress_bar.set_completion(0)
@@ -37,7 +37,7 @@ class PackageMonitor:
             urwid.Text("", align="center"),
             "pkg_name"
         )
-        self.eta_widget = urwid.Text("   ⏱ --", align="right")
+        self.eta_widget = urwid.Text("   \u23F1 --", align="right")
 
         # Zona de progreso: barra + contador
         self.progress_row = urwid.Columns([
@@ -61,14 +61,13 @@ class PackageMonitor:
             ("weight", 1, self.spinner_widget),
         ])
         self.widget = urwid.Pile([
-            ("pack", urwid.Text(" ")),
             ("pack", columns),
-            ("pack", urwid.Text(" ")),
+            ("pack", urwid.Text("")),
             ("pack", self.progress_row),
             ("pack", self.detail_row),
-            ("pack", urwid.Text("─")),
+            ("pack", urwid.AttrMap(urwid.Text("\u2500" * 120), "separator")),
             ("pack", self.package_widget),
-            ("pack", urwid.Text("─")),
+            ("pack", urwid.AttrMap(urwid.Text("\u2500" * 120), "separator")),
             ("weight", 1, self.log_area),
         ])
 
@@ -146,11 +145,11 @@ class PackageMonitor:
             remaining = (elapsed / self.percentage) * (100 - self.percentage)
             mins, secs = divmod(int(remaining), 60)
             if mins > 0:
-                self.eta_widget.set_text(f"\u23f1 ~{mins}m {secs}s")
+                self.eta_widget.set_text(f"\u23F1 ~{mins}m {secs}s")
             else:
-                self.eta_widget.set_text(f"\u23f1 ~{secs}s")
+                self.eta_widget.set_text(f"\u23F1 ~{secs}s")
         else:
-            self.eta_widget.set_text(f"\u23f1 --")
+            self.eta_widget.set_text(f"\u23F1 --")
 
         # Paquete actual
         if self.current_pkg_name:

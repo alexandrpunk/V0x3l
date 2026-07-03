@@ -1,9 +1,10 @@
-# Step 0: Preparacion del sistema (bootstrap + repos + locale + timezone + Pika)
+# Step 0: Preparacion del sistema (bootstrap + repos + locale + timezone)
 
 import os
 import subprocess
-from v0x3l.steps.base import BaseStep
+
 from v0x3l.config import BASE_DIR
+from v0x3l.steps.base import BaseStep
 
 
 class PreparationStep(BaseStep):
@@ -34,34 +35,6 @@ class PreparationStep(BaseStep):
                 'echo "deb [arch=amd64 signed-by=/usr/share/keyrings/butterrepo.gpg] '
                 'https://justaguylinux.codeberg.page/butterrepo stable main" | '
                 "tee /etc/apt/sources.list.d/butterrepo.list",
-                sudo=True)
-
-        # ── Pika OS Repo ──
-        if not os.path.exists("/etc/apt/sources.list.d/pika.list"):
-            os.makedirs("/etc/apt/keyrings", exist_ok=True)
-            # Desarmar llave ASCII a binario
-            self.runner.ui.run_cmd("pika key dearmor",
-                "gpg", "--dearmor",
-                "--output", "/etc/apt/keyrings/pika-keyring.gpg",
-                f"{BASE_DIR}/assets/pika-keyring.gpg.key",
-                sudo=True)
-            self.runner.ui.run_cmd("chmod pika key",
-                "chmod", "644", "/etc/apt/keyrings/pika-keyring.gpg",
-                sudo=True)
-            self.runner.ui.run_cmd("pika repo", "bash", "-c",
-                'echo "deb [arch=amd64 signed-by=/etc/apt/keyrings/pika-keyring.gpg] '
-                'https://ppa.pika-os.com pika cockatiel" | '
-                "tee /etc/apt/sources.list.d/pika.list",
-                sudo=True)
-
-            # Pinning: solo instalar paquetes explicitos de PikaOS,
-            # no actualizar el resto del sistema desde este repo
-            self.runner.ui.run_cmd("pika pin", "bash", "-c",
-                'cat > /etc/apt/preferences.d/pika-pin << \'EOF\'\n'
-                'Package: *\nPin: origin ppa.pika-os.com\nPin-Priority: 1\n\n'
-                'Package: pikman-update-manager cosmic-app-library pika-device-manager\n'
-                'Pin: origin ppa.pika-os.com\nPin-Priority: 500\n'
-                'EOF',
                 sudo=True)
 
         # ── Actualizar paquetes ──
