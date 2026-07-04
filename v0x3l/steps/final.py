@@ -1,4 +1,4 @@
-# Step 5: Entorno — Noctalia Shell v4 + SwayFX
+# Step 5: Entorno — Noctalia Shell v4 + Hyprland
 
 import os
 from v0x3l.steps.base import BaseStep
@@ -64,39 +64,32 @@ class DesktopStep(BaseStep):
         else:
             self.runner.ui.run_cmd("Noctalia Shell already installed — skipping", "true")
 
-        # ── SwayFX ────────────────────────────────────────────────
-        sway_installed = os.path.exists("/usr/bin/sway") or \
-                         os.path.exists("/usr/local/bin/sway")
+        # ── Hyprland (Ubuntu-Hyprland) ────────────────────────────
+        # El instalador upstream auto-detecta NVIDIA via lspci y aplica el
+        # path nvidia (ubuntu-drivers, GRUB cmdline nvidia-drm.modeset=1 +
+        # blacklist nouveau, modprobe, initramfs y env vars en hyprland.conf).
+        hyprland_installed = os.path.exists("/usr/bin/Hyprland") or \
+                             os.path.exists("/usr/local/bin/Hyprland")
 
-        if not sway_installed:
-            # Clone setup repo
+        if not hyprland_installed:
+            # Clone Ubuntu-Hyprland installer (branch 26.04)
             ok = self.runner.ui.run_cmd(
-                "Cloning SwayFX setup repository",
-                "git", "clone",
-                "https://codeberg.org/justaguylinux/swayfx-setup.git",
-                "/tmp/swayfx-setup",
+                "Cloning Ubuntu-Hyprland repository",
+                "git", "clone", "--depth", "1", "-b", "26.04",
+                "https://github.com/LinuxBeginnings/Ubuntu-Hyprland.git",
+                "/tmp/Ubuntu-Hyprland",
             )
             if not ok:
                 success = False
 
-            # Run the installer (interactive — use raw terminal)
+            # Run the installer (interactive — handles standard + NVIDIA)
             if ok:
                 ok = self.runner.ui.run_raw_cmd(
-                    "bash", "/tmp/swayfx-setup/install.sh",
-                )
-                if not ok:
-                    success = False
-
-            # Refresh shared library cache
-            if ok:
-                ok = self.runner.ui.run_cmd(
-                    "Running ldconfig",
-                    "ldconfig",
-                    sudo=True,
+                    "bash", "/tmp/Ubuntu-Hyprland/install.sh",
                 )
                 if not ok:
                     success = False
         else:
-            self.runner.ui.run_cmd("Sway already installed — skipping", "true")
+            self.runner.ui.run_cmd("Hyprland already installed — skipping", "true")
 
         return success

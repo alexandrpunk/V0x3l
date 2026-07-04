@@ -40,7 +40,7 @@ class PerformanceStep(BaseStep):
 
         if "xanmod" not in current_kernel:
             ok &= self.runner.ui.run_cmd("install xanmod",
-                "nala", "install", "-y", "linux-xanmod-x64v3", sudo=True)
+                "nala", "install", "-y", "linux-xanmod-edge-x64v3", sudo=True)
             ok &= self.runner.ui.run_cmd("install dkms",
                 "nala", "install", "--no-install-recommends", "-y",
                 "dkms", "libelf-dev", "clang", "lld", "llvm", sudo=True)
