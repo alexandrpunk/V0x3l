@@ -31,7 +31,7 @@ class SoftwareStep(BaseStep):
             "bluez", "bluez-tools", "pipewire-pulse",
             "ubuntu-restricted-extras", "gstreamer1.0-plugins-bad",
             "gstreamer1.0-libav", "ffmpegthumbnailer",
-            "flatpak", "tlp", "tlp-rdw", "fonts-powerline",
+            "flatpak", "tlp", "tlp-rdw", "fonts-powerline", "fonts-noto", "fonts-noto-mono",
             sudo=True)
 
         # ── Hyprland (repo agregado en Step 0) ─────────────────────

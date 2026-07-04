@@ -60,8 +60,9 @@ class AppearanceStep(BaseStep):
                 sudo=True)
 
         # ── Fuentes (assets/fonts → instalacion global) ──
-        # Copia FiraCode/FiraMono/Hack/Noto a /usr/share/fonts y refresca
-        # el cache de fontconfig. Marcador: FiraCode (no suele venir preinstalado).
+        # Copia FiraCode/FiraMono/Hack a /usr/share/fonts y refresca el cache
+        # de fontconfig. Noto (y Noto-mono) se instalan via apt en el Step 2.
+        # Marcador: FiraCode (no suele venir preinstalado).
         if os.path.isdir(FONTS_DIR) and not os.path.exists("/usr/share/fonts/FiraCode"):
             ok &= self.runner.ui.run_cmd("install fonts", "bash", "-c",
                 "cp -r " + str(FONTS_DIR) + "/. /usr/share/fonts/ && "
