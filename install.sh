@@ -24,15 +24,19 @@ MESSAGES=(
 )
 MSG_IDX=0
 
-# Deteccion de UTF-8: si el entorno no es UTF-8, el spinner usa caracteres
-# ASCII para evitar que los puntos braille se vean como letras aleatorias.
+# Seleccion de glifos para el spinner:
+# - En consola virtual de Linux (TTY, TERM=linux) la fuente por defecto no
+#   incluye puntos braille (se ven como letras aleatorias) -> spinner ASCII.
+# - En emulador de terminal con UTF-8 -> braille. Resto -> ASCII.
 _utf8_locale() {
     case "${LC_ALL:-${LANG:-}}" in
         *[Uu][Tt][Ff]8*|*[Uu][Tt][Ff]-8*) return 0 ;;
     esac
     command -v locale >/dev/null 2>&1 && locale charmap 2>/dev/null | grep -qi utf-8
 }
-if _utf8_locale; then
+if [ "${TERM:-}" = "linux" ]; then
+    SPINNER_CHARS=("|" "/" "-" "\\")
+elif _utf8_locale; then
     SPINNER_CHARS=("⠋" "⠙" "⠹" "⠸" "⠼" "⠴" "⠦" "⠧" "⠇" "⠏")
 else
     SPINNER_CHARS=("|" "/" "-" "\\")
