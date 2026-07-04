@@ -39,6 +39,13 @@ ASSETS_DIR = BASE_DIR / "assets"
 THEMES_DIR = ASSETS_DIR / "themes"
 CURSORS_DIR = ASSETS_DIR / "cursors"
 FONTS_DIR = ASSETS_DIR / "fonts"
+DOTFILES_DIR = ASSETS_DIR / "dotfiles"
+
+# Mapeo de dotfiles: nombre en assets/dotfiles/ -> ruta destino relativa a $HOME
+DOTFILES_MAP = {
+    "foot.config": ".config/foot/foot.ini",
+    "tmux": ".config/tmux",
+}
 ASCII_FILE = BASE_DIR / "ascii.sh"
 PALETTE_FILE = BASE_DIR / "collorPalette"
 
