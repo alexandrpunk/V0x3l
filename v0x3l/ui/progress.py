@@ -27,7 +27,7 @@ class ProgressScreen:
         self.pile = urwid.Pile([
             ("pack", urwid.Text("")),
             ("pack", urwid.AttrMap(self.header, "title")),
-            ("pack", urwid.AttrMap(urwid.Text("\u2500" * 200), "separator")),
+            ("pack", urwid.AttrMap(urwid.Divider("\u2500"), "separator")),
             ("pack", self.spinner_widget),
             ("pack", self.cmd_widget),
             ("pack", urwid.Text("")),

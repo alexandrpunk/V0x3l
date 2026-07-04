@@ -23,7 +23,6 @@ class V0x3lApp:
         self.runner = StepRunner(self, self)
         self._register_steps()
         self.current_progress: ProgressScreen | None = None
-        self.spinner_handle = None
 
     # ===================== Shell callbacks =====================
 
@@ -31,12 +30,16 @@ class V0x3lApp:
         def on_line(line: str):
             if self.current_progress:
                 self.current_progress.show_command(desc)
-                self.current_progress.update_spinner()
                 self.current_progress.feed_line(line)
+        def on_tick():
+            if self.current_progress:
+                self.current_progress.update_spinner()
             if self.loop:
+                # refrescar screen_size (resiste garble por resize durante el bloqueo)
+                self.loop.screen_size = self.loop.screen.get_cols_rows()
                 self.loop.draw_screen()
-        return run(desc, *args, sudo=sudo, on_line=on_line, timeout=timeout,
-                   capture_output=capture_output)
+        return run(desc, *args, sudo=sudo, on_line=on_line, on_tick=on_tick,
+                   timeout=timeout, capture_output=capture_output)
 
     def run_raw_cmd(self, *args, sudo=False) -> bool:
         """Ejecuta comando con terminal real (libera urwid temporalmente).
@@ -253,11 +256,6 @@ class V0x3lApp:
 
         self.layout.set_header(f"\u25B6 {step.title}  \u2502  Paso {step.number}/{TOTAL_STEPS}")
 
-        # Iniciar animacion spinner
-        self.spinner_handle = self.loop.set_alarm_in(
-            0.15, self._tick_spinner
-        ) if self.loop else None
-
         # Forzar render de la pantalla de progreso antes del comando bloqueante
         if self.loop:
             self.loop.draw_screen()
@@ -265,14 +263,6 @@ class V0x3lApp:
         log(f"=== Paso {step.number}/{TOTAL_STEPS}: {step.title} ===")
 
         ok = step.run()
-
-        # Detener spinner
-        if self.spinner_handle and self.loop:
-            try:
-                self.loop.remove_alarm(self.spinner_handle)
-            except Exception:
-                pass
-            self.spinner_handle = None
 
         # Actualizar estado del paso
         status = "done" if ok else "failed"
@@ -299,11 +289,6 @@ class V0x3lApp:
         if self.loop:
             self.loop.draw_screen()
             self.loop.set_alarm_in(1.5, lambda loop, data: self._show_menu())
-
-    def _tick_spinner(self, loop, data):
-        if self.current_progress:
-            self.current_progress.update_spinner()
-        self.spinner_handle = loop.set_alarm_in(0.15, self._tick_spinner)
 
     def _show_error(self, failed_step: int):
         """Muestra dialogo de error cuando un paso falla."""

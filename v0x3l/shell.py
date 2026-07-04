@@ -1,5 +1,6 @@
 # Shell helper - ejecucion de comandos, sudo, logging
 
+import select
 import subprocess
 import os
 from datetime import datetime
@@ -40,6 +41,7 @@ def run(
     *args: str,
     sudo: bool = False,
     on_line: Optional[Callable[[str], None]] = None,
+    on_tick: Optional[Callable[[], None]] = None,
     timeout: Optional[int] = None,
     capture_output: bool = True,
 ) -> bool:
@@ -74,11 +76,24 @@ def run(
         )
 
         if capture_output and proc.stdout:
-            for line in proc.stdout:
-                line = line.rstrip()
-                log(f"  {line}")
-                if on_line:
-                    on_line(line)
+            # Loop con select: redibuja (on_tick) cada ~100ms haya o no output,
+            # y lee lineas en cuanto llegan. Asi la UI no se congela con
+            # comandos silenciosos.
+            fd = proc.stdout.fileno()
+            while True:
+                ready, _, _ = select.select([fd], [], [], 0.1)
+                if on_tick:
+                    on_tick()
+                if fd in ready:
+                    line = proc.stdout.readline()
+                    if line == "":  # EOF
+                        break
+                    line = line.rstrip()
+                    log(f"  {line}")
+                    if on_line:
+                        on_line(line)
+                elif proc.poll() is not None:  # sin datos y el proc ya termino
+                    break
 
         proc.wait(timeout=timeout)
         ok = proc.returncode == 0
