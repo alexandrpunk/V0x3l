@@ -7,7 +7,7 @@
 </p>
 
 <p align="center">
-  Automatiza toda la configuración posterior a la instalación: kernel XanMod Edge, drivers NVIDIA 595-open con soporte Optimus, Wayland + Nautilus + PipeWire, Flatpak con Flathub, TLP para optimización energética, Plymouth con tema propio, GRUB Vimix, Oh My Zsh con agnoster, LazyVim, firewall UFW, y gestor de escritorio Noctalia Shell + Hyprland.
+  Automatiza toda la configuración posterior a la instalación: kernel XanMod Edge, drivers NVIDIA 595-open con soporte Optimus, Wayland + Nautilus + PipeWire, Flatpak con Flathub, TLP para optimización energética, Plymouth con tema propio, GRUB Vimix, Oh My Zsh con agnoster, LazyVim, firewall UFW, y gestor de escritorio DMS + Hyprland.
 </p>
 
 <p align="center">
@@ -60,7 +60,7 @@ python3 demo_ui.py
 | 2 | Software | Wayland, Nautilus, PipeWire, Flatpak, Zsh, LazyVim |
 | 3 | Configuración | Polkit, UFW, red, servicios, TLP |
 | 4 | Apariencia | Colloid icons, Plymouth, GRUB Vimix |
-| 5 | Entorno | Gestor de escritorio Noctalia Shell + Hyprland |
+| 5 | Entorno | Gestor de escritorio DMS + Hyprland |
 
 ## Recursos
 

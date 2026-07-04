@@ -1,4 +1,5 @@
-# Step 5: Entorno — Noctalia Shell v4 + Hyprland
+# Step 5: Entorno — DMS (DankMaterialShell)
+# (La instalacion de Hyprland se movio al Step 2: v0x3l/steps/packages.py)
 
 import os
 import subprocess
@@ -11,178 +12,72 @@ class DesktopStep(BaseStep):
     category = "final"
 
     def run(self) -> bool:
-        user = os.environ.get("SUDO_USER", os.environ.get("USER", ""))
         success = True
+        user = os.environ.get("SUDO_USER", os.environ.get("USER", ""))
 
-        # ── Noctalia Shell v4 ──────────────────────────────────────
-        noctalia_installed = os.path.exists("/usr/bin/noctalia-shell") or \
-                             os.path.exists("/usr/bin/noctalia-qs")
+        # ── DMS (DankMaterialShell, repos agregados en Step 0) ──────
+        # dms trae quickshell como dependencia; el greeter y los companeros
+        # son opt-in y se anaden explicitamente.
+        dms_installed = subprocess.run(
+            ["dpkg", "-s", "dms"],
+            capture_output=True,
+        ).returncode == 0
 
-        if not noctalia_installed:
-            # Import GPG key
+        if not dms_installed:
+            # Install DMS + ecosistema (dms trae quickshell como dep)
             ok = self.runner.ui.run_cmd(
-                "Importing Noctalia GPG key",
-                "bash", "-c",
-                "curl -fsSL https://pkg.noctalia.dev/gpg.key | "
-                "gpg --dearmor -o /etc/apt/keyrings/noctalia.gpg",
+                "Installing DMS ecosystem",
+                "nala", "install", "-y",
+                "dms",            # el shell (trae quickshell)
+                "dms-greeter",    # greeter para greetd (login)
+                "dgop",           # telemetria CPU/GPU para widgets
+                "matugen",        # temas dinamicos Material
+                "cliphist",       # historial de portapapeles
+                "danksearch",     # busqueda en el lanzador
                 sudo=True,
             )
             if not ok:
                 success = False
 
-            # Add APT repository
+            # ── dms setup: desplegar configuraciones del compositor ──
+            # Es interactivo (pide compositor/terminal/systemd) y corre como
+            # el usuario destino (escribe en ~/.config/<compositor>/dms/).
+            # Es idempotente: solo crea archivos que no existen. No afecta
+            # al resultado del step (los paquetes ya estan instalados).
+            if ok and user:
+                self.runner.ui.run_raw_cmd(
+                    "sudo", "-u", user, "-H", "dms", "setup"
+                )
+
+            # ── dms greeter: configurar greetd como pantalla de login ──
+            # Instala greetd, lo configura y deshabilita gdm/sddm/lightdm/
+            # lxdm/xdm. No-interactivo (--yes). Best-effort: si falla no rompe
+            # el step (los paquetes ya estan; el usuario puede re-correrlo).
             if ok:
-                ok = self.runner.ui.run_cmd(
-                    "Adding Noctalia APT repository",
+                self.runner.ui.run_cmd(
+                    "Configuring dms greeter (greetd)",
+                    "dms", "greeter", "install", "--yes",
+                    sudo=True,
+                )
+
+            # ── Habilitar el servicio de usuario dms ──
+            # Para que DMS arranque con la sesion grafica: se activa linger
+            # (el user-manager corre desde boot) + se arranca user@<uid> y se
+            # habilita dms como el usuario destino. Best-effort: --now puede
+            # no iniciar DMS en modo headless (sin compositor), pero 'enable'
+            # queda persistido para el siguiente login.
+            if ok and user:
+                self.runner.ui.run_cmd(
+                    "Enabling dms user service",
                     "bash", "-c",
-                    "echo 'deb [signed-by=/etc/apt/keyrings/noctalia.gpg] "
-                    "https://pkg.noctalia.dev/apt trixie main' "
-                    "> /etc/apt/sources.list.d/noctalia.list",
-                    sudo=True,
+                    'uid=$(id -u "$1"); '
+                    'loginctl enable-linger "$1" 2>/dev/null || true; '
+                    'systemctl start "user@$uid" 2>/dev/null || true; '
+                    'runuser -u "$1" -- systemctl --user enable --now dms '
+                    '2>/dev/null || true',
+                    "dms-svc", user, sudo=True,
                 )
-                if not ok:
-                    success = False
-
-            # Update package lists
-            if ok:
-                ok = self.runner.ui.run_cmd(
-                    "Updating package lists (nala)",
-                    "nala", "update",
-                    sudo=True,
-                )
-                if not ok:
-                    success = False
-
-            # Install noctalia-shell
-            if ok:
-                ok = self.runner.ui.run_cmd(
-                    "Installing noctalia-shell",
-                    "nala", "install", "-y", "noctalia-shell",
-                    sudo=True,
-                )
-                if not ok:
-                    success = False
         else:
-            self.runner.ui.run_cmd("Noctalia Shell already installed — skipping", "true")
-
-        # ── Hyprland (via PPA cppiber/hyprland) ──────────────────────
-        # PPA que aporta Hyprland 0.55.x sobre Ubuntu 26.04. Se instala el
-        # minimo: compositor + portal. El resto (hypridle/hyprlock/hyprpaper,
-        # barra, lanzador, terminal, notificaciones, ...) lo provee Noctalia
-        # Shell y el step de Software. Los kernel params de NVIDIA
-        # (nvidia-drm.modeset=1, initramfs) ya los gestiona theming.py.
-        hyprland_installed = os.path.exists("/usr/bin/Hyprland") or \
-                             os.path.exists("/usr/local/bin/Hyprland")
-
-        if not hyprland_installed:
-            # Import GPG key del PPA (Launchpad signing key)
-            ok = self.runner.ui.run_cmd(
-                "Importing Hyprland PPA key",
-                "bash", "-c",
-                "install -d -m 0755 /etc/apt/keyrings && "
-                "curl -fsSL 'https://keyserver.ubuntu.com/pks/lookup?op=get"
-                "&search=0xA54D23B62FF3FCC76EFF71E8FDBAAA1CF0CCF48E' | "
-                "gpg --dearmor -o /etc/apt/keyrings/cppiber-hyprland.gpg",
-                sudo=True,
-            )
-            if not ok:
-                success = False
-
-            # Add PPA source list
-            if ok:
-                ok = self.runner.ui.run_cmd(
-                    "Adding Hyprland PPA repository",
-                    "bash", "-c",
-                    'echo "deb [signed-by=/etc/apt/keyrings/cppiber-hyprland.gpg] '
-                    'https://ppa.launchpadcontent.net/cppiber/hyprland/ubuntu '
-                    '$(lsb_release -sc) main" '
-                    '> /etc/apt/sources.list.d/cppiber-hyprland.list',
-                    sudo=True,
-                )
-                if not ok:
-                    success = False
-
-            # Update package lists
-            if ok:
-                ok = self.runner.ui.run_cmd(
-                    "Updating package lists (nala)",
-                    "nala", "update", sudo=True,
-                )
-                if not ok:
-                    success = False
-
-            # Install Hyprland minimum (compositor + portal). El resto
-            # (hypridle/hyprlock/hyprpaper, barra, terminal, ...) lo provee
-            # Noctalia Shell y el step de Software.
-            if ok:
-                ok = self.runner.ui.run_cmd(
-                    "Installing Hyprland ecosystem",
-                    "nala", "install", "-y",
-                    "hyprland", "xdg-desktop-portal-hyprland",
-                    sudo=True,
-                )
-                if not ok:
-                    success = False
-
-            # Write Hyprland config (NVIDIA env vars if applicable)
-            if ok:
-                self._write_hyprland_config(user)
-        else:
-            self.runner.ui.run_cmd("Hyprland already installed — skipping", "true")
+            self.runner.ui.run_cmd("dms already installed — skipping", "true")
 
         return success
-
-    def _write_hyprland_config(self, user: str) -> None:
-        """Escribe ~/.config/hypr/hyprland.conf (config minimo de respaldo).
-
-        Idempotente: no sobreescribe si ya existe (Noctalia puede proveer el
-        suyo). Solo fija monitor, input, binds de sesion y las env vars de
-        NVIDIA; la barra/lanzador/terminal/notificaciones corren por cuenta
-        de Noctalia. Los kernel params de NVIDIA ya los pone theming.py.
-        """
-        home = os.path.expanduser(f"~{user}") if user else os.path.expanduser("~")
-        hypr_dir = f"{home}/.config/hypr"
-        hypr_conf = f"{hypr_dir}/hyprland.conf"
-        if os.path.exists(hypr_conf):
-            return
-
-        os.makedirs(hypr_dir, exist_ok=True)
-        has_nvidia = os.environ.get("HAS_NVIDIA_GPU", "0") == "1"
-
-        nvidia_block = (
-            "# ── NVIDIA ──\n"
-            "env = LIBVA_DRIVER_NAME,nvidia\n"
-            "env = __GLX_VENDOR_LIBRARY_NAME,nvidia\n"
-            "env = NVD_BACKEND,direct\n"
-            "env = GBM_BACKEND,nvidia-drm\n\n"
-        ) if has_nvidia else ""
-
-        config = (
-            "# Generated by V0x3l — config minimo de respaldo.\n"
-            "# Noctalia Shell provee barra, lanzador, terminal y "
-            "notificaciones.\n\n"
-            f"{nvidia_block}"
-            "# ── Monitors ──\n"
-            "monitor = ,preferred,auto,1\n\n"
-            "# ── Input ──\n"
-            "input {\n"
-            "    kb_layout = latam\n"
-            "    follow_mouse = 1\n"
-            "    touchpad { natural_scroll = yes }\n"
-            "}\n\n"
-            "# ── Keybindings de sesion ──\n"
-            "bind = SUPER, Q,      killactive,\n"
-            "bind = SUPER CTRL, Q, exit,\n"
-            "bind = SUPER, V,      togglefloating,\n"
-            "bind = SUPER, 1, workspace, 1\n"
-            "bind = SUPER, 2, workspace, 2\n"
-            "bind = SUPER, 3, workspace, 3\n"
-            "bind = SUPER, 4, workspace, 4\n"
-            "bind = SUPER, 5, workspace, 5\n"
-        )
-        with open(hypr_conf, "w") as f:
-            f.write(config)
-
-        # Asegurar ownership del usuario real (el script corre como root)
-        if user and os.geteuid() == 0:
-            subprocess.run(["chown", "-R", f"{user}:", hypr_dir], check=False)

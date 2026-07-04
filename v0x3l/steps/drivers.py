@@ -13,27 +13,7 @@ class PerformanceStep(BaseStep):
     def run(self) -> bool:
         ok = True
 
-        # ── Kernel XanMod ──
-        if not os.path.exists("/etc/apt/sources.list.d/xanmod-release.list"):
-            self.runner.ui.run_cmd("xanmod key", "bash", "-c",
-                "wget -qO- https://dl.xanmod.org/archive.key | "
-                "gpg --dearmor -vo "
-                "/etc/apt/keyrings/xanmod-archive-keyring.gpg",
-                sudo=True)
-
-            codename = subprocess.run(
-                ["lsb_release", "-sc"],
-                capture_output=True, text=True
-            ).stdout.strip()
-
-            self.runner.ui.run_cmd("xanmod repo", "bash", "-c",
-                f'echo "deb [signed-by=/etc/apt/keyrings/xanmod-archive-keyring.gpg] '
-                f'https://deb.xanmod.org {codename} main non-free" | '
-                "tee /etc/apt/sources.list.d/xanmod-release.list",
-                sudo=True)
-            self.runner.ui.run_cmd("nala update",
-                "nala", "update", sudo=True)
-
+        # ── Kernel XanMod (repo agregado en Step 0) ──
         current_kernel = subprocess.run(
             ["uname", "-r"], capture_output=True, text=True
         ).stdout

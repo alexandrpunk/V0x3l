@@ -10,6 +10,7 @@ from v0x3l.config import (
     CURSOR_THEME_SRC, CURSOR_THEME_NAME,
     GRUB_THEME_SRC, GRUB_THEME_NAME,
     COLLOID_DIR, COLLOID_THEME_NAME,
+    FONTS_DIR,
 )
 
 
@@ -39,9 +40,37 @@ class AppearanceStep(BaseStep):
                 "bash", f"{COLLOID_DIR}/install.sh", "-b", "-s",
                 "catppuccin", "-t", "green", sudo=True)
 
+        # ── Juno (GTK theme, github.com/EliverLara/Juno) ──
+        if not os.path.exists("/usr/share/themes/Juno"):
+            ok &= self.runner.ui.run_cmd("install Juno GTK theme", "bash", "-c",
+                "git clone --depth 1 https://github.com/EliverLara/Juno.git "
+                "/usr/share/themes/Juno && "
+                "rm -rf /usr/share/themes/Juno/.git",
+                sudo=True)
+
+        # ── Pure (icon theme, system dir — github.com/mjkim0727/Pure-icon-theme) ──
+        if not os.path.exists("/usr/share/icons/Pure"):
+            ok &= self.runner.ui.run_cmd("clone Pure icons", "bash", "-c",
+                "rm -rf /tmp/Pure-icon-theme && "
+                "git clone --depth 1 https://github.com/mjkim0727/Pure-icon-theme.git "
+                "/tmp/Pure-icon-theme",
+                sudo=True)
+            ok &= self.runner.ui.run_cmd("install Pure icons", "bash", "-c",
+                "cp -r /tmp/Pure-icon-theme/src/Pure* /usr/share/icons/",
+                sudo=True)
+
+        # ── Fuentes (assets/fonts → instalacion global) ──
+        # Copia FiraCode/FiraMono/Hack/Noto a /usr/share/fonts y refresca
+        # el cache de fontconfig. Marcador: FiraCode (no suele venir preinstalado).
+        if os.path.isdir(FONTS_DIR) and not os.path.exists("/usr/share/fonts/FiraCode"):
+            ok &= self.runner.ui.run_cmd("install fonts", "bash", "-c",
+                "cp -r " + str(FONTS_DIR) + "/. /usr/share/fonts/ && "
+                "{ fc-cache -f || true; }",
+                sudo=True)
+
         # ── Plymouth ──
-        self.runner.ui.run_cmd("install plymouth",
-            "nala", "install", "-y", "plymouth", "plymouth-themes",
+        ok &= self.runner.ui.run_cmd("install plymouth",
+            "nala", "install", "-y", "plymouth", "plymouth-themes", "dconf-cli",
             sudo=True)
         os.makedirs("/usr/share/plymouth/themes", exist_ok=True)
 
@@ -53,9 +82,18 @@ class AppearanceStep(BaseStep):
         if os.path.isdir(theme_src) and os.path.exists(
                 f"{theme_src}/{theme_name}.plymouth"):
             os.makedirs(theme_dir, exist_ok=True)
-            if not os.path.isfile(theme_file):
-                self.runner.ui.run_cmd("copy plymouth theme",
-                    "cp", "-r", f"{theme_src}/.", f"{theme_dir}/", sudo=True)
+            # Copiar el tema siempre (refresca assets en re-runs)
+            self.runner.ui.run_cmd("copy plymouth theme",
+                "cp", "-r", f"{theme_src}/.", f"{theme_dir}/", sudo=True)
+
+            # Corregir rutas absolutas dentro del .plymouth (ImageDir, etc.)
+            # para que apunten al theme_dir real. Evita bugs de renombrado
+            # del proyecto (p.ej. ImageDir apuntaba a voidforge-boot-theme).
+            self.runner.ui.run_cmd("fix plymouth paths", "bash", "-c",
+                f'sed -i "s|/usr/share/plymouth/themes/[^ /]*/|{theme_dir}/|g" '
+                f'"{theme_file}"',
+                sudo=True)
+
             if os.path.isfile(theme_file):
                 self.runner.ui.run_cmd("plymouth alternatives",
                     "update-alternatives", "--install",
@@ -121,5 +159,25 @@ class AppearanceStep(BaseStep):
             "nala", "autoremove", "-y", sudo=True)
         self.runner.ui.run_cmd("nala clean",
             "nala", "clean", sudo=True)
+
+        # ── Temas GTK/iconos por defecto del sistema (dconf system-db) ──
+        # Aplica Juno (GTK) y Pure (iconos) a todas las sesiones. Necesita
+        # dconf-cli (instalado arriba con plymouth).
+        if not os.path.exists("/etc/dconf/profile/user"):
+            os.makedirs("/etc/dconf/profile", exist_ok=True)
+            with open("/etc/dconf/profile/user", "w") as f:
+                f.write("user-db:user\nsystem-db:local\n")
+        if not os.path.exists("/etc/dconf/db/local.d/01-themes"):
+            os.makedirs("/etc/dconf/db/local.d", exist_ok=True)
+            with open("/etc/dconf/db/local.d/01-themes", "w") as f:
+                f.write(
+                    "[org/gnome/desktop/interface]\n"
+                    "gtk-theme='Juno'\n"
+                    "icon-theme='Pure'\n\n"
+                    "[org/gnome/desktop/wm/preferences]\n"
+                    "theme='Juno'\n"
+                )
+            self.runner.ui.run_cmd("dconf update",
+                "dconf", "update", sudo=True)
 
         return ok

@@ -38,6 +38,7 @@ REPO_BRANCH = env("REPO_BRANCH", "refactor")
 ASSETS_DIR = BASE_DIR / "assets"
 THEMES_DIR = ASSETS_DIR / "themes"
 CURSORS_DIR = ASSETS_DIR / "cursors"
+FONTS_DIR = ASSETS_DIR / "fonts"
 ASCII_FILE = BASE_DIR / "ascii.sh"
 PALETTE_FILE = BASE_DIR / "collorPalette"
 
