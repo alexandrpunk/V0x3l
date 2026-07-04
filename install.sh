@@ -28,7 +28,7 @@ spinner() {
     local idx=0
     while true; do
         local msg="${MESSAGES[$((MSG_IDX % ${#MESSAGES[@]}))]}"
-        printf "\r  \e[36m%s\e[0m \e[33m%s\e[0m" "${chars[$idx]}" "$msg"
+        printf "\r  \e[36m%s\e[0m \e[33m%s\e[0m\e[K" "${chars[$idx]}" "$msg"
         idx=$(( (idx + 1) % ${#chars[@]} ))
         sleep 0.1
     done
@@ -45,6 +45,7 @@ stop_spinner() {
         wait "$SPINNER_PID" 2>/dev/null || true
         SPINNER_PID=""
     fi
+    printf "\r  \e[K" 2>/dev/null || true
     echo ""
 }
 

@@ -112,6 +112,15 @@ class PackageMonitor:
                         self.current_pkg_name = parts[i + 1].split("/")[0]
                         break
 
+        # Append en vivo al log (sin reconstruir todo)
+        self.log_walker.append(
+            urwid.Text(("dim", f"  {line}"))
+        )
+        while len(self.log_walker) > 15:
+            del self.log_walker[0]
+        if len(self.log_walker) > 0:
+            self.log_box.set_focus(len(self.log_walker) - 1)
+
         self._refresh()
 
     # ── Actualizacion visual ──
@@ -159,15 +168,7 @@ class PackageMonitor:
         else:
             self.package_widget.original_widget.set_text("")
 
-        # Log: tantas lineas como quepan
-        self.log_walker.clear()
-        for ln in self.last_lines[-15:]:
-            display = ln[:80]
-            self.log_walker.append(
-                urwid.Text(("dim", f"  {display}"))
-            )
-        if len(self.log_walker) > 0:
-            self.log_box.set_focus(len(self.log_walker) - 1)
+        # Log se actualiza en feed_line — no reconstruir aqui
 
     def update_spinner(self):
         """Actualiza solo el spinner (llamado desde el event loop)."""

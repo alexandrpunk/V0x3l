@@ -45,8 +45,13 @@ class V0x3lApp:
         heredados del terminal, y restaura urwid al terminar.
         """
         import subprocess
-        # Liberar terminal de urwid (restaura modo normal)
+        import time
+        # Mostrar mensaje antes de liberar el terminal
+        if self.current_progress:
+            self.current_progress.show_command("Liberando terminal para comando interactivo...")
         if self.loop:
+            self.loop.draw_screen()
+            time.sleep(0.2)
             self.loop.screen.stop()
         try:
             cmd = list(args)
@@ -57,6 +62,7 @@ class V0x3lApp:
         finally:
             if self.loop:
                 self.loop.screen.start()
+                # Forzar refresco completo para limpiar residuos del comando
                 self.loop.draw_screen()
 
     # ===================== UI =====================
