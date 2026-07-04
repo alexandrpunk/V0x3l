@@ -39,16 +39,6 @@ class DesktopStep(BaseStep):
             if not ok:
                 success = False
 
-            # ── dms setup: desplegar configuraciones del compositor ──
-            # Es interactivo (pide compositor/terminal/systemd) y corre como
-            # el usuario destino (escribe en ~/.config/<compositor>/dms/).
-            # Es idempotente: solo crea archivos que no existen. No afecta
-            # al resultado del step (los paquetes ya estan instalados).
-            if ok and user:
-                self.runner.ui.run_raw_cmd(
-                    "sudo", "-u", user, "-H", "dms", "setup"
-                )
-
             # ── dms greeter: configurar greetd como pantalla de login ──
             # Instala greetd, lo configura y deshabilita gdm/sddm/lightdm/
             # lxdm/xdm. No-interactivo (--yes). Best-effort: si falla no rompe
@@ -77,6 +67,28 @@ class DesktopStep(BaseStep):
                     '2>/dev/null || true',
                     "dms-svc", user, sudo=True,
                 )
+
+            # ── dms setup: desplegar configs de Hyprland (desatendido) ──
+            # AL FINAL y desatendido. Se usan los subcomandos en vez del bare
+            # 'dms setup' (que es interactivo y lanza el wizard/installer).
+            # Con solo Hyprland + foot instalados, los subcomandos auto-
+            # detectan compositor y terminal sin prompts. Fallan si el archivo
+            # ya existe => se limpia ~/.config/hypr/dms/ antes. Corren como el
+            # usuario destino (dms hace FATAL-exit si se ejecuta como root).
+            if ok and user:
+                home = os.path.expanduser(f"~{user}")
+                dms_cfg = f"{home}/.config/hypr/dms"
+                self.runner.ui.run_cmd("clear dms config",
+                    "rm", "-rf", dms_cfg, sudo=True)
+                for sub in ("binds", "colors", "layout", "outputs",
+                            "cursor", "windowrules"):
+                    self.runner.ui.run_cmd(f"dms setup {sub}",
+                        "sudo", "-u", user, "-H",
+                        "dms", "setup", sub, sudo=True)
+                # grupo input (Caps Lock OSD): el bare 'dms setup' lo anade
+                # via ensureInputGroup; los subcomandos no lo hacen.
+                self.runner.ui.run_cmd("add input group",
+                    "usermod", "-aG", "input", user, sudo=True)
         else:
             self.runner.ui.run_cmd("dms already installed — skipping", "true")
 

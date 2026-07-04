@@ -66,6 +66,7 @@ def run(
         stdout = subprocess.PIPE if capture_output else None
         proc = subprocess.Popen(
             cmd,
+            stdin=subprocess.DEVNULL,
             stdout=stdout,
             stderr=subprocess.STDOUT,
             text=True,
