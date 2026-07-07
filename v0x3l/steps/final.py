@@ -50,31 +50,13 @@ class DesktopStep(BaseStep):
                     sudo=True,
                 )
 
-            # ── Habilitar el servicio de usuario dms ──
-            # Para que DMS arranque con la sesion grafica: se activa linger
-            # (el user-manager corre desde boot) + se arranca user@<uid> y se
-            # habilita dms como el usuario destino. Best-effort: --now puede
-            # no iniciar DMS en modo headless (sin compositor), pero 'enable'
-            # queda persistido para el siguiente login.
-            if ok and user:
-                self.runner.ui.run_cmd(
-                    "Enabling dms user service",
-                    "bash", "-c",
-                    'uid=$(id -u "$1"); '
-                    'loginctl enable-linger "$1" 2>/dev/null || true; '
-                    'systemctl start "user@$uid" 2>/dev/null || true; '
-                    'runuser -u "$1" -- systemctl --user enable --now dms '
-                    '2>/dev/null || true',
-                    "dms-svc", user, sudo=True,
-                )
-
             # ── dms setup: desplegar configs de Hyprland (desatendido) ──
-            # AL FINAL y desatendido. Se usan los subcomandos en vez del bare
-            # 'dms setup' (que es interactivo y lanza el wizard/installer).
-            # Con solo Hyprland + foot instalados, los subcomandos auto-
-            # detectan compositor y terminal sin prompts. Fallan si el archivo
-            # ya existe => se limpia ~/.config/hypr/dms/ antes. Corren como el
-            # usuario destino (dms hace FATAL-exit si se ejecuta como root).
+            # AL FINAL de la instalacion y desatendido. Se usan los subcomandos
+            # en vez del bare 'dms setup' (que es interactivo y lanza wizard).
+            # Con solo Hyprland + foot instalados, los subcomandos auto-detectan
+            # compositor y terminal sin prompts. Fallan si el archivo ya existe
+            # => se limpia ~/.config/hypr/dms/ antes. Corren como el usuario
+            # destino (dms hace FATAL-exit si se ejecuta como root).
             if ok and user:
                 home = os.path.expanduser(f"~{user}")
                 # Asegurar ~/.config user-owned: dms setup (corriendo como el
@@ -96,5 +78,27 @@ class DesktopStep(BaseStep):
                     "usermod", "-aG", "input", user, sudo=True)
         else:
             self.runner.ui.run_cmd("dms already installed — skipping", "true")
+
+        # ── Deshabilitar systemd service de DMS ──
+        # La doc de DMS (Managing Your Installation) dice explicitamente:
+        # "Hyprland, Sway, MangoWC, and Miracle WM don't have systemd session
+        #  targets. If you use multiple desktop environments and only want DMS
+        #  on one of them, disable the systemd unit and start DMS from your
+        #  compositor config instead."
+        #
+        # En Step 2 agregamos `exec-once = dms run` a hyprland.conf, asi que
+        # aca deshabilitamos el systemd service para evitar doble inicio.
+        # Corre SIEMPRE (fresh + re-run) para migrar instalaciones existentes.
+        if user:
+            self.runner.ui.run_cmd(
+                "Disable dms systemd service (Hyprland uses exec-once)",
+                "bash", "-c",
+                'uid=$(id -u "$1"); '
+                'loginctl enable-linger "$1" 2>/dev/null || true; '
+                'systemctl start "user@$uid" 2>/dev/null || true; '
+                'runuser -u "$1" -- systemctl --user daemon-reload 2>/dev/null; '
+                'runuser -u "$1" -- systemctl --user disable dms 2>/dev/null || true',
+                "dms-disable-svc", user, sudo=True,
+            )
 
         return success

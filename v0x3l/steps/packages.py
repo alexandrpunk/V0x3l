@@ -122,12 +122,15 @@ class SoftwareStep(BaseStep):
         return ok
 
     def _write_hyprland_config(self) -> None:
-        """Escribe ~/.config/hypr/hyprland.conf (config minimo de respaldo).
+        """Escribe ~/.config/hypr/hyprland.conf con exec-once dms + env Qt.
 
-        Idempotente: no sobreescribe si ya existe (DMS puede proveer el
-        suyo). Solo fija monitor, input, binds de sesion y las env vars de
-        NVIDIA; la barra/lanzador/terminal/notificaciones corren por cuenta
-        de DMS. Los kernel params de NVIDIA ya los pone theming.py.
+        Idempotente: no sobreescribe si ya existe. En re-runs asegura que las
+        lineas exec-once, env vars de Qt y los source de DMS esten presentes
+        (append si falta).
+
+        Segun la doc de DMS (Managing Your Installation), Hyprland NO tiene
+        systemd session targets nativos. El approach correcto es exec-once
+        directo (dms run) + deshabilitar el service de systemd (Step 5).
         """
         user = os.environ.get("SUDO_USER", os.environ.get("USER", ""))
         home = os.path.expanduser(f"~{user}") if user else os.path.expanduser("~")
@@ -144,13 +147,34 @@ class SoftwareStep(BaseStep):
             "env = GBM_BACKEND,nvidia-drm\n\n"
         ) if has_nvidia else ""
 
-        # CRITICO: estas dos lineas activan graphical-session.target al iniciar
-        # Hyprland. Sin ellas, dms.service (Requisite=graphical-session.target)
-        # y otros servicios de usuario NO arrancan -> DMS no renderiza.
-        session_init = (
-            "# ── Systemd session init (requerido por dms.service) ──\n"
+        # Qt env vars: obligatorias para DMS (Quickshell/Qt). Sin
+        # QT_QPA_PLATFORM=wayland, Qt intenta usar xcb y falla.
+        qt_env = (
+            "# ── DMS / Qt environment ──\n"
+            "env = QT_QPA_PLATFORM,wayland\n"
+            "env = QT_QPA_PLATFORMTHEME,gtk3\n"
+            "env = ELECTRON_OZONE_PLATFORM_HINT,auto\n\n"
+        )
+
+        # exec-once: dbus-update (necesario para XDG Desktop Portal y servicios
+        # systemd) + dms run (lanza DMS directamente). La doc de DMS dice:
+        # "Hyprland... don't have systemd session targets" -> usar exec-once.
+        dms_exec = (
+            "# ── DMS startup (exec-once directo, ver DMS managing docs) ──\n"
             "exec-once = dbus-update-activation-environment --systemd --all\n"
-            "exec-once = systemctl --user start hyprland-session.target\n\n"
+            "exec-once = dms run\n\n"
+        )
+
+        # DMS sourced configs: los subcomandos 'dms setup ...' (Step 5) crean
+        # archivos en ~/.config/hypr/dms/. Sin source =, Hyprland los ignora.
+        dms_source = (
+            "# ── DMS sourced configs (creados por Step 5) ──\n"
+            "source = ~/.config/hypr/dms/binds.conf\n"
+            "source = ~/.config/hypr/dms/colors.conf\n"
+            "source = ~/.config/hypr/dms/layout.conf\n"
+            "source = ~/.config/hypr/dms/outputs.conf\n"
+            "source = ~/.config/hypr/dms/cursor.conf\n"
+            "source = ~/.config/hypr/dms/windowrules.conf\n"
         )
 
         if not os.path.exists(hypr_conf):
@@ -159,7 +183,8 @@ class SoftwareStep(BaseStep):
                 "# DMS provee barra, lanzador, terminal y "
                 "notificaciones.\n\n"
                 f"{nvidia_block}"
-                f"{session_init}"
+                f"{qt_env}"
+                f"{dms_exec}"
                 "# ── Monitors ──\n"
                 "monitor = ,preferred,auto,1\n\n"
                 "# ── Input ──\n"
@@ -177,17 +202,24 @@ class SoftwareStep(BaseStep):
                 "bind = SUPER, 3, workspace, 3\n"
                 "bind = SUPER, 4, workspace, 4\n"
                 "bind = SUPER, 5, workspace, 5\n"
+                f"\n{dms_source}"
             )
             with open(hypr_conf, "w") as f:
                 f.write(config)
         else:
-            # Re-run: asegurar que el session init este presente (no sobrescribe
-            # el resto del config del usuario).
+            # Re-run: asegurar que exec-once dms, env Qt y los source DMS
+            # esten presentes (append si falta).
             with open(hypr_conf) as f:
                 content = f.read()
-            if "hyprland-session.target" not in content:
+            if "dms run" not in content:
                 with open(hypr_conf, "a") as f:
-                    f.write("\n" + session_init)
+                    f.write("\n" + dms_exec)
+            if "QT_QPA_PLATFORM" not in content:
+                with open(hypr_conf, "a") as f:
+                    f.write("\n" + qt_env)
+            if "~/.config/hypr/dms/binds.conf" not in content:
+                with open(hypr_conf, "a") as f:
+                    f.write("\n" + dms_source)
 
         if user and os.geteuid() == 0:
             subprocess.run(["chown", "-R", f"{user}:", hypr_dir], check=False)
