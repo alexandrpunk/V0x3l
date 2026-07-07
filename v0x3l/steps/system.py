@@ -129,6 +129,16 @@ class ConfigurationStep(BaseStep):
                 subprocess.run(["chown", "-R", f"{user}:", dest],
                                capture_output=True)
 
+        # ---- Asegurar ownership de ~/.config al usuario ----
+        # Los writes anteriores (wayland.conf, dotfiles) corren como root y
+        # pueden dejar ~/.config (o sus subdirs) root-owned. Si eso pasa,
+        # herramientas del usuario (dms setup, etc.) no pueden crear subdirs
+        # bajo ~/.config y fallan con "permission denied". Se deja ownership
+        # recursivo al usuario real.
+        if user and os.geteuid() == 0 and os.path.isdir(f"{home}/.config"):
+            subprocess.run(["chown", "-R", f"{user}:", f"{home}/.config"],
+                           capture_output=True)
+
         # ---- TLP ----
         tlp_conf = f"/etc/tlp.d/{TLP_CONF_NAME}"
         if not os.path.exists(tlp_conf):

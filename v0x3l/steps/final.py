@@ -77,6 +77,11 @@ class DesktopStep(BaseStep):
             # usuario destino (dms hace FATAL-exit si se ejecuta como root).
             if ok and user:
                 home = os.path.expanduser(f"~{user}")
+                # Asegurar ~/.config user-owned: dms setup (corriendo como el
+                # usuario) crea ~/.config/hypr/dms y fallaria si ~/.config
+                # esta root-owned.
+                self.runner.ui.run_cmd("fix ~/.config owner",
+                    "chown", "-R", f"{user}:", f"{home}/.config", sudo=True)
                 dms_cfg = f"{home}/.config/hypr/dms"
                 self.runner.ui.run_cmd("clear dms config",
                     "rm", "-rf", dms_cfg, sudo=True)
