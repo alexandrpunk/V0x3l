@@ -136,7 +136,7 @@ start_spinner
 sudo rm -rf "$INSTALL_DIR" 2>/dev/null
 rm -rf "$INSTALL_DIR" 2>/dev/null
 mkdir -p "$(dirname "$INSTALL_DIR")" 2>/dev/null || true
-if git clone --depth 1 --branch "$V0X3L_BRANCH" "$REPO_URL" "$INSTALL_DIR"; then
+if git clone --depth 1 --branch "$V0X3L_BRANCH" "$REPO_URL" "$INSTALL_DIR" > /dev/null 2>&1; then
     stop_spinner
     echo -e "  [OK]  Descarga completada"
     rotate_msg

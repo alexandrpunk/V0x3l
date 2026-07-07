@@ -37,6 +37,15 @@ def ensure_urwid() -> bool:
 
 
 def main():
+    # Modo no-interactivo para apt/dpkg/nala: evita que tomen el tty (dialogos,
+    # barras de progreso de dpkg) y corrompan la pantalla de la TUI con escapes
+    # sueltos. Se setean en el entorno global para que TODOS los subprocess los
+    # hereden. setdefault: no pisa si el usuario ya las definio.
+    os.environ.setdefault("DEBIAN_FRONTEND", "noninteractive")
+    os.environ.setdefault("APT_LISTCHANGES_FRONTEND", "none")
+    os.environ.setdefault("NEEDRESTART_MODE", "a")
+    os.environ.setdefault("NEEDRESTART_SUSPEND", "1")
+
     os.makedirs(os.path.dirname(LOG_FILE) or ".", exist_ok=True)
     with open(LOG_FILE, "w") as f:
         from datetime import datetime as dt

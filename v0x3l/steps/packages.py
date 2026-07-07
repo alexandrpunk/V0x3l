@@ -31,7 +31,7 @@ class SoftwareStep(BaseStep):
             "bluez", "bluez-tools", "pipewire-pulse",
             "ubuntu-restricted-extras", "gstreamer1.0-plugins-bad",
             "gstreamer1.0-libav", "ffmpegthumbnailer",
-            "flatpak", "tlp", "tlp-rdw", "fonts-powerline", "fonts-noto", "fonts-noto-mono",
+            "floorp", "flatpak", "tlp", "tlp-rdw", "fonts-powerline", "fonts-noto", "fonts-noto-mono",
             sudo=True)
 
         # ── Hyprland (repo agregado en Step 0) ─────────────────────
@@ -56,19 +56,6 @@ class SoftwareStep(BaseStep):
         # graphical-session.target (requerido por dms.service).
         if os.path.exists("/usr/bin/Hyprland") or os.path.exists("/usr/local/bin/Hyprland"):
             self._write_hyprland_config()
-
-        # ── Floorp (repo agregado en Step 0) ─────────────────────────
-        floorp_installed = subprocess.run(
-            ["dpkg", "-s", "floorp"],
-            capture_output=True,
-        ).returncode == 0
-        if not floorp_installed:
-            fok = self.runner.ui.run_cmd(
-                "Installing floorp",
-                "nala", "install", "-y", "floorp", sudo=True)
-            ok &= fok
-        else:
-            self.runner.ui.run_cmd("floorp already installed — skipping", "true")
 
         # ── Flatpak ──
         result = subprocess.run(
