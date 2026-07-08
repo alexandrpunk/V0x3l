@@ -1,9 +1,11 @@
 # Step 2: Software (mega-install + flatpak + zsh + lazyvim)
 
 import os
+import shutil
 import subprocess
 
 from v0x3l.steps.base import BaseStep
+from v0x3l.config import HYPR_LUA_SRC, HYPR_DMS_DIR
 
 
 class SoftwareStep(BaseStep):
@@ -32,6 +34,7 @@ class SoftwareStep(BaseStep):
             "ubuntu-restricted-extras", "gstreamer1.0-plugins-bad",
             "gstreamer1.0-libav", "ffmpegthumbnailer",
             "floorp", "flatpak", "tlp", "tlp-rdw", "fonts-powerline", "fonts-noto", "fonts-noto-mono",
+            "cups-pk-helper", "kimageformat-plugins",
             sudo=True)
 
         # ── Hyprland (repo agregado en Step 0) ─────────────────────
@@ -50,12 +53,19 @@ class SoftwareStep(BaseStep):
         else:
             self.runner.ui.run_cmd("Hyprland already installed — skipping", "true")
 
-        # Config de Hyprland + init de sesion systemd (idempotente). Se ejecuta
-        # siempre que Hyprland este presente: en fresh-install escribe el config
-        # completo; en re-runs asegura las lineas exec-once que activan
-        # graphical-session.target (requerido por dms.service).
+        # Deploy del config de Hyprland (hyprland.lua). Se ejecuta siempre que
+        # Hyprland este presente. El template incluye env Qt, exec-once dms run,
+        # require("dms.*") para cargar configs de DMS (Step 5), y deteccion
+        # NVIDIA en runtime.
         if os.path.exists("/usr/bin/Hyprland") or os.path.exists("/usr/local/bin/Hyprland"):
             self._write_hyprland_config()
+            # Ocultar la sesion "Hyprland (uwsm-managed)" del greeter: requiere
+            # uwsm (no instalado, no lo necesitamos — arrancamos DMS via exec-once
+            # directo). Sin esto, greetd muestra dos sesiones y la uwsm falla.
+            uwsm_desktop = "/usr/share/wayland-sessions/hyprland-uwsm.desktop"
+            if os.path.isfile(uwsm_desktop):
+                self.runner.ui.run_cmd("remove uwsm session from greeter",
+                    "rm", "-f", uwsm_desktop, sudo=True)
 
         # ── Flatpak ──
         result = subprocess.run(
@@ -122,104 +132,41 @@ class SoftwareStep(BaseStep):
         return ok
 
     def _write_hyprland_config(self) -> None:
-        """Escribe ~/.config/hypr/hyprland.conf con exec-once dms + env Qt.
+        """Deploya ~/.config/hypr/hyprland.lua + dms/*.lua desde assets.
 
-        Idempotente: no sobreescribe si ya existe. En re-runs asegura que las
-        lineas exec-once, env vars de Qt y los source de DMS esten presentes
-        (append si falta).
+        Usa el formato Lua (Hyprland 0.55+) porque DMS genera configs .lua
+        (require("dms.*")), no .conf. Mezclar formatos no funciona: source=
+        no puede cargar .lua y require() no anda en .conf.
 
-        Segun la doc de DMS (Managing Your Installation), Hyprland NO tiene
-        systemd session targets nativos. El approach correcto es exec-once
-        directo (dms run) + deshabilitar el service de systemd (Step 5).
+        Deploya:
+          - hyprland.lua (config principal con env Qt, NVIDIA runtime detect,
+            exec-once dms run, require("dms.*"), keyboard latam)
+          - dms/*.lua (7 modulos: binds, colors, layout, outputs, cursor,
+            windowrules, binds-user — pre-stageados desde templates de DMS)
+
+        Migracion .conf -> .lua: si existe hyprland.conf viejo, se backupea
+        a hyprland.conf.bak (hyprland.lua tiene precedencia sobre .conf).
         """
         user = os.environ.get("SUDO_USER", os.environ.get("USER", ""))
         home = os.path.expanduser(f"~{user}") if user else os.path.expanduser("~")
         hypr_dir = f"{home}/.config/hypr"
+        hypr_lua = f"{hypr_dir}/hyprland.lua"
         hypr_conf = f"{hypr_dir}/hyprland.conf"
+        dms_dest = f"{hypr_dir}/dms"
         os.makedirs(hypr_dir, exist_ok=True)
-        has_nvidia = os.environ.get("HAS_NVIDIA_GPU", "0") == "1"
 
-        nvidia_block = (
-            "# ── NVIDIA ──\n"
-            "env = LIBVA_DRIVER_NAME,nvidia\n"
-            "env = __GLX_VENDOR_LIBRARY_NAME,nvidia\n"
-            "env = NVD_BACKEND,direct\n"
-            "env = GBM_BACKEND,nvidia-drm\n\n"
-        ) if has_nvidia else ""
+        # Deployar hyprland.lua desde el template (sobreescribe: es config managed)
+        if os.path.isfile(HYPR_LUA_SRC):
+            shutil.copy(HYPR_LUA_SRC, hypr_lua)
 
-        # Qt env vars: obligatorias para DMS (Quickshell/Qt). Sin
-        # QT_QPA_PLATFORM=wayland, Qt intenta usar xcb y falla.
-        qt_env = (
-            "# ── DMS / Qt environment ──\n"
-            "env = QT_QPA_PLATFORM,wayland\n"
-            "env = QT_QPA_PLATFORMTHEME,gtk3\n"
-            "env = ELECTRON_OZONE_PLATFORM_HINT,auto\n\n"
-        )
+        # Deployar dms/*.lua (7 modulos pre-stageados). dirs_exist_ok permite
+        # sobreescribir en re-runs sin error.
+        if os.path.isdir(HYPR_DMS_DIR):
+            shutil.copytree(HYPR_DMS_DIR, dms_dest, dirs_exist_ok=True)
 
-        # exec-once: dbus-update (necesario para XDG Desktop Portal y servicios
-        # systemd) + dms run (lanza DMS directamente). La doc de DMS dice:
-        # "Hyprland... don't have systemd session targets" -> usar exec-once.
-        dms_exec = (
-            "# ── DMS startup (exec-once directo, ver DMS managing docs) ──\n"
-            "exec-once = dbus-update-activation-environment --systemd --all\n"
-            "exec-once = dms run\n\n"
-        )
-
-        # DMS sourced configs: los subcomandos 'dms setup ...' (Step 5) crean
-        # archivos en ~/.config/hypr/dms/. Sin source =, Hyprland los ignora.
-        dms_source = (
-            "# ── DMS sourced configs (creados por Step 5) ──\n"
-            "source = ~/.config/hypr/dms/binds.conf\n"
-            "source = ~/.config/hypr/dms/colors.conf\n"
-            "source = ~/.config/hypr/dms/layout.conf\n"
-            "source = ~/.config/hypr/dms/outputs.conf\n"
-            "source = ~/.config/hypr/dms/cursor.conf\n"
-            "source = ~/.config/hypr/dms/windowrules.conf\n"
-        )
-
-        if not os.path.exists(hypr_conf):
-            config = (
-                "# Generated by V0x3l — config minimo de respaldo.\n"
-                "# DMS provee barra, lanzador, terminal y "
-                "notificaciones.\n\n"
-                f"{nvidia_block}"
-                f"{qt_env}"
-                f"{dms_exec}"
-                "# ── Monitors ──\n"
-                "monitor = ,preferred,auto,1\n\n"
-                "# ── Input ──\n"
-                "input {\n"
-                "    kb_layout = latam\n"
-                "    follow_mouse = 1\n"
-                "    touchpad { natural_scroll = yes }\n"
-                "}\n\n"
-                "# ── Keybindings de sesion ──\n"
-                "bind = SUPER, Q,      killactive,\n"
-                "bind = SUPER CTRL, Q, exit,\n"
-                "bind = SUPER, V,      togglefloating,\n"
-                "bind = SUPER, 1, workspace, 1\n"
-                "bind = SUPER, 2, workspace, 2\n"
-                "bind = SUPER, 3, workspace, 3\n"
-                "bind = SUPER, 4, workspace, 4\n"
-                "bind = SUPER, 5, workspace, 5\n"
-                f"\n{dms_source}"
-            )
-            with open(hypr_conf, "w") as f:
-                f.write(config)
-        else:
-            # Re-run: asegurar que exec-once dms, env Qt y los source DMS
-            # esten presentes (append si falta).
-            with open(hypr_conf) as f:
-                content = f.read()
-            if "dms run" not in content:
-                with open(hypr_conf, "a") as f:
-                    f.write("\n" + dms_exec)
-            if "QT_QPA_PLATFORM" not in content:
-                with open(hypr_conf, "a") as f:
-                    f.write("\n" + qt_env)
-            if "~/.config/hypr/dms/binds.conf" not in content:
-                with open(hypr_conf, "a") as f:
-                    f.write("\n" + dms_source)
+        # Migracion: backupear hyprland.conf viejo si existe (.lua tiene precedencia)
+        if os.path.isfile(hypr_conf) and not os.path.isfile(f"{hypr_conf}.bak"):
+            os.rename(hypr_conf, f"{hypr_conf}.bak")
 
         if user and os.geteuid() == 0:
             subprocess.run(["chown", "-R", f"{user}:", hypr_dir], check=False)

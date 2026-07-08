@@ -46,6 +46,10 @@ DOTFILES_MAP = {
     "foot.config": ".config/foot/foot.ini",
     "tmux": ".config/tmux",
 }
+
+# Hyprland config (Lua) — deployado por _write_hyprland_config, no por DOTFILES_MAP
+HYPR_LUA_SRC = str(DOTFILES_DIR / "hypr" / "hyprland.lua")
+HYPR_DMS_DIR = str(DOTFILES_DIR / "hypr" / "dms")
 ASCII_FILE = BASE_DIR / "ascii.sh"
 PALETTE_FILE = BASE_DIR / "collorPalette"
 

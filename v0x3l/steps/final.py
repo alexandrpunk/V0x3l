@@ -50,30 +50,17 @@ class DesktopStep(BaseStep):
                     sudo=True,
                 )
 
-            # ── dms setup: desplegar configs de Hyprland (desatendido) ──
-            # AL FINAL de la instalacion y desatendido. Se usan los subcomandos
-            # en vez del bare 'dms setup' (que es interactivo y lanza wizard).
-            # Con solo Hyprland + foot instalados, los subcomandos auto-detectan
-            # compositor y terminal sin prompts. Fallan si el archivo ya existe
-            # => se limpia ~/.config/hypr/dms/ antes. Corren como el usuario
-            # destino (dms hace FATAL-exit si se ejecuta como root).
+            # ── Permisos para DMS ──
+            # Los configs de Hyprland (hyprland.lua + dms/*.lua) ya se deployan
+            # en Step 2 desde assets (pre-stageados). Aca solo aseguramos
+            # permisos y el grupo input (Caps Lock OSD).
             if ok and user:
                 home = os.path.expanduser(f"~{user}")
-                # Asegurar ~/.config user-owned: dms setup (corriendo como el
-                # usuario) crea ~/.config/hypr/dms y fallaria si ~/.config
-                # esta root-owned.
                 self.runner.ui.run_cmd("fix ~/.config owner",
                     "chown", "-R", f"{user}:", f"{home}/.config", sudo=True)
-                dms_cfg = f"{home}/.config/hypr/dms"
-                self.runner.ui.run_cmd("clear dms config",
-                    "rm", "-rf", dms_cfg, sudo=True)
-                for sub in ("binds", "colors", "layout", "outputs",
-                            "cursor", "windowrules"):
-                    self.runner.ui.run_cmd(f"dms setup {sub}",
-                        "sudo", "-u", user, "-H",
-                        "dms", "setup", sub, sudo=True)
                 # grupo input (Caps Lock OSD): el bare 'dms setup' lo anade
-                # via ensureInputGroup; los subcomandos no lo hacen.
+                # via ensureInputGroup; como no corremos dms setup, lo hacemos
+                # a mano.
                 self.runner.ui.run_cmd("add input group",
                     "usermod", "-aG", "input", user, sudo=True)
         else:
@@ -86,9 +73,9 @@ class DesktopStep(BaseStep):
         #  on one of them, disable the systemd unit and start DMS from your
         #  compositor config instead."
         #
-        # En Step 2 agregamos `exec-once = dms run` a hyprland.conf, asi que
-        # aca deshabilitamos el systemd service para evitar doble inicio.
-        # Corre SIEMPRE (fresh + re-run) para migrar instalaciones existentes.
+        # En Step 2 deployamos hyprland.lua con `hl.exec_cmd("dms run")` en el
+        # startup, asi que aca deshabilitamos el systemd service para evitar
+        # doble inicio. Corre SIEMPRE (fresh + re-run).
         if user:
             self.runner.ui.run_cmd(
                 "Disable dms systemd service (Hyprland uses exec-once)",
@@ -96,6 +83,12 @@ class DesktopStep(BaseStep):
                 'uid=$(id -u "$1"); '
                 'loginctl enable-linger "$1" 2>/dev/null || true; '
                 'systemctl start "user@$uid" 2>/dev/null || true; '
+                # XDG_RUNTIME_DIR + DBUS_SESSION_BUS_ADDRESS son obligatorios
+                # para que systemctl --user conecte al user instance via runuser.
+                # Sin esto, el disable falla silenciosamente y dms.service
+                # queda enabled+inactive (reportado por dms doctor).
+                'export XDG_RUNTIME_DIR="/run/user/$uid"; '
+                'export DBUS_SESSION_BUS_ADDRESS="unix:path=/run/user/$uid/bus"; '
                 'runuser -u "$1" -- systemctl --user daemon-reload 2>/dev/null; '
                 'runuser -u "$1" -- systemctl --user disable dms 2>/dev/null || true',
                 "dms-disable-svc", user, sudo=True,

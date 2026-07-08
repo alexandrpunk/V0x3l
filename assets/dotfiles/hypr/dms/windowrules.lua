@@ -1,0 +1,3 @@
+-- DMS window rules.
+-- V0x3l pre-stage: copiado desde el template de DMS (vacio por defecto).
+-- Las window rules principales ya estan en hyprland.lua.
