@@ -3,7 +3,7 @@
 import os
 import sys
 import urwid
-from v0x3l.config import PALETTE, TOTAL_STEPS, VERSION, LOG_FILE, PROJECT_NAME
+from v0x3l.config import PALETTE, TOTAL_STEPS, VERSION, LOG_FILE, PROJECT_NAME, TARGET_HOME
 from v0x3l.shell import run, log
 from v0x3l.runner import StepRunner
 from v0x3l.ui.menu import MainMenu
@@ -27,6 +27,10 @@ class V0x3lApp:
     # ===================== Shell callbacks =====================
 
     def run_cmd(self, desc: str, *args, sudo=False, timeout=None, capture_output=True) -> bool:
+        # Default 30 min: previene hangs infinitos (mirror caido, DNS, etc.)
+        # sin cortar installs grandes legitimos.
+        if timeout is None:
+            timeout = 1800
         def on_line(line: str):
             if self.current_progress:
                 self.current_progress.show_command(desc)
@@ -296,8 +300,7 @@ class V0x3lApp:
         from v0x3l.config import LOG_FILE
 
         # Copiar log al home del usuario
-        user = os.environ.get("SUDO_USER", os.environ.get("USER", ""))
-        home_dir = f"/home/{user}" if user and os.path.exists(f"/home/{user}") else os.path.expanduser("~")
+        home_dir = TARGET_HOME
         log_dest = f"{home_dir}/v0x3l-error.log"
 
         try:

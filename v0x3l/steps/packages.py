@@ -5,7 +5,7 @@ import shutil
 import subprocess
 
 from v0x3l.steps.base import BaseStep
-from v0x3l.config import HYPR_LUA_SRC, HYPR_DMS_DIR
+from v0x3l.config import HYPR_LUA_SRC, HYPR_DMS_DIR, TARGET_USER, TARGET_HOME
 
 
 class SoftwareStep(BaseStep):
@@ -96,19 +96,19 @@ class SoftwareStep(BaseStep):
                 f.write("[Context]\nfilesystems=xdg-run/gvfs:host;host:ro;\n")
 
         # ── Oh My Zsh ──
-        user = os.environ.get("SUDO_USER", os.environ.get("USER", ""))
-        home = f"/home/{user}" if user else "/root"
+        user = TARGET_USER
+        home = TARGET_HOME
 
         zsh_path = subprocess.run(
             ["which", "zsh"], capture_output=True, text=True
         ).stdout.strip()
         if zsh_path:
-            self.runner.ui.run_cmd("chsh",
+            ok &= self.runner.ui.run_cmd("chsh",
                 "chsh", "-s", zsh_path, user, sudo=True)
 
         if not os.path.exists(f"{home}/.oh-my-zsh"):
             ok &= self.runner.ui.run_cmd("install ohmyzsh",
-                "sudo", "-u", user, "bash", "-c",
+                "sudo", "-u", user, "-H", "bash", "-c",
                 'sh -c "$(curl -fsSL '
                 'https://raw.githubusercontent.com/ohmyzsh/ohmyzsh/master/'
                 'tools/install.sh)" "" --unattended && '
@@ -157,8 +157,8 @@ class SoftwareStep(BaseStep):
         Migracion .conf -> .lua: si existe hyprland.conf viejo, se backupea
         a hyprland.conf.bak (hyprland.lua tiene precedencia sobre .conf).
         """
-        user = os.environ.get("SUDO_USER", os.environ.get("USER", ""))
-        home = os.path.expanduser(f"~{user}") if user else os.path.expanduser("~")
+        user = TARGET_USER
+        home = TARGET_HOME
         hypr_dir = f"{home}/.config/hypr"
         hypr_lua = f"{hypr_dir}/hyprland.lua"
         hypr_conf = f"{hypr_dir}/hyprland.conf"

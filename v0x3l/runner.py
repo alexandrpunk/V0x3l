@@ -19,7 +19,10 @@ class StepRunner:
         if os.path.exists(CHECKPOINT_FILE):
             try:
                 with open(CHECKPOINT_FILE) as f:
-                    return int(f.read().strip())
+                    cp = int(f.read().strip())
+                # Validar rango: valor fuera de rango se ignora
+                if 0 <= cp <= 99:
+                    return cp
             except (ValueError, OSError):
                 pass
         return None

@@ -3,7 +3,7 @@
 import os
 import subprocess
 from v0x3l.steps.base import BaseStep
-from v0x3l.config import TLP_CONF_NAME, DOTFILES_DIR, DOTFILES_MAP
+from v0x3l.config import TLP_CONF_NAME, DOTFILES_DIR, DOTFILES_MAP, CURSOR_THEME_NAME, TARGET_USER, TARGET_HOME
 
 
 class ConfigurationStep(BaseStep):
@@ -13,8 +13,8 @@ class ConfigurationStep(BaseStep):
 
     def run(self) -> bool:
         ok = True
-        user = os.environ.get("SUDO_USER", os.environ.get("USER", ""))
-        home = f"/home/{user}" if user else "/root"
+        user = TARGET_USER
+        home = TARGET_HOME
 
         # ---- Polkit automontaje ----
         rule_path = "/etc/polkit-1/rules.d/90-udisks2-automount.rules"
@@ -31,20 +31,20 @@ class ConfigurationStep(BaseStep):
         # ---- xdg-user-dirs ----
         if not os.path.exists(f"{home}/Documentos") and not os.path.exists(
                 f"{home}/Documents"):
-            subprocess.run(["sudo", "-u", user, "xdg-user-dirs-update"],
+            subprocess.run(["sudo", "-u", user, "-H", "xdg-user-dirs-update"],
                            capture_output=True)
 
         # ---- UFW ----
         result = subprocess.run(["ufw", "status"],
                                 capture_output=True, text=True)
         if "active" not in result.stdout:
-            self.runner.ui.run_cmd("ufw default deny",
+            ok &= self.runner.ui.run_cmd("ufw default deny",
                 "ufw", "default", "deny", "incoming", sudo=True)
-            self.runner.ui.run_cmd("ufw default allow",
+            ok &= self.runner.ui.run_cmd("ufw default allow",
                 "ufw", "default", "allow", "outgoing", sudo=True)
-            self.runner.ui.run_cmd("ufw enable",
+            ok &= self.runner.ui.run_cmd("ufw enable",
                 "bash", "-c", "echo y | ufw enable", sudo=True)
-            self.runner.ui.run_cmd("ufw allow ssh",
+            ok &= self.runner.ui.run_cmd("ufw allow ssh",
                 "ufw", "allow", "ssh", sudo=True)
 
         # ---- Red + NetworkManager ----
@@ -75,24 +75,30 @@ class ConfigurationStep(BaseStep):
 
         netplan_file = "/etc/netplan/01-netcfg.yaml"
         if not os.path.exists(netplan_file):
+            # Validar iface: solo caracteres seguros para YAML (evita parse
+            # errors si la deteccion captura basura con espacios o comas)
+            import re
+            if iface and not re.match(r'^[a-zA-Z0-9_-]+$', iface):
+                iface = ""
             with open(netplan_file, "w") as f:
                 f.write("network:\n  version: 2\n  renderer: NetworkManager\n")
                 if iface:
                     f.write(f"  ethernets:\n    {iface}:\n      dhcp4: true\n")
-            self.runner.ui.run_cmd("netplan apply",
+            ok &= self.runner.ui.run_cmd("netplan apply",
                 "netplan", "apply", sudo=True)
 
         # ---- Servicios ----
         for svc in ("udisks2.service", "bluetooth.service"):
-            self.runner.ui.run_cmd(f"enable {svc}",
+            ok &= self.runner.ui.run_cmd(f"enable {svc}",
                 "systemctl", "enable", "--now", svc, sudo=True)
 
-        self.runner.ui.run_cmd("enable linger",
+        ok &= self.runner.ui.run_cmd("enable linger",
             "loginctl", "enable-linger", user, sudo=True)
 
         self.runner.ui.run_cmd("enable pipewire",
-            "sudo", "-u", user, "bash", "-c",
+            "sudo", "-u", user, "-H", "bash", "-c",
             'export XDG_RUNTIME_DIR="/run/user/$(id -u)"; '
+            'export DBUS_SESSION_BUS_ADDRESS="unix:path=/run/user/$(id -u)/bus"; '
             "systemctl --user enable pipewire.socket wireplumber.service",
             sudo=False)
 
@@ -101,9 +107,9 @@ class ConfigurationStep(BaseStep):
         if not os.path.exists(env_file):
             os.makedirs(env_dir, exist_ok=True)
             with open(env_file, "w") as f:
-                f.write("GDK_BACKEND=wayland\nQT_QPA_PLATFORM=wayland\n"
+                f.write(f"GDK_BACKEND=wayland\nQT_QPA_PLATFORM=wayland\n"
                         "SDL_VIDEODRIVER=wayland\nMOZ_ENABLE_WAYLAND=1\n"
-                        "XCURSOR_THEME=catppuccin-mocha-dark-cursors\n"
+                        f"XCURSOR_THEME={CURSOR_THEME_NAME}\n"
                         "XDG_CURRENT_DESKTOP=Hyprland\nXDG_SESSION_TYPE=wayland\n")
 
         # ── Cursor theme default ──
@@ -111,7 +117,7 @@ class ConfigurationStep(BaseStep):
         if not os.path.exists(f"{cursor_dir}/index.theme"):
             os.makedirs(cursor_dir, exist_ok=True)
             with open(f"{cursor_dir}/index.theme", "w") as f:
-                f.write("[Icon Theme]\nName=Default\nInherits=catppuccin-mocha-dark-cursors\n")
+                f.write(f"[Icon Theme]\nName=Default\nInherits={CURSOR_THEME_NAME}\n")
 
         # ---- Dotfiles (assets/dotfiles → ~/.config del usuario) ----
         # Despliega cada entrada de DOTFILES_MAP a su ruta bajo $HOME. Es
@@ -165,8 +171,11 @@ class ConfigurationStep(BaseStep):
                         "HandleLidSwitchDocked": "ignore",
                         "PowerKeyAction": "poweroff"}
         for key, val in replacements.items():
+            # Patron ^#?\{key}=: matchea lineas comentadas (#Key=) Y
+            # descomentadas (Key=). Antes solo matcheaba comentadas -> no-op
+            # en re-runs donde la linea ya estaba descomentada.
             subprocess.run(["sed", "-i",
-                            f"s/^#{key}=.*/{key}={val}/", logind],
+                            f"s/^#?{key}=.*/{key}={val}/", logind],
                            capture_output=True)
 
         return ok

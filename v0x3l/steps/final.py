@@ -4,6 +4,7 @@
 import os
 import subprocess
 from v0x3l.steps.base import BaseStep
+from v0x3l.config import TARGET_USER
 
 
 class DesktopStep(BaseStep):
@@ -13,7 +14,7 @@ class DesktopStep(BaseStep):
 
     def run(self) -> bool:
         success = True
-        user = os.environ.get("SUDO_USER", os.environ.get("USER", ""))
+        user = TARGET_USER
 
         # ── DMS (DankMaterialShell, repos agregados en Step 0) ──────
         # dms trae quickshell como dependencia; el greeter y los companeros
@@ -56,12 +57,12 @@ class DesktopStep(BaseStep):
             # permisos y el grupo input (Caps Lock OSD).
             if ok and user:
                 home = os.path.expanduser(f"~{user}")
-                self.runner.ui.run_cmd("fix ~/.config owner",
+                ok &= self.runner.ui.run_cmd("fix ~/.config owner",
                     "chown", "-R", f"{user}:", f"{home}/.config", sudo=True)
                 # grupo input (Caps Lock OSD): el bare 'dms setup' lo anade
                 # via ensureInputGroup; como no corremos dms setup, lo hacemos
                 # a mano.
-                self.runner.ui.run_cmd("add input group",
+                ok &= self.runner.ui.run_cmd("add input group",
                     "usermod", "-aG", "input", user, sudo=True)
         else:
             self.runner.ui.run_cmd("dms already installed — skipping", "true")

@@ -21,7 +21,17 @@ class AppearanceStep(BaseStep):
 
     def run(self) -> bool:
         ok = True
-        has_nvidia = os.environ.get("HAS_NVIDIA_GPU", "0") == "1"
+        # Detectar NVIDIA en runtime via lspci (no depender del env var de
+        # step 1, que se pierde si step 4 corre standalone o tras reboot).
+        # Mismo filtro que drivers.py: solo lineas VGA/3D/display.
+        try:
+            _lspci = subprocess.run(["lspci", "-nn"],
+                capture_output=True, text=True).stdout.lower()
+            _gpu = [l for l in _lspci.splitlines()
+                    if any(x in l for x in ("vga", "3d", "display"))]
+            has_nvidia = any("nvidia" in l for l in _gpu)
+        except Exception:
+            has_nvidia = os.environ.get("HAS_NVIDIA_GPU", "0") == "1"
 
         # ── Catppuccin cursors ──
         if not os.path.exists(f"/usr/share/icons/{CURSOR_THEME_NAME}"):
@@ -148,13 +158,21 @@ class AppearanceStep(BaseStep):
         with open("/etc/initramfs-tools/conf.d/splash", "w") as f:
             f.write("FRAMEBUFFER=y\n")
         if has_nvidia:
-            for mod in ("nvidia", "nvidia-drm", "nvidia-modeset", "nvidia-uvm"):
-                with open("/etc/initramfs-tools/modules", "a") as f:
-                    f.write(f"{mod}\n")
+            # Idempotente: leer modules existente y solo agregar los que faltan
+            # (antes hcia append sin check -> acumulaba duplicados en re-runs)
+            modules_file = "/etc/initramfs-tools/modules"
+            existing = ""
+            if os.path.exists(modules_file):
+                with open(modules_file) as f:
+                    existing = f.read()
+            with open(modules_file, "a") as f:
+                for mod in ("nvidia", "nvidia-drm", "nvidia-modeset", "nvidia-uvm"):
+                    if mod not in existing:
+                        f.write(f"{mod}\n")
 
-        self.runner.ui.run_cmd("grub-mkconfig",
+        ok &= self.runner.ui.run_cmd("grub-mkconfig",
             "grub-mkconfig", "-o", "/boot/grub/grub.cfg", sudo=True)
-        self.runner.ui.run_cmd("update-initramfs",
+        ok &= self.runner.ui.run_cmd("update-initramfs",
             "update-initramfs", "-u", sudo=True)
         self.runner.ui.run_cmd("nala autoremove",
             "nala", "autoremove", "-y", sudo=True)

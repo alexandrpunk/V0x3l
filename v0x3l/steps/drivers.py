@@ -25,19 +25,23 @@ class PerformanceStep(BaseStep):
                 "nala", "install", "--no-install-recommends", "-y",
                 "dkms", "libelf-dev", "clang", "lld", "llvm", sudo=True)
 
-        # ── GPU NVIDIA ──
+        # ── GPU detection ──
+        # Filtrar SOLO lineas VGA/3D/display (antes buscaba "intel" en todo el
+        # output de lspci, que incluye NICs, Wi-Fi, etc. → falsos positivos).
         lspci = subprocess.run(
             ["lspci", "-nn"], capture_output=True, text=True
         ).stdout.lower()
+        gpu_lines = [l for l in lspci.splitlines()
+                     if any(x in l for x in ("vga", "3d", "display"))]
 
-        has_nvidia = "nvidia" in lspci
-        has_intel = "vga" in lspci and "intel" in lspci
+        has_nvidia = any("nvidia" in l for l in gpu_lines)
+        has_intel = any("intel" in l for l in gpu_lines)
 
         if not has_nvidia:
             os.environ["HAS_NVIDIA_GPU"] = "0"
             return ok
 
-        self.runner.ui.run_cmd("nala update",
+        ok &= self.runner.ui.run_cmd("nala update",
             "nala", "update", sudo=True)
 
         if has_intel:
@@ -45,7 +49,7 @@ class PerformanceStep(BaseStep):
                 "nala", "install", "-y",
                 "nvidia-driver-595-open", "nvidia-prime", "nvidia-settings",
                 sudo=True)
-            self.runner.ui.run_cmd("prime-select",
+            ok &= self.runner.ui.run_cmd("prime-select",
                 "prime-select", "on-demand", sudo=True)
         else:
             ok &= self.runner.ui.run_cmd("install nvidia",
@@ -54,7 +58,7 @@ class PerformanceStep(BaseStep):
                 sudo=True)
 
         for svc in ("nvidia-suspend", "nvidia-resume", "nvidia-hibernate"):
-            self.runner.ui.run_cmd(f"enable {svc}",
+            ok &= self.runner.ui.run_cmd(f"enable {svc}",
                 "systemctl", "enable", svc, sudo=True)
 
         os.environ["HAS_NVIDIA_GPU"] = "1"

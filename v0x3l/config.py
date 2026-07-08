@@ -1,6 +1,8 @@
 # Configuracion global de V0x3l — lee desde .env con fallbacks
 
 import os
+import getpass
+import subprocess
 from pathlib import Path
 
 # ── Cargar .env ──
@@ -32,7 +34,7 @@ CHECKPOINT_FILE = env("CHECKPOINT_FILE", "/tmp/v0x3l-progress")
 
 # ── Repo ──
 REPO_URL = env("REPO_URL", "https://github.com/alexandrpunk/V0x3l.git")
-REPO_BRANCH = env("REPO_BRANCH", "refactor")
+REPO_BRANCH = env("REPO_BRANCH", "development")
 
 # ── Rutas del proyecto ──
 ASSETS_DIR = BASE_DIR / "assets"
@@ -63,6 +65,37 @@ GRUB_THEME_NAME = env("GRUB_THEME_NAME", "grub-theme-vimix-very-dark-blue")
 GRUB_THEME_SRC = str(THEMES_DIR / "grub-vimix")
 COLLOID_THEME_NAME = env("COLLOID_THEME_NAME", "Colloid-catppuccin-green-dark")
 COLLOID_DIR = str(THEMES_DIR / "colloid-icon-theme")
+
+# ── Resolucion centralizada del usuario destino ──
+# Todos los steps usan TARGET_USER y TARGET_HOME en vez de resolver
+# SUDO_USER/USER independientemente. Esto evita:
+#  - USER=root bajo sudo (env_reset)
+#  - home calculado inconsistente (/home/{user} vs expanduser)
+#  - sudo -u sin -H (HOME apunta a /root)
+def _resolve_target_user() -> str:
+    """Resuelve el usuario real (no root) que ejecuto el installer.
+
+    Cadena de fallback: SUDO_USER -> logname -> getpass.getuser().
+    Retorna "" si todo falla o resuelve a root (caller debe manejar).
+    """
+    user = os.environ.get("SUDO_USER", "")
+    if user and user != "root":
+        return user
+    try:
+        result = subprocess.run(["logname"], capture_output=True, text=True, timeout=5)
+        user = result.stdout.strip()
+        if user and user != "root":
+            return user
+    except Exception:
+        pass
+    user = getpass.getuser()
+    if user == "root":
+        return ""
+    return user
+
+
+TARGET_USER = _resolve_target_user()
+TARGET_HOME = os.path.expanduser(f"~{TARGET_USER}") if TARGET_USER else os.path.expanduser("~")
 
 # ── Steps ──
 TOTAL_STEPS = 5
