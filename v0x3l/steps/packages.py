@@ -119,15 +119,25 @@ class SoftwareStep(BaseStep):
         # ── LazyVim ──
         nvim_dir = f"{home}/.config/nvim"
         if not os.path.exists(f"{nvim_dir}/init.lua"):
-            ok &= self.runner.ui.run_cmd("install lazyvim",
-                "sudo", "-u", user, "bash", "-c",
-                f"mv {nvim_dir} {nvim_dir}.bak 2>/dev/null || true; "
-                f"mv {home}/.local/share/nvim {home}/.local/share/nvim.bak "
-                f"2>/dev/null || true; "
-                f"git clone https://github.com/LazyVim/starter {nvim_dir} "
-                f"2>/dev/null; "
-                f"rm -rf {nvim_dir}/.git 2>/dev/null || true",
+            # Asegurar que ~/.config exista (git clone no crea dirs intermedios)
+            os.makedirs(f"{home}/.config", exist_ok=True)
+            # Backup de config/data existente
+            shutil.rmtree(f"{nvim_dir}.bak", ignore_errors=True)
+            if os.path.isdir(nvim_dir):
+                shutil.move(nvim_dir, f"{nvim_dir}.bak")
+            # Clonar LazyVim starter como el usuario destino. -H setea HOME
+            # correcto para git. Sin 2>/dev/null: los errores deben verse.
+            lok = self.runner.ui.run_cmd("install lazyvim",
+                "sudo", "-u", user, "-H",
+                "git", "clone", "--depth", "1",
+                "https://github.com/LazyVim/starter", nvim_dir,
                 sudo=False)
+            ok &= lok
+            # Limpiar .git + asegurar ownership del usuario
+            if os.path.isdir(nvim_dir):
+                shutil.rmtree(f"{nvim_dir}/.git", ignore_errors=True)
+                subprocess.run(["chown", "-R", f"{user}:", nvim_dir],
+                               capture_output=True)
 
         return ok
 
