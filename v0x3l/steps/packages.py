@@ -5,7 +5,8 @@ import shutil
 import subprocess
 
 from v0x3l.steps.base import BaseStep
-from v0x3l.config import HYPR_LUA_SRC, HYPR_DMS_DIR, TARGET_USER, TARGET_HOME
+from v0x3l.config import TARGET_USER, TARGET_HOME
+from v0x3l.shell import log
 
 
 class SoftwareStep(BaseStep):
@@ -37,31 +38,16 @@ class SoftwareStep(BaseStep):
             "cups-pk-helper", "kimageformat-plugins",
             sudo=True)
 
-        # ── Hyprland (repo agregado en Step 0) ─────────────────────
-        # Minimo: compositor + portal. El resto (barra, lanzador, terminal,
-        # notificaciones, ...) lo provee DMS (Step 5). Los kernel params de
-        # NVIDIA ya los gestiona theming.py.
-        hyprland_installed = os.path.exists("/usr/bin/Hyprland") or \
-                             os.path.exists("/usr/local/bin/Hyprland")
-        if not hyprland_installed:
-            hok = self.runner.ui.run_cmd(
-                "Installing Hyprland ecosystem",
-                "nala", "install", "-y",
-                "hyprland", "xdg-desktop-portal-hyprland",
-                sudo=True)
-            ok &= hok
-        else:
-            self.runner.ui.run_cmd("Hyprland already installed — skipping", "true")
+        # ── Hyprland ─────────────────────────────────────────────
+        # La instalacion de DMS + Hyprland + configs la hace el instalador
+        # oficial de DankLinux (headless) en Step 5 (v0x3l/steps/final.py).
+        # Aca solo saneamos la lista de sesiones del greeter.
 
-        # Deploy del config de Hyprland (hyprland.lua). Se ejecuta siempre que
-        # Hyprland este presente. El template incluye env Qt, exec-once dms run,
-        # require("dms.*") para cargar configs de DMS (Step 5), y deteccion
-        # NVIDIA en runtime.
-        if os.path.exists("/usr/bin/Hyprland") or os.path.exists("/usr/local/bin/Hyprland"):
-            self._write_hyprland_config()
-            # Ocultar la sesion "Hyprland (uwsm-managed)" del greeter: requiere
-            # uwsm (no instalado, no lo necesitamos — arrancamos DMS via exec-once
-            # directo). Sin esto, greetd muestra dos sesiones y la uwsm falla.
+        # Ocultar la sesion "Hyprland (uwsm-managed)" del greeter: requiere
+        # uwsm (no instalado, no lo necesitamos). Sin esto, greetd muestra
+        # dos sesiones y la uwsm falla.
+        if os.path.exists("/usr/bin/Hyprland") or \
+           os.path.exists("/usr/local/bin/Hyprland"):
             uwsm_desktop = "/usr/share/wayland-sessions/hyprland-uwsm.desktop"
             if os.path.isfile(uwsm_desktop):
                 self.runner.ui.run_cmd("remove uwsm session from greeter",
@@ -119,8 +105,16 @@ class SoftwareStep(BaseStep):
         # ── LazyVim ──
         nvim_dir = f"{home}/.config/nvim"
         if not os.path.exists(f"{nvim_dir}/init.lua"):
-            # Asegurar que ~/.config exista (git clone no crea dirs intermedios)
+            # Asegurar que ~/.config exista y sea del usuario destino:
+            # el instalador de DMS corre como root y puede dejar ~/.config
+            # root-owned; si ~/.config no existia
+            # (Step 1 salto su chown por el guard isdir, o venimos de un resume),
+            # queda root-owned y el `sudo -u <user> git clone` hacia ~/.config/nvim
+            # falla con permission denied, dejando nvim/ vacio.
             os.makedirs(f"{home}/.config", exist_ok=True)
+            if user and os.geteuid() == 0:
+                subprocess.run(["chown", "-R", f"{user}:", f"{home}/.config"],
+                               capture_output=True)
             # Backup de config/data existente
             shutil.rmtree(f"{nvim_dir}.bak", ignore_errors=True)
             if os.path.isdir(nvim_dir):
@@ -132,6 +126,9 @@ class SoftwareStep(BaseStep):
                 "git", "clone", "--depth", "1",
                 "https://github.com/LazyVim/starter", nvim_dir,
                 sudo=False)
+            if not lok:
+                log("ERROR lazyvim: git clone fallo — revisar permisos de "
+                    f"{home}/.config o red. nvim/ puede quedar vacio.")
             ok &= lok
             # Limpiar .git + asegurar ownership del usuario
             if os.path.isdir(nvim_dir):
@@ -141,42 +138,3 @@ class SoftwareStep(BaseStep):
 
         return ok
 
-    def _write_hyprland_config(self) -> None:
-        """Deploya ~/.config/hypr/hyprland.lua + dms/*.lua desde assets.
-
-        Usa el formato Lua (Hyprland 0.55+) porque DMS genera configs .lua
-        (require("dms.*")), no .conf. Mezclar formatos no funciona: source=
-        no puede cargar .lua y require() no anda en .conf.
-
-        Deploya:
-          - hyprland.lua (config principal con env Qt, NVIDIA runtime detect,
-            exec-once dms run, require("dms.*"), keyboard latam)
-          - dms/*.lua (7 modulos: binds, colors, layout, outputs, cursor,
-            windowrules, binds-user — pre-stageados desde templates de DMS)
-
-        Migracion .conf -> .lua: si existe hyprland.conf viejo, se backupea
-        a hyprland.conf.bak (hyprland.lua tiene precedencia sobre .conf).
-        """
-        user = TARGET_USER
-        home = TARGET_HOME
-        hypr_dir = f"{home}/.config/hypr"
-        hypr_lua = f"{hypr_dir}/hyprland.lua"
-        hypr_conf = f"{hypr_dir}/hyprland.conf"
-        dms_dest = f"{hypr_dir}/dms"
-        os.makedirs(hypr_dir, exist_ok=True)
-
-        # Deployar hyprland.lua desde el template (sobreescribe: es config managed)
-        if os.path.isfile(HYPR_LUA_SRC):
-            shutil.copy(HYPR_LUA_SRC, hypr_lua)
-
-        # Deployar dms/*.lua (7 modulos pre-stageados). dirs_exist_ok permite
-        # sobreescribir en re-runs sin error.
-        if os.path.isdir(HYPR_DMS_DIR):
-            shutil.copytree(HYPR_DMS_DIR, dms_dest, dirs_exist_ok=True)
-
-        # Migracion: backupear hyprland.conf viejo si existe (.lua tiene precedencia)
-        if os.path.isfile(hypr_conf) and not os.path.isfile(f"{hypr_conf}.bak"):
-            os.rename(hypr_conf, f"{hypr_conf}.bak")
-
-        if user and os.geteuid() == 0:
-            subprocess.run(["chown", "-R", f"{user}:", hypr_dir], check=False)

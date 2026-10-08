@@ -85,17 +85,9 @@ class PreparationStep(BaseStep):
                 "https://ppa.floorp.app/Floorp.list",
                 sudo=True)
 
-        # DMS (PPAs avengemedia: danklinux = dependencias, dms = shell)
-        if subprocess.run(["grep", "-rqsF", "avengemedia/danklinux",
-                           "/etc/apt/sources.list.d/"],
-                          capture_output=True).returncode != 0:
-            ok &= self.runner.ui.run_cmd("add danklinux PPA",
-                "add-apt-repository", "-y", "ppa:avengemedia/danklinux", sudo=True)
-        if subprocess.run(["grep", "-rqsF", "avengemedia/dms",
-                           "/etc/apt/sources.list.d/"],
-                          capture_output=True).returncode != 0:
-            ok &= self.runner.ui.run_cmd("add dms PPA",
-                "add-apt-repository", "-y", "ppa:avengemedia/dms", sudo=True)
+        # DMS/Hyprland: ya NO se agregan PPAs (avengemedia/danklinux, dms).
+        # El instalador headless oficial de DMS (Step 2, packages.py) gestiona
+        # sus propios repos y paquetes.
 
         # ── Actualizar paquetes (absorbe todos los repos) ──
         ok &= self.runner.ui.run_cmd("nala update",
@@ -121,12 +113,25 @@ class PreparationStep(BaseStep):
             "timedatectl", "set-timezone", "America/Mazatlan", sudo=True)
 
         # ── Locale ──
-        result = subprocess.run(["locale", "-a"], capture_output=True, text=True)
-        if "es_MX.utf8" not in result.stdout:
+        # Genera es_MX.UTF-8 si falta (idempotente + fallback: append a
+        # locale.gen si la linea no viene en instalaciones minimas/server).
+        # Setea LANG + LANGUAGE SIEMPRE (no solo al generar): sin LANGUAGE,
+        # apps GNOME/gettext como Nautilus caen a ingles aunque LANG=es_MX.
+        # Antes el update-locale estaba dentro del `if` y solo seteaba LANG,
+        # por eso Nautilus quedaba en ingles en re-runs.
+        target_locale = "es_MX.UTF-8"
+        la = subprocess.run(["locale", "-a"], capture_output=True, text=True).stdout.lower()
+        have = any("es_mx" in tok and "utf" in tok for tok in la.split())
+        if not have:
             self.runner.ui.run_cmd("locale-gen", "bash", "-c",
-                "sed -i 's/^# *es_MX\\.UTF-8 UTF-8/es_MX.UTF-8 UTF-8/' "
-                "/etc/locale.gen && locale-gen", sudo=True)
-            self.runner.ui.run_cmd("update-locale",
-                "update-locale", "LANG=es_MX.UTF-8", sudo=True)
+                f"sed -i 's/^# *{target_locale} UTF-8/{target_locale} UTF-8/' "
+                f"/etc/locale.gen; "
+                f"grep -q '^{target_locale} UTF-8' /etc/locale.gen || "
+                f"echo '{target_locale} UTF-8' >> /etc/locale.gen; "
+                f"locale-gen",
+                sudo=True)
+        self.runner.ui.run_cmd("update-locale",
+            "update-locale", f"LANG={target_locale}", "LANGUAGE=es_MX:es",
+            sudo=True)
 
         return ok

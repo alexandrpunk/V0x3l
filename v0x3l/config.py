@@ -49,9 +49,11 @@ DOTFILES_MAP = {
     "tmux": ".config/tmux",
 }
 
-# Hyprland config (Lua) — deployado por _write_hyprland_config, no por DOTFILES_MAP
-HYPR_LUA_SRC = str(DOTFILES_DIR / "hypr" / "hyprland.lua")
-HYPR_DMS_DIR = str(DOTFILES_DIR / "hypr" / "dms")
+# Hyprland config: la gestiona el instalador oficial de DankLinux (Step 5),
+# ya no se deploya desde assets.
+# DMS (DankMaterialShell) app settings — fuentes. Deploy no destructivo por
+# _apply_dms_fonts (merge solo las keys de fonts en ~/.config/DankMaterialShell/settings.json).
+DMS_FONTS_SRC = str(DOTFILES_DIR / "dms" / "settings.fonts.json")
 ASCII_FILE = BASE_DIR / "ascii.sh"
 PALETTE_FILE = BASE_DIR / "collorPalette"
 

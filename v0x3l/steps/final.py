@@ -1,10 +1,12 @@
 # Step 5: Entorno — DMS (DankMaterialShell)
 # (La instalacion de Hyprland se movio al Step 2: v0x3l/steps/packages.py)
 
+import json
 import os
 import subprocess
 from v0x3l.steps.base import BaseStep
-from v0x3l.config import TARGET_USER
+from v0x3l.config import TARGET_USER, TARGET_HOME, DMS_FONTS_SRC
+from v0x3l.shell import log
 
 
 class DesktopStep(BaseStep):
@@ -16,52 +18,40 @@ class DesktopStep(BaseStep):
         success = True
         user = TARGET_USER
 
-        # ── DMS (DankMaterialShell, repos agregados en Step 0) ──────
-        # dms trae quickshell como dependencia; el greeter y los companeros
-        # son opt-in y se anaden explicitamente.
+        # ── DMS (DankMaterialShell) via instalador oficial ──────
+        # Skip idempotente si ya esta instalado (dpkg -s dms).
         dms_installed = subprocess.run(
             ["dpkg", "-s", "dms"],
             capture_output=True,
         ).returncode == 0
 
         if not dms_installed:
-            # Install DMS + ecosistema (dms trae quickshell como dep)
+            # ── Instalador oficial DMS (manual: Managing Your Installation) ──
+            # Reemplaza el flujo manual (nala install dms + dms-greeter +
+            # "dms greeter install"). El script oficial instala DMS con el
+            # compositor (-c hyprland), la terminal (-t kitty), deps
+            # optativas (--include-deps dms-greeter) y reemplaza la config
+            # de Hyprland (--replace-configs hyprland) para que DMS la
+            # gestione. -y para no-interactivo.
             ok = self.runner.ui.run_cmd(
-                "Installing DMS ecosystem",
-                "nala", "install", "-y",
-                "dms",            # el shell (trae quickshell)
-                "dms-greeter",    # greeter para greetd (login)
-                "dgop",           # telemetria CPU/GPU para widgets
-                "matugen",        # temas dinamicos Material
-                "cliphist",       # historial de portapapeles
-                "danksearch",     # busqueda en el lanzador
+                "Installing DMS via official installer",
+                "bash", "-c",
+                'sudo -v && curl -fsSL https://install.danklinux.com | '
+                'sh -s -- -c hyprland -t kitty --include-deps dms-greeter '
+                '--replace-configs-all -y',
                 sudo=True,
             )
             if not ok:
                 success = False
 
-            # ── dms greeter: configurar greetd como pantalla de login ──
-            # Instala greetd, lo configura y deshabilita gdm/sddm/lightdm/
-            # lxdm/xdm. No-interactivo (--yes). Best-effort: si falla no rompe
-            # el step (los paquetes ya estan; el usuario puede re-correrlo).
-            if ok:
-                self.runner.ui.run_cmd(
-                    "Configuring dms greeter (greetd)",
-                    "dms", "greeter", "install", "--yes",
-                    sudo=True,
-                )
-
             # ── Permisos para DMS ──
-            # Los configs de Hyprland (hyprland.lua + dms/*.lua) ya se deployan
-            # en Step 2 desde assets (pre-stageados). Aca solo aseguramos
-            # permisos y el grupo input (Caps Lock OSD).
+            # Los configs ya los deploya el instalador oficial; aca solo
+            # aseguramos permisos de ~/.config y el grupo input (Caps Lock
+            # OSD).
             if ok and user:
                 home = os.path.expanduser(f"~{user}")
                 ok &= self.runner.ui.run_cmd("fix ~/.config owner",
                     "chown", "-R", f"{user}:", f"{home}/.config", sudo=True)
-                # grupo input (Caps Lock OSD): el bare 'dms setup' lo anade
-                # via ensureInputGroup; como no corremos dms setup, lo hacemos
-                # a mano.
                 ok &= self.runner.ui.run_cmd("add input group",
                     "usermod", "-aG", "input", user, sudo=True)
         else:
@@ -95,4 +85,60 @@ class DesktopStep(BaseStep):
                 "dms-disable-svc", user, sudo=True,
             )
 
+        # ── Fuentes de DMS (merge no destructivo en settings.json) ──
+        # Aplica fontFamily/monoFontFamily del fragmento en assets sin pisar
+        # el resto de la config de DMS (bar configs, colores, ...). Idempotente.
+        self._apply_dms_fonts()
+
         return success
+
+    def _apply_dms_fonts(self) -> None:
+        """Aplica las fuentes de UI/mono al settings.json de DMS.
+
+        Lee el fragmento assets/dotfiles/dms/settings.fonts.json y hace un
+        MERGE NO DESTRUCTIVO en ~/.config/DankMaterialShell/settings.json:
+        sobreescribe solo las keys de fuentes (fontFamily, monoFontFamily,
+        fontWeight, fontScale) y preserva todo lo demas. Si el archivo no
+        existe (DMS aun no corrio), lo crea con las fonts + configVersion 12
+        para que DMS lo cargue respetando las fuentes al primer arranque.
+        """
+        home = TARGET_HOME
+        user = TARGET_USER
+        dms_cfg_dir = f"{home}/.config/DankMaterialShell"
+        settings_path = f"{dms_cfg_dir}/settings.json"
+
+        if not os.path.isfile(DMS_FONTS_SRC):
+            log(f"WARN dms fonts: falta el fragmento {DMS_FONTS_SRC} — no se aplicaron fonts")
+            return
+
+        try:
+            with open(DMS_FONTS_SRC) as f:
+                fonts = json.load(f)
+            # descartar metadatos internos (p.ej. _comment) antes de mergear
+            fonts = {k: v for k, v in fonts.items() if not k.startswith("_")}
+        except (json.JSONDecodeError, OSError) as e:
+            log(f"ERROR dms fonts: fragmento invalido {DMS_FONTS_SRC}: {e}")
+            return
+
+        existed = os.path.isfile(settings_path)
+        settings = {}
+        if existed:
+            try:
+                with open(settings_path) as f:
+                    settings = json.load(f)
+            except (json.JSONDecodeError, OSError):
+                settings = {}
+
+        settings.update(fonts)
+        # Al crear de nuevo, fijar configVersion actual para que DMS no trate
+        # el archivo como legacy y lo regenere pisando las fonts.
+        if not existed and "configVersion" not in settings:
+            settings["configVersion"] = 12
+
+        os.makedirs(dms_cfg_dir, exist_ok=True)
+        with open(settings_path, "w") as f:
+            json.dump(settings, f, indent=2)
+
+        if user and os.geteuid() == 0:
+            subprocess.run(["chown", "-R", f"{user}:", dms_cfg_dir], capture_output=True)
+        log(f"dms fonts aplicadas: {fonts} -> {settings_path}")
