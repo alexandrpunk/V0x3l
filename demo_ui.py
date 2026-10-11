@@ -62,13 +62,13 @@ class DemoApp:
         self.exec_screen: ExecutionScreen | None = None
         self.progress = None
         self.spinner_handle = None
-        self.simulator_handle = None
 
     def run(self):
         import asyncio
         try:
             ev = urwid.AsyncioEventLoop(loop=asyncio.new_event_loop())
-        except Exception:
+        except Exception as e:
+            print(f"Loop error: {e}")
             ev = None
 
         banner_text = get_banner_text()
@@ -151,7 +151,7 @@ class DemoApp:
         if self.spinner_handle:
             try:
                 self.loop.remove_alarm(self.spinner_handle)
-            except Exception:
+            except ValueError:
                 pass
             self.spinner_handle = None
 
@@ -192,7 +192,7 @@ class DemoApp:
         if self.spinner_handle:
             try:
                 self.loop.remove_alarm(self.spinner_handle)
-            except Exception:
+            except ValueError:
                 pass
             self.spinner_handle = None
 
@@ -212,7 +212,8 @@ class DemoApp:
         msg = "Instalacion completada!\n\n"
         for line in SUMMARY_LINES:
             msg += f"  {line}\n"
-        msg += f"\n  Log: /tmp/v0x3l.log"
+        from v0x3l.config import LOG_FILE
+        msg += f"\n  Log: {LOG_FILE}"
         self._show_msg(msg, "V0x3l - Listo!")
 
     def _show_msg(self, text, title="V0x3l"):

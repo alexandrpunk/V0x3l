@@ -1,7 +1,6 @@
 # ExecutionScreen - pantalla dividida: pasos (izquierda) + output (derecha)
 
 import urwid
-from v0x3l.config import TOTAL_STEPS
 from v0x3l.ui.steps_list import StepsList
 
 

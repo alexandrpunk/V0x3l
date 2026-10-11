@@ -14,7 +14,8 @@ from v0x3l.shell import log
 def ensure_urwid() -> bool:
     """Verifica que urwid este instalado, si no lo instala via apt."""
     try:
-        import urwid  # noqa: F401
+        import urwid  # noqa: F401 - probe de disponibilidad
+
         return True
     except ImportError:
         pass
@@ -25,11 +26,11 @@ def ensure_urwid() -> bool:
             ["apt", "install", "-y", "python3-urwid"],
             check=True, capture_output=True, text=True
         )
-        import urwid  # noqa: F401
+        import urwid  # noqa: F401 - verifica que apt lo dejo importable
         print("  [OK]  python3-urwid instalado")
         return True
-    except Exception:
-        pass
+    except (subprocess.CalledProcessError, ImportError, OSError):
+        print("  [ERR] Fallo la instalacion de python3-urwid: apt o import fallaron")
 
     print("  [ERR] No se pudo instalar python3-urwid.")
     print("  [ERR] Ejecuta manualmente: sudo apt install python3-urwid")
@@ -89,7 +90,7 @@ def _check_system() -> bool:
             return False
         log(f"Sistema detectado: Ubuntu {version}")
         return True
-    except Exception as e:
+    except (OSError, ValueError) as e:
         log(f"ERROR: No se pudo detectar el sistema: {e}")
         return False
 

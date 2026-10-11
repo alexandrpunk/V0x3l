@@ -1,8 +1,8 @@
 -- DMS default keybinds (Hyprland 0.55+ Lua)
--- V0x3l pre-stage: copiado desde el template de DMS, {{TERMINAL_COMMAND}} -> foot.
+-- V0x3l pre-stage: copiado desde el template de DMS, {{TERMINAL_COMMAND}} -> kitty.
 
 -- === Application Launchers ===
-hl.bind("SUPER + T", hl.dsp.exec_cmd("foot"))
+hl.bind("SUPER + T", hl.dsp.exec_cmd("kitty"))
 hl.bind("SUPER + space", hl.dsp.exec_cmd("dms ipc call spotlight toggle"))
 hl.bind("ALT + space", hl.dsp.exec_cmd("dms ipc call spotlight-bar toggle"))
 hl.bind("SUPER + V", hl.dsp.exec_cmd("dms ipc call clipboard toggle"))

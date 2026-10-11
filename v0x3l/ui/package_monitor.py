@@ -19,7 +19,6 @@ class PackageMonitor:
         self.speed: str = "--"
         self.percentage: int = 0
         self.downloaded: str = "0 MB"
-        self.total_download: str = "--"
         self.start_time = datetime.now()
         self.last_lines: list[str] = []
 
@@ -80,28 +79,28 @@ class PackageMonitor:
             self.last_lines.pop(0)
 
         # Progreso porcentual: "45%" o "[45%]"
-        m = re.search(r"(\d+)%", line)
-        if m:
-            pct = int(m.group(1))
+        match = re.search(r"(\d+)%", line)
+        if match:
+            pct = int(match.group(1))
             if pct > self.percentage:
                 self.percentage = pct
                 self.progress_bar.set_completion(pct)
 
         # Contador de paquetes: "Get:1 http://..." o "(45/77)"
-        m = re.search(r"\((\d+)/(\d+)\)", line)
-        if m:
-            self.current_package = max(self.current_package, int(m.group(1)))
-            self.total_packages = max(self.total_packages, int(m.group(2)))
+        match = re.search(r"\((\d+)/(\d+)\)", line)
+        if match:
+            self.current_package = max(self.current_package, int(match.group(1)))
+            self.total_packages = max(self.total_packages, int(match.group(2)))
 
         # Velocidad de descarga
-        m = re.search(r"([\d.]+ [KMGT]B/s)", line)
-        if m:
-            self.speed = m.group(1)
+        match = re.search(r"([\d.]+ [KMGT]B/s)", line)
+        if match:
+            self.speed = match.group(1)
 
         # Tamaño total descargado: "Fetched 45.8 MB in 12s (3.8 MB/s)"
-        m = re.search(r"Fetched ([\d.]+ [KMGT]B) in", line)
-        if m:
-            self.downloaded = m.group(1)
+        match = re.search(r"Fetched ([\d.]+ [KMGT]B) in", line)
+        if match:
+            self.downloaded = match.group(1)
 
         # Paquete actual
         for keyword in ("Get:", "Unpacking", "Setting"):

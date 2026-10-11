@@ -1,7 +1,7 @@
 # Dialogos de la UI (confirmacion, input, mensajes)
 
 import urwid
-from typing import Callable, Optional
+from typing import Callable
 
 
 def _make_dialog(pile_body, title: str) -> urwid.LineBox:
@@ -18,7 +18,7 @@ def _make_dialog(pile_body, title: str) -> urwid.LineBox:
 
 
 def confirm_dialog(title: str, message: str, on_yes: Callable,
-                   on_no: Optional[Callable] = None):
+                   on_no: Callable | None = None):
     """Dialogo de confirmacion Si/No."""
     body = [
         urwid.Text(""),
@@ -37,7 +37,7 @@ def confirm_dialog(title: str, message: str, on_yes: Callable,
 
 
 def input_dialog(title: str, prompt: str, on_submit: Callable,
-                 on_cancel: Optional[Callable] = None):
+                 on_cancel: Callable | None = None):
     """Dialogo de entrada de texto."""
     edit = urwid.Edit(f"  {prompt}: ")
     body = [

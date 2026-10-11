@@ -1,7 +1,6 @@
 # Pantalla de progreso durante la ejecucion de pasos
 
 import urwid
-from typing import Optional
 from v0x3l.ui.package_monitor import PackageMonitor
 
 
@@ -9,7 +8,7 @@ class ProgressScreen:
     """Muestra el progreso de un paso con spinner y salida en vivo."""
 
     def __init__(self, step_num: int, total: int, title: str):
-        self._pkg_monitor: Optional[PackageMonitor] = None
+        self._pkg_monitor: PackageMonitor | None = None
 
         self.spinner_frames = ["\u28fe", "\u28fd", "\u28fb", "\u28bf",
                                "\u28df", "\u28f7", "\u28ef", "\u28df"]
@@ -35,17 +34,19 @@ class ProgressScreen:
         ])
         self.widget = self.pile
 
-    def use_package_monitor(self):
+    def use_package_monitor(self) -> None:
         self._pkg_monitor = PackageMonitor()
         pkg_widget = self._pkg_monitor.get_widget()
         panel = urwid.Padding(
-            urwid.LineBox(pkg_widget,
-                          title=" \u25C6 Paquetes ",
-                          title_align="center",
-                          tlcorner="\u2554", trcorner="\u2557",
-                          blcorner="\u255A", brcorner="\u255D",
-                          tline="\u2550", bline="\u2550",
-                          lline="\u2551", rline="\u2551"),
+            urwid.LineBox(
+                pkg_widget,
+                title=" \u25C6 Paquetes ",
+                title_align="center",
+                tlcorner="\u2554", trcorner="\u2557",
+                blcorner="\u255A", brcorner="\u255D",
+                tline="\u2550", bline="\u2550",
+                lline="\u2551", rline="\u2551"
+            ),
             left=2, right=2
         )
         self.pile.contents[6] = (panel, ("weight", 1))

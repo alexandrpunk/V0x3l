@@ -31,11 +31,12 @@ class PerformanceStep(BaseStep):
         lspci = subprocess.run(
             ["lspci", "-nn"], capture_output=True, text=True
         ).stdout.lower()
-        gpu_lines = [l for l in lspci.splitlines()
-                     if any(x in l for x in ("vga", "3d", "display"))]
+        gpu_lines = [line for line in lspci.splitlines()
+                     if any(tok in line for tok in ("vga", "3d", "display"))]
 
-        has_nvidia = any("nvidia" in l for l in gpu_lines)
-        has_intel = any("intel" in l for l in gpu_lines)
+
+        has_nvidia = any("nvidia" in line for line in gpu_lines)
+        has_intel = any("intel" in line for line in gpu_lines)
 
         if not has_nvidia:
             os.environ["HAS_NVIDIA_GPU"] = "0"

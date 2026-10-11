@@ -26,13 +26,6 @@ class DesktopStep(BaseStep):
         ).returncode == 0
 
         if not dms_installed:
-            # ── Instalador oficial DMS (manual: Managing Your Installation) ──
-            # Reemplaza el flujo manual (nala install dms + dms-greeter +
-            # "dms greeter install"). El script oficial instala DMS con el
-            # compositor (-c hyprland), la terminal (-t kitty), deps
-            # optativas (--include-deps dms-greeter) y reemplaza la config
-            # de Hyprland (--replace-configs hyprland) para que DMS la
-            # gestione. -y para no-interactivo.
             ok = self.runner.ui.run_cmd(
                 "Installing DMS via official installer",
                 "bash", "-c",
@@ -45,9 +38,6 @@ class DesktopStep(BaseStep):
                 success = False
 
             # ── Permisos para DMS ──
-            # Los configs ya los deploya el instalador oficial; aca solo
-            # aseguramos permisos de ~/.config y el grupo input (Caps Lock
-            # OSD).
             if ok and user:
                 home = os.path.expanduser(f"~{user}")
                 ok &= self.runner.ui.run_cmd("fix ~/.config owner",
@@ -58,15 +48,6 @@ class DesktopStep(BaseStep):
             self.runner.ui.run_cmd("dms already installed — skipping", "true")
 
         # ── Deshabilitar systemd service de DMS ──
-        # La doc de DMS (Managing Your Installation) dice explicitamente:
-        # "Hyprland, Sway, MangoWC, and Miracle WM don't have systemd session
-        #  targets. If you use multiple desktop environments and only want DMS
-        #  on one of them, disable the systemd unit and start DMS from your
-        #  compositor config instead."
-        #
-        # En Step 2 deployamos hyprland.lua con `hl.exec_cmd("dms run")` en el
-        # startup, asi que aca deshabilitamos el systemd service para evitar
-        # doble inicio. Corre SIEMPRE (fresh + re-run).
         if user:
             self.runner.ui.run_cmd(
                 "Disable dms systemd service (Hyprland uses exec-once)",
@@ -74,10 +55,6 @@ class DesktopStep(BaseStep):
                 'uid=$(id -u "$1"); '
                 'loginctl enable-linger "$1" 2>/dev/null || true; '
                 'systemctl start "user@$uid" 2>/dev/null || true; '
-                # XDG_RUNTIME_DIR + DBUS_SESSION_BUS_ADDRESS son obligatorios
-                # para que systemctl --user conecte al user instance via runuser.
-                # Sin esto, el disable falla silenciosamente y dms.service
-                # queda enabled+inactive (reportado por dms doctor).
                 'export XDG_RUNTIME_DIR="/run/user/$uid"; '
                 'export DBUS_SESSION_BUS_ADDRESS="unix:path=/run/user/$uid/bus"; '
                 'runuser -u "$1" -- systemctl --user daemon-reload 2>/dev/null; '
@@ -86,22 +63,12 @@ class DesktopStep(BaseStep):
             )
 
         # ── Fuentes de DMS (merge no destructivo en settings.json) ──
-        # Aplica fontFamily/monoFontFamily del fragmento en assets sin pisar
-        # el resto de la config de DMS (bar configs, colores, ...). Idempotente.
         self._apply_dms_fonts()
 
         return success
 
     def _apply_dms_fonts(self) -> None:
-        """Aplica las fuentes de UI/mono al settings.json de DMS.
-
-        Lee el fragmento assets/dotfiles/dms/settings.fonts.json y hace un
-        MERGE NO DESTRUCTIVO en ~/.config/DankMaterialShell/settings.json:
-        sobreescribe solo las keys de fuentes (fontFamily, monoFontFamily,
-        fontWeight, fontScale) y preserva todo lo demas. Si el archivo no
-        existe (DMS aun no corrio), lo crea con las fonts + configVersion 12
-        para que DMS lo cargue respetando las fuentes al primer arranque.
-        """
+        """Aplica las fuentes de UI/mono al settings.json de DMS."""
         home = TARGET_HOME
         user = TARGET_USER
         dms_cfg_dir = f"{home}/.config/DankMaterialShell"
@@ -114,7 +81,6 @@ class DesktopStep(BaseStep):
         try:
             with open(DMS_FONTS_SRC) as f:
                 fonts = json.load(f)
-            # descartar metadatos internos (p.ej. _comment) antes de mergear
             fonts = {k: v for k, v in fonts.items() if not k.startswith("_")}
         except (json.JSONDecodeError, OSError) as e:
             log(f"ERROR dms fonts: fragmento invalido {DMS_FONTS_SRC}: {e}")
@@ -130,8 +96,6 @@ class DesktopStep(BaseStep):
                 settings = {}
 
         settings.update(fonts)
-        # Al crear de nuevo, fijar configVersion actual para que DMS no trate
-        # el archivo como legacy y lo regenere pisando las fonts.
         if not existed and "configVersion" not in settings:
             settings["configVersion"] = 12
 

@@ -1,7 +1,6 @@
 # Layout principal con Frame (header + body + footer)
-
 import urwid
-from v0x3l.config import VERSION, PROJECT_NAME
+from v0x3l.config import VERSION, PROJECT_NAME, LOG_FILE
 
 
 class V0x3lLayout:
@@ -59,7 +58,7 @@ class V0x3lLayout:
 
     def show_execution(self, widget):
         self.set_header("Ejecutando")
-        self.set_footer("Q Cancelar \u2502 Log: /tmp/v0x3l.log")
+        self.set_footer(f"Q Cancelar \u2502 Log: {LOG_FILE}")
         self.set_body(widget)
 
     def show_result(self, ok: bool, msg: str):

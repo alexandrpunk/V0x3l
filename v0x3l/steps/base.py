@@ -20,4 +20,4 @@ class BaseStep(ABC):
     @abstractmethod
     def run(self) -> bool:
         """Ejecuta el paso. Retorna True si fue exitoso."""
-        ...
+        raise NotImplementedError

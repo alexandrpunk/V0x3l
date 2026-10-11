@@ -1,7 +1,10 @@
 # V0x3l App - urwid event loop y logica principal
 
 import os
+import shutil
+import subprocess
 import sys
+import time
 import urwid
 from v0x3l.config import PALETTE, TOTAL_STEPS, VERSION, LOG_FILE, PROJECT_NAME, TARGET_HOME
 from v0x3l.shell import run, log
@@ -51,8 +54,6 @@ class V0x3lApp:
         Detiene la pantalla raw de urwid, ejecuta el comando con stdin/stdout
         heredados del terminal, y restaura urwid al terminar.
         """
-        import subprocess
-        import time
         # Mostrar mensaje antes de liberar el terminal
         if self.current_progress:
             self.current_progress.show_command("Liberando terminal para comando interactivo...")
@@ -116,7 +117,7 @@ class V0x3lApp:
         if not sys.stdin.isatty():
             try:
                 sys.stdin = open("/dev/tty", "r")
-            except Exception:
+            except OSError:
                 pass
         print()
         while True:
@@ -296,8 +297,6 @@ class V0x3lApp:
 
     def _show_error(self, failed_step: int):
         """Muestra dialogo de error cuando un paso falla."""
-        import shutil
-        from v0x3l.config import LOG_FILE
 
         # Copiar log al home del usuario
         home_dir = TARGET_HOME
@@ -305,7 +304,7 @@ class V0x3lApp:
 
         try:
             shutil.copy(LOG_FILE, log_dest)
-        except Exception:
+        except OSError:
             log_dest = LOG_FILE
 
         msg = (f"\n  Error en paso {failed_step}\n\n"

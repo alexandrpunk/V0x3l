@@ -7,34 +7,6 @@ from datetime import datetime
 from typing import Optional, Callable
 from v0x3l.config import LOG_FILE
 
-INSTALL_COMMANDS = (
-    "nala install",
-    "nala update",
-    "nala upgrade",
-    "apt install",
-    "apt-get install",
-    "flatpak install",
-)
-
-
-def log(msg: str) -> None:
-    """Escribe un mensaje al archivo de log con timestamp."""
-    ts = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-    try:
-        with open(LOG_FILE, "a") as f:
-            f.write(f"[{ts}] {msg}\n")
-    except OSError:
-        pass
-
-
-def is_package_install(args: tuple) -> bool:
-    """Detecta si el comando es de instalacion de paquetes."""
-    cmd_str = " ".join(str(a) for a in args)
-    for kw in INSTALL_COMMANDS:
-        if kw in cmd_str:
-            return True
-    return False
-
 
 def run(
     description: str,
@@ -107,6 +79,6 @@ def run(
     except FileNotFoundError:
         log(f"NOT_FOUND: {args[0] if args else '?'} - comando no encontrado")
         return False
-    except Exception as e:
+    except OSError as e:
         log(f"ERROR: {e}")
         return False

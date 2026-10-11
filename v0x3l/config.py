@@ -45,7 +45,7 @@ DOTFILES_DIR = ASSETS_DIR / "dotfiles"
 
 # Mapeo de dotfiles: nombre en assets/dotfiles/ -> ruta destino relativa a $HOME
 DOTFILES_MAP = {
-    "foot.config": ".config/foot/foot.ini",
+    "kitty": ".config/kitty",
     "tmux": ".config/tmux",
 }
 
@@ -88,7 +88,8 @@ def _resolve_target_user() -> str:
         user = result.stdout.strip()
         if user and user != "root":
             return user
-    except Exception:
+    except (OSError, subprocess.TimeoutExpired):
+        # logname fallo: seguir con el siguiente fallback (getpass)
         pass
     user = getpass.getuser()
     if user == "root":
@@ -104,7 +105,6 @@ TOTAL_STEPS = 5
 
 # ── Cargar paleta de colores ──
 
-PALETTE_FILE = BASE_DIR / "collorPalette"
 
 def load_palette(path: Path) -> list:
     palette = []

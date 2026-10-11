@@ -25,7 +25,7 @@ class SoftwareStep(BaseStep):
             "nautilus", "gvfs-backends", "gvfs-fuse", "udisks2", "polkitd",
             "ntfs-3g", "exfatprogs", "libglib2.0-bin",
             "neovim", "tmux", "fastfetch", "geany",
-            "nwg-look", "foot", "dialog", "apt-utils",
+            "nwg-look", "dialog", "apt-utils",
             "libheif-plugin-libde265", "ufw", "gnome-sushi", "xdg-user-dirs",
             "pipewire", "wireplumber", "libpipewire-0.3-0",
             "libwireplumber-0.5-0",

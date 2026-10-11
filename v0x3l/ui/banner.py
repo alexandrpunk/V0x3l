@@ -2,9 +2,8 @@
 
 import subprocess
 from pathlib import Path
-from v0x3l.config import BASE_DIR
+from v0x3l.config import BASE_DIR, ASCII_FILE
 
-ASCII_FILE = BASE_DIR / "ascii.sh"
 LOGO_PNG = BASE_DIR / "logo.png"
 LOGO_SVG = BASE_DIR / "logo.svg"
 
@@ -77,7 +76,7 @@ def _try_pillow(target_width: int = 60) -> str | None:
             return "\n".join(lines)
         return None
 
-    except Exception:
+    except (OSError, ValueError):
         return None
 
 
@@ -90,7 +89,7 @@ def _try_ascii_sh() -> str | None:
         )
         if result.returncode == 0 and result.stdout.strip():
             return result.stdout
-    except Exception:
+    except (subprocess.SubprocessError, OSError):
         pass
     return None
 
