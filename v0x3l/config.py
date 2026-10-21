@@ -34,7 +34,7 @@ CHECKPOINT_FILE = env("CHECKPOINT_FILE", "/tmp/v0x3l-progress")
 
 # ── Repo ──
 REPO_URL = env("REPO_URL", "https://github.com/alexandrpunk/V0x3l.git")
-REPO_BRANCH = env("REPO_BRANCH", "development")
+REPO_BRANCH = env("REPO_BRANCH", "optimizacion")
 
 # ── Rutas del proyecto ──
 ASSETS_DIR = BASE_DIR / "assets"
