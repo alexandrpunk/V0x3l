@@ -2,6 +2,7 @@
 
 import os
 import subprocess
+from v0x3l.shell import log
 
 from v0x3l.steps.base import BaseStep
 from v0x3l.config import TARGET_USER
@@ -40,26 +41,36 @@ class SoftwareStep(BaseStep):
 
         # ── DMS (DankMaterialShell) via DankInstall oficial ──
         # Docs: https://danklinux.com/docs/dankinstall
-        # Instalacion completa desatendida: Hyprland + kitty + todos los
-        # accesorios (--all-features: dms-greeter, danksearch, dankcalendar).
-        # Sin --replace-configs: no pisa configs existentes del usuario
-        # (los que faltan si se deployan). Skip idempotente si dms ya esta.
+        # Instalacion desatendida: Hyprland + kitty + dms-greeter,
+        # reemplazando todas las configs del usuario (--replace-configs-all).
+        # Skip idempotente si dms ya esta.
+        #
+        # IMPORTANTE: el wrapper de install.danklinux.com aborta con
+        # "This script must not be run as root", y el binario dankinstall
+        # eleva con sudo por su cuenta (necesita TTY para la contrasena).
+        # Por eso se corre como TARGET_USER con terminal real (run_raw_cmd),
+        # NO como root ni con sudo=True.
         dms_installed = subprocess.run(
             ["dpkg", "-s", "dms"],
             capture_output=True,
         ).returncode == 0
 
-        if not dms_installed:
-            ok &= self.runner.ui.run_cmd(
-                "DankInstall (hyprland + kitty + all features)",
-                "bash", "-c",
+        if not dms_installed and not TARGET_USER:
+            log("ERROR dms: no se pudo resolver el usuario destino "
+                "(SUDO_USER/logname); saltando DankInstall")
+            ok = False
+        elif not dms_installed:
+            # Terminal real: urwid se libera para que dankinstall pueda
+            # pedir la contrasena de sudo del usuario.
+            ok &= self.runner.ui.run_raw_cmd(
+                "sudo", "-u", TARGET_USER, "-H", "bash", "-c",
                 "sudo -v && curl -fsSL https://install.danklinux.com | "
-                "sh -s -- -c hyprland -t kitty --all-features -y",
-                sudo=True,
+                "sh -s -- -c hyprland -t kitty --dms-greeter "
+                "--replace-configs-all -y",
             )
 
             # ── Permisos para DMS ──
-            if ok and TARGET_USER:
+            if ok:
                 home = os.path.expanduser(f"~{TARGET_USER}")
                 ok &= self.runner.ui.run_cmd("fix ~/.config owner",
                     "chown", "-R", f"{TARGET_USER}:", f"{home}/.config",
