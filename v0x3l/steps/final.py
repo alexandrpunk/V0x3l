@@ -65,44 +65,31 @@ class DesktopStep(BaseStep):
         user = TARGET_USER
         home = TARGET_HOME
 
-        zsh_path = subprocess.run(
-            ["which", "zsh"], capture_output=True, text=True
-        ).stdout.strip()
-        if zsh_path:
-            ok &= self.runner.ui.run_cmd("chsh",
-                "chsh", "-s", zsh_path, user, sudo=True)
-
-        if not os.path.exists(f"{home}/.oh-my-zsh"):
-            ok &= self.runner.ui.run_cmd("install ohmyzsh",
-                "sudo", "-u", user, "-H", "bash", "-c",
-                'sh -c "$(curl -fsSL '
-                'https://raw.githubusercontent.com/ohmyzsh/ohmyzsh/master/'
-                'tools/install.sh)" "" --unattended && '
-                f'sed -i \"s/^ZSH_THEME=.*/ZSH_THEME=\\"agnoster\\"/\" '
-                f'{home}/.zshrc',
-                sudo=False)
-
         # ── LazyVim ──
         nvim_dir = f"{home}/.config/nvim"
         if not os.path.exists(f"{nvim_dir}/init.lua"):
-            # Asegurar que ~/.config exista y sea del usuario destino:
-            # el instalador de DMS corre como root y puede dejar ~/.config
-            # root-owned; si ~/.config no existia
-            # (Step 1 salto su chown por el guard isdir, o venimos de un resume),
-            # queda root-owned y el `sudo -u <user> git clone` hacia ~/.config/nvim
-            # falla con permission denied, dejando nvim/ vacio.
+            # Asegurar ~/.config existente y del usuario destino: varios
+            # instaladores (DankInstall, dotfiles deploy, dms fonts) corren
+            # como root y pueden dejar ~/.config (o nvim/) root-owned;
+            # el clone como usuario falla con "could not create work tree
+            # dir ... Permission denied". Chown incondicional e inmediato
+            # antes del clone.
             os.makedirs(f"{home}/.config", exist_ok=True)
             if user and os.geteuid() == 0:
                 subprocess.run(["chown", "-R", f"{user}:", f"{home}/.config"],
+                               capture_output=True)
+                # chmod 755: por si quedo 0700 root o similar
+                subprocess.run(["chmod", "755", f"{home}/.config"],
                                capture_output=True)
             # Backup de config/data existente
             shutil.rmtree(f"{nvim_dir}.bak", ignore_errors=True)
             if os.path.isdir(nvim_dir):
                 shutil.move(nvim_dir, f"{nvim_dir}.bak")
-            # Clonar LazyVim starter como el usuario destino. -H setea HOME
-            # correcto para git. Sin 2>/dev/null: los errores deben verse.
+            # Clonar LazyVim starter como usuario destino con runuser
+            # (no depende de sudo ni de su env_reset; mismo patron que
+            # DankInstall docs para correr cosas como el usuario real).
             lok = self.runner.ui.run_cmd("install lazyvim",
-                "sudo", "-u", user, "-H",
+                "runuser", "-u", user, "--",
                 "git", "clone", "--depth", "1",
                 "https://github.com/LazyVim/starter", nvim_dir,
                 sudo=False)
