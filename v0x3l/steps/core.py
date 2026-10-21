@@ -56,22 +56,6 @@ class PreparationStep(BaseStep):
                 "tee /etc/apt/sources.list.d/xanmod-release.list",
                 sudo=True)
 
-        # Hyprland (PPA cppiber)
-        if not os.path.exists("/etc/apt/sources.list.d/cppiber-hyprland.list"):
-            ok &= self.runner.ui.run_cmd("hyprland key", "bash", "-c",
-                "set -o pipefail && "
-                "install -d -m 0755 /etc/apt/keyrings && "
-                "curl -fsSL 'https://keyserver.ubuntu.com/pks/lookup?op=get"
-                "&search=0xA54D23B62FF3FCC76EFF71E8FDBAAA1CF0CCF48E' | "
-                "gpg --dearmor -o /etc/apt/keyrings/cppiber-hyprland.gpg",
-                sudo=True)
-            ok &= self.runner.ui.run_cmd("hyprland repo", "bash", "-c",
-                f'echo "deb [signed-by=/etc/apt/keyrings/cppiber-hyprland.gpg] '
-                f'https://ppa.launchpadcontent.net/cppiber/hyprland/ubuntu '
-                f'{codename} main" | '
-                "tee /etc/apt/sources.list.d/cppiber-hyprland.list",
-                sudo=True)
-
         # Floorp
         if not os.path.exists("/etc/apt/sources.list.d/Floorp.list"):
             ok &= self.runner.ui.run_cmd("floorp key", "bash", "-c",
@@ -84,10 +68,6 @@ class PreparationStep(BaseStep):
                 "-o", "/etc/apt/sources.list.d/Floorp.list",
                 "https://ppa.floorp.app/Floorp.list",
                 sudo=True)
-
-        # DMS/Hyprland: ya NO se agregan PPAs (avengemedia/danklinux, dms).
-        # El instalador headless oficial de DMS (Step 2, packages.py) gestiona
-        # sus propios repos y paquetes.
 
         # ── Actualizar paquetes (absorbe todos los repos) ──
         ok &= self.runner.ui.run_cmd("nala update",

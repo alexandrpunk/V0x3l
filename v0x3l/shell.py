@@ -7,6 +7,12 @@ from datetime import datetime
 from typing import Optional, Callable
 from v0x3l.config import LOG_FILE
 
+def log(message: str) -> None:
+    """Anexa una linea al log del instalador."""
+    timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+    with open(LOG_FILE, "a") as f:
+        f.write(f"[{timestamp}] {message}\n")
+
 
 def run(
     description: str,

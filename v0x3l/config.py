@@ -49,8 +49,7 @@ DOTFILES_MAP = {
     "tmux": ".config/tmux",
 }
 
-# Hyprland config: la gestiona el instalador oficial de DankLinux (Step 5),
-# ya no se deploya desde assets.
+# Hyprland config: la gestiona el paquete dms (PPA avengemedia, Step 5),
 # DMS (DankMaterialShell) app settings — fuentes. Deploy no destructivo por
 # _apply_dms_fonts (merge solo las keys de fonts en ~/.config/DankMaterialShell/settings.json).
 DMS_FONTS_SRC = str(DOTFILES_DIR / "dms" / "settings.fonts.json")

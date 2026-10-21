@@ -3,7 +3,7 @@
 import os
 import subprocess
 from v0x3l.steps.base import BaseStep
-from v0x3l.config import TLP_CONF_NAME, DOTFILES_DIR, DOTFILES_MAP, CURSOR_THEME_NAME, TARGET_USER, TARGET_HOME
+from v0x3l.config import TLP_CONF_NAME, CURSOR_THEME_NAME, TARGET_USER, TARGET_HOME
 
 
 class ConfigurationStep(BaseStep):
@@ -118,22 +118,6 @@ class ConfigurationStep(BaseStep):
             os.makedirs(cursor_dir, exist_ok=True)
             with open(f"{cursor_dir}/index.theme", "w") as f:
                 f.write(f"[Icon Theme]\nName=Default\nInherits={CURSOR_THEME_NAME}\n")
-
-        # ---- Dotfiles (assets/dotfiles → ~/.config del usuario) ----
-        # Despliega cada entrada de DOTFILES_MAP a su ruta bajo $HOME. Es
-        # idempotente (no sobrescribe si ya existe) y deja ownership al
-        # usuario real (los cp corren como root).
-        for src_name, dest_rel in DOTFILES_MAP.items():
-            src = os.path.join(str(DOTFILES_DIR), src_name)
-            dest = os.path.join(home, dest_rel)
-            if os.path.exists(dest) or not os.path.exists(src):
-                continue
-            os.makedirs(os.path.dirname(dest), exist_ok=True)
-            self.runner.ui.run_cmd(f"deploy dotfile {src_name}",
-                "cp", "-r", src, dest, sudo=True)
-            if user and os.geteuid() == 0:
-                subprocess.run(["chown", "-R", f"{user}:", dest],
-                               capture_output=True)
 
         # ---- Asegurar ownership de ~/.config al usuario ----
         # Los writes anteriores (wayland.conf, dotfiles) corren como root y
