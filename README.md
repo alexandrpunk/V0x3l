@@ -23,7 +23,7 @@
 ## Instalación
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/alexandrpunk/V0x3l/development/install.sh | bash
+curl -fsSL https://raw.githubusercontent.com/alexandrpunk/V0x3l/optimizacion/install.sh | bash
 ```
 
 ## Requisitos

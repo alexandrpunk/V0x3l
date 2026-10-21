@@ -30,7 +30,7 @@ V0x3l/
 
 ```bash
 # One-liner
-curl -fsSL https://raw.githubusercontent.com/alexandrpunk/V0x3l/refactor/install.sh | bash
+curl -fsSL https://raw.githubusercontent.com/alexandrpunk/V0x3l/optimizacion/install.sh | bash
 
 # Desde repo clonado
 sudo python3 -m v0x3l
@@ -49,7 +49,7 @@ Editar `.env` para cambiar:
 - `TLP_CONF_NAME` — nombre del archivo de configuracion TLP
 - `PLYMOUTH_THEME_NAME` — nombre del tema Plymouth
 - `REPO_URL` — URL del repositorio git
-- `REPO_BRANCH` — rama por defecto
+- `REPO_BRANCH` — rama por defecto (mantener sincronizada con la rama de trabajo actual en `install.sh` y la URL del one-liner)
 
 ## Verification
 
