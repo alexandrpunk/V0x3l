@@ -19,10 +19,9 @@ class PerformanceStep(BaseStep):
         ).stdout
 
         if "xanmod" not in current_kernel:
-            ok &= self.runner.ui.run_cmd("install xanmod",
-                "nala", "install", "-y", "linux-xanmod-edge-x64v3", sudo=True)
-            ok &= self.runner.ui.run_cmd("install dkms",
+            ok &= self.runner.ui.run_cmd("install xanmod + dkms toolchain",
                 "nala", "install", "--no-install-recommends", "-y",
+                "linux-xanmod-edge-x64v3",
                 "dkms", "libelf-dev", "clang", "lld", "llvm", sudo=True)
 
         # ── GPU detection ──

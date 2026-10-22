@@ -44,15 +44,11 @@ FONTS_DIR = ASSETS_DIR / "fonts"
 DOTFILES_DIR = ASSETS_DIR / "dotfiles"
 
 # Mapeo de dotfiles: nombre en assets/dotfiles/ -> ruta destino relativa a $HOME
+# kitty e hyprland NO se deployan desde aqui: usan las configs generadas por
+# `dms setup headless --compositor hyprland --terminal kitty` (Step 2).
 DOTFILES_MAP = {
-    "kitty": ".config/kitty",
     "tmux": ".config/tmux",
 }
-
-# Hyprland config: la gestiona el paquete dms (PPA avengemedia, Step 5),
-# DMS (DankMaterialShell) app settings — fuentes. Deploy no destructivo por
-# _apply_dms_fonts (merge solo las keys de fonts en ~/.config/DankMaterialShell/settings.json).
-DMS_FONTS_SRC = str(DOTFILES_DIR / "dms" / "settings.fonts.json")
 ASCII_FILE = BASE_DIR / "ascii.sh"
 PALETTE_FILE = BASE_DIR / "collorPalette"
 

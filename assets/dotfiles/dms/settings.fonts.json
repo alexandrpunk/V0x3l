@@ -1,7 +1,0 @@
-{
-  "_comment": "Fragmento de fuentes para DMS (DankMaterialShell). Merge no destructivo: _apply_dms_fonts sobreescribe SOLO estas keys en ~/.config/DankMaterialShell/settings.json, preservando el resto (bar configs, colores, etc.). DMS no tiene knob de pt: usa fontScale (multiplicador) sobre tamanos px fijos (small=12, medium=14, large=16, xlarge=20). fontScale 0.95 => texto principal de UI ~10pt exacto (14px * 0.95 = 13.3px ~= 10pt).",
-  "fontFamily": "Noto Sans",
-  "monoFontFamily": "Hack Nerd Font Mono",
-  "fontWeight": 400,
-  "fontScale": 0.95
-}

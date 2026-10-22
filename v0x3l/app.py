@@ -2,9 +2,7 @@
 
 import os
 import shutil
-import subprocess
 import sys
-import time
 import urwid
 from v0x3l.config import PALETTE, TOTAL_STEPS, VERSION, LOG_FILE, PROJECT_NAME, TARGET_HOME
 from v0x3l.shell import run, log
@@ -47,31 +45,6 @@ class V0x3lApp:
                 self.loop.draw_screen()
         return run(desc, *args, sudo=sudo, on_line=on_line, on_tick=on_tick,
                    timeout=timeout, capture_output=capture_output)
-
-    def run_raw_cmd(self, *args, sudo=False) -> bool:
-        """Ejecuta comando con terminal real (libera urwid temporalmente).
-
-        Detiene la pantalla raw de urwid, ejecuta el comando con stdin/stdout
-        heredados del terminal, y restaura urwid al terminar.
-        """
-        # Mostrar mensaje antes de liberar el terminal
-        if self.current_progress:
-            self.current_progress.show_command("Liberando terminal para comando interactivo...")
-        if self.loop:
-            self.loop.draw_screen()
-            time.sleep(0.2)
-            self.loop.screen.stop()
-        try:
-            cmd = list(args)
-            if sudo and os.geteuid() != 0:
-                cmd = ["sudo"] + cmd
-            ret = subprocess.call(cmd)
-            return ret == 0
-        finally:
-            if self.loop:
-                self.loop.screen.start()
-                # Forzar refresco completo para limpiar residuos del comando
-                self.loop.draw_screen()
 
     # ===================== UI =====================
 

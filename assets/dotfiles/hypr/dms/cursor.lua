@@ -1,3 +1,0 @@
--- DMS cursor theme overrides.
--- V0x3l pre-stage: copiado desde el template de DMS (vacio por defecto).
--- Editar para customizar tema/tamano de cursor.
