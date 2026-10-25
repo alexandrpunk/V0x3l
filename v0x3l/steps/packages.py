@@ -4,9 +4,8 @@ import shutil
 import os
 import subprocess
 from v0x3l.shell import log
-
 from v0x3l.steps.base import BaseStep
-from v0x3l.config import TARGET_USER
+from v0x3l.config import TARGET_USER, TARGET_HOME
 
 
 
@@ -18,21 +17,17 @@ class SoftwareStep(BaseStep):
     def run(self) -> bool:
         ok = True
 
-        # ── Mega-install de paquetes + stack Dux (DMS 2.x) ──
-        # El stack de Dux entra en la MISMA transaccion apt (docs:
-        # https://duxlabs.dev/docs/dms/installation#ubuntu — PPAs duxlabs/*
-        # agregados en Step 0):
+        # ── Mega-install de paquetes base ──
+        # El stack Dux se instala en una transaccion separada mas abajo.
         #   dms        — Dux Shell (deps: quickshell, danksearch, dgop,
         #                matugen, cava, accountsservice, qt6 modules)
-        #   dms-greeter — greeter de greetd (docs dms-greeter/installation)
+        #   ly         — greeter TUI del sistema, desde butterrepo
         #   dankcalendar — widget de calendario con integracion nativa
-        #   hyprland   — compositor (Ubuntu trae 0.56.2 ≥ 0.55 requerido)
-        #   kitty      — terminal (config via `dms setup --terminal kitty`)
-        #   cliphist   — clipboard manager que arranca la config Dux de
-        #                Hyprland (wl-paste --watch cliphist store)
-        #   acl        — prerrequisito del theme sync de dms-greeter
-        # greetd/quickshell/wl-clipboard y demas deps: los resuelve apt solo.
-        # ── Mega-install de paquetes base ──
+        #   hyprland   — compositor desde ppa:cppiber/hyprland
+        #   cliphist   — clipboard manager usado por la config Dux
+        #   acl        — prerrequisito para integracion de permisos
+        # Kitty se instala despues mediante el instalador binario oficial
+        # (https://sw.kovidgoyal.net/kitty/binary/), como TARGET_USER.
         # Paquetes del sistema (sistema base + flatpak). Esta transaccion es
         # independiente del stack Dux: si algun paquete Dux no esta disponible
         # en el PPA, el paso no falla entero y flatpak se instala igual.
@@ -56,7 +51,7 @@ class SoftwareStep(BaseStep):
             "cups-pk-helper", "kimageformat-plugins",
             sudo=True)
 
-        DUXTAPE = ["hyprland", "kitty", "cliphist", "acl",
+        DUXTAPE = ["hyprland", "cliphist", "acl",
                    "dms", "ly", "dankcalendar"]
         if not self.runner.ui.run_cmd("install Dux stack",
                 "nala", "install", "--no-install-recommends", "-y",
@@ -69,6 +64,54 @@ class SoftwareStep(BaseStep):
                 ok &= self.runner.ui.run_cmd(f"install {pkg}",
                     "nala", "install", "--no-install-recommends", "-y",
                     pkg, sudo=True)
+
+
+        # ── Kitty oficial (ultima version estable) ──
+        # Docs: https://sw.kovidgoyal.net/kitty/binary/
+        # El instalador instala en ~/.local/kitty.app del usuario destino;
+        # nunca debe ejecutarse como root. Se crean symlinks para kitty y
+        # kitten en /usr/local/bin (PATH del sistema, visible a Hyprland/Dux)
+        # y se instala la integracion desktop en el HOME del usuario.
+        kitty_home = TARGET_HOME
+        kitty_ok = False
+        if not TARGET_USER:
+            log("WARN kitty: no se pudo resolver TARGET_USER; se omite "
+                "la instalacion para no ejecutarla como root")
+        else:
+            kitty_ok = self.runner.ui.run_cmd("install Kitty oficial",
+                "runuser", "-u", TARGET_USER, "--", "env",
+                f"HOME={kitty_home}", "bash", "-c",
+                "set -eu; "
+                "curl -fL https://sw.kovidgoyal.net/kitty/installer.sh | "
+                "sh /dev/stdin; "
+                "mkdir -p \"$HOME/.local/bin\" \"$HOME/.local/share/applications\"; "
+                "ln -sf \"$HOME/.local/kitty.app/bin/kitty\" \"$HOME/.local/bin/kitty\"; "
+                "ln -sf \"$HOME/.local/kitty.app/bin/kitten\" \"$HOME/.local/bin/kitten\"; "
+                "cp \"$HOME/.local/kitty.app/share/applications/kitty.desktop\" "
+                "\"$HOME/.local/share/applications/kitty.desktop\"; "
+                "cp \"$HOME/.local/kitty.app/share/applications/kitty-open.desktop\" "
+                "\"$HOME/.local/share/applications/kitty-open.desktop\"; "
+                "kitty_root=\"$(readlink -f \"$HOME/.local/kitty.app\")\"; "
+                "sed -i \"s|Icon=kitty|Icon=$kitty_root/share/icons/hicolor/256x256/apps/kitty.png|g; "
+                "s|Exec=kitty|Exec=$kitty_root/bin/kitty|g\" "
+                "\"$HOME/.local/share/applications/kitty\"*.desktop; "
+                "mkdir -p \"$HOME/.config\"; "
+                "printf '%s\\n' kitty.desktop > \"$HOME/.config/xdg-terminals.list\"",
+                "kitty-install", TARGET_USER, sudo=True)
+            ok &= kitty_ok
+
+            if kitty_ok:
+                ok &= self.runner.ui.run_cmd("link Kitty in system PATH",
+                    "ln", "-sf", f"{kitty_home}/.local/kitty.app/bin/kitty",
+                    "/usr/local/bin/kitty", sudo=True)
+                ok &= self.runner.ui.run_cmd("link kitten in system PATH",
+                    "ln", "-sf", f"{kitty_home}/.local/kitty.app/bin/kitten",
+                    "/usr/local/bin/kitten", sudo=True)
+
+        if not kitty_ok:
+            log("WARN kitty: instalacion oficial fallo; se omite setup "
+                "de Dux que requiere terminal kitty")
+        ok &= kitty_ok
 
 
         # ── Configuracion del stack Dux (post-install via paquetes) ──
@@ -89,9 +132,7 @@ class SoftwareStep(BaseStep):
                 "usuario no-root")
             ok = False
         else:
-            dms_installed = subprocess.run(
-                ["command", "-v", "dms"], capture_output=True
-            ).returncode == 0
+            dms_installed = shutil.which("dms") is not None
             if not dms_installed:
                 log("WARN dms: binario 'dms' no disponible (paquete dms no "
                     "instalado en el PPA); se omite configuracion de Dux")
@@ -100,11 +141,14 @@ class SoftwareStep(BaseStep):
                 ok &= self.runner.ui.run_cmd("ensure user session bus",
                     "bash", "-c",
                     'u="$1"; uid=$(id -u "$u"); '
+                    'home=$(getent passwd "$u" | cut -d: -f6); '
                     'loginctl enable-linger "$u" 2>/dev/null || true; '
                     'systemctl start "user@$uid" 2>/dev/null || true; '
                     'export XDG_RUNTIME_DIR="/run/user/$uid"; '
                     'export DBUS_SESSION_BUS_ADDRESS="unix:path=/run/user/$uid/bus"; '
-                    'runuser -u "$u" -- env XDG_RUNTIME_DIR="$XDG_RUNTIME_DIR" '
+                    'runuser -u "$u" -- env HOME="$home" '
+                    'PATH="$home/.local/bin:$PATH" '
+                    'XDG_RUNTIME_DIR="$XDG_RUNTIME_DIR" '
                     'DBUS_SESSION_BUS_ADDRESS="$DBUS_SESSION_BUS_ADDRESS" '
                     'dms setup headless --compositor hyprland --terminal kitty '
                     '--skip-existing',
