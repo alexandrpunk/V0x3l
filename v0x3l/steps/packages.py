@@ -1,5 +1,6 @@
 # Step 2: Software (mega-install + stack Dux/DMS 2.x + flatpak)
 
+import shutil
 import os
 import subprocess
 from v0x3l.shell import log
@@ -136,25 +137,28 @@ class SoftwareStep(BaseStep):
         # Antes: 3 `flatpak list` + hasta 3 `flatpak install` separados.
         # flatpak install acepta varios refs en una sola transaccion y es
         # idempotente (las ya instaladas se reportan y no se re-descargan).
-        FLATHUB_APPS = ("org.gnome.Papers", "net.nokyan.Resources",
-                        "org.gnome.Showtime")
+        if not shutil.which("flatpak"):
+            # Flatpak es opcional: no fallar si no esta disponible en el
+            # entorno de ejecucion.
+            log("INFO flatpak no instalado; se omite la configuracion de flatpak")
+        else:
+            remotes = subprocess.run(["flatpak", "remotes"],
+                                     capture_output=True, text=True).stdout
+            if "flathub" not in remotes:
+                ok &= self.runner.ui.run_cmd("add flathub",
+                    "flatpak", "remote-add", "--if-not-exists", "flathub",
+                    "https://dl.flathub.org/repo/flathub.flatpakrepo",
+                    sudo=True)
 
-        remotes = subprocess.run(["flatpak", "remotes"],
-                                 capture_output=True, text=True).stdout
-        if "flathub" not in remotes:
-            ok &= self.runner.ui.run_cmd("add flathub",
-                "flatpak", "remote-add", "--if-not-exists", "flathub",
-                "https://dl.flathub.org/repo/flathub.flatpakrepo",
-                sudo=True)
-
-        installed = subprocess.run(["flatpak", "list", "--app", "--columns=application"],
-                                   capture_output=True, text=True).stdout
-        pending = [a for a in FLATHUB_APPS if a not in installed]
-        if pending:
-            ok &= self.runner.ui.run_cmd(
-                f"flatpak install {' '.join(pending)}",
-                "flatpak", "install", "--system", "-y", "flathub", *pending,
-                sudo=True)
+            installed = subprocess.run(
+                ["flatpak", "list", "--app", "--columns=application"],
+                capture_output=True, text=True).stdout
+            pending = [a for a in FLATHUB_APPS if a not in installed]
+            if pending:
+                ok &= self.runner.ui.run_cmd(
+                    f"flatpak install {' '.join(pending)}",
+                    "flatpak", "install", "--system", "-y", "flathub", *pending,
+                    sudo=True)
 
         override_path = "/etc/flatpak/overrides/global"
         if not os.path.exists(override_path):
