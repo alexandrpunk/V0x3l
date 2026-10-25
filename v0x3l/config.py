@@ -44,9 +44,10 @@ FONTS_DIR = ASSETS_DIR / "fonts"
 DOTFILES_DIR = ASSETS_DIR / "dotfiles"
 
 # Mapeo de dotfiles: nombre en assets/dotfiles/ -> ruta destino relativa a $HOME
-# kitty e hyprland NO se deployan desde aqui: usan las configs generadas por
-# `dms setup headless --compositor hyprland --terminal kitty` (Step 2).
+# Kitty usa la configuracion de Butter; la fuente se mantiene en Fira Code
+# (no se instala SauceCodePro del repositorio externo).
 DOTFILES_MAP = {
+    "kitty": ".config/kitty",
     "tmux": ".config/tmux",
 }
 ASCII_FILE = BASE_DIR / "ascii.sh"

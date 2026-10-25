@@ -31,11 +31,19 @@ class DesktopStep(BaseStep):
         for src_name, dest_rel in DOTFILES_MAP.items():
             src = os.path.join(str(DOTFILES_DIR), src_name)
             dest = os.path.join(home, dest_rel)
-            if os.path.exists(dest) or not os.path.exists(src):
+            if not os.path.exists(src):
+                continue
+            if os.path.exists(dest) and src_name != "kitty":
                 continue
             os.makedirs(os.path.dirname(dest), exist_ok=True)
-            self.runner.ui.run_cmd(f"deploy dotfile {src_name}",
-                "cp", "-r", src, dest, sudo=True)
+            if src_name == "kitty" and os.path.isdir(dest):
+                # Dux crea primero ~/.config/kitty; Butter reemplaza solo sus
+                # archivos versionados y conserva otros archivos del usuario.
+                self.runner.ui.run_cmd(f"deploy dotfile {src_name}",
+                    "cp", "-r", f"{src}/.", dest, sudo=True)
+            else:
+                self.runner.ui.run_cmd(f"deploy dotfile {src_name}",
+                    "cp", "-r", src, dest, sudo=True)
             if user and os.geteuid() == 0:
                 subprocess.run(["chown", "-R", f"{user}:", dest],
                                capture_output=True)
