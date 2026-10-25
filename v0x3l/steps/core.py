@@ -70,18 +70,19 @@ class PreparationStep(BaseStep):
                 "https://ppa.floorp.app/Floorp.list",
                 sudo=True)
 
-        # Dux Labs (Dux Shell / DMS 2.x) — PPAs oficiales de la documentacion:
-        # https://duxlabs.dev/docs/dms/installation#ubuntu
-        #   duxlabs/dux   -> quickshell, matugen, dgop, danksearch, cliphist,
-        #                  niri, ghostty, xwayland-satellite
-        #   duxlabs/dms   -> dms (shell + CLI)
+        # PPAs del instalador oficial Dux (dankinstall v2) + documentacion:
+        #   duxlabs/dux    -> quickshell, matugen, dgop, danksearch, cliphist,
+        #                   niri, ghostty, xwayland-satellite
+        #   duxlabs/dms    -> dms (shell + CLI)
+        #   cppiber/hyprland -> hyprland (versión más actual que la de Ubuntu)
         # Greeter: ly (desde butterrepo, ya agregado en Step 0).
         # --no-update: NO dejamos que add-apt-repository corra su apt update
         # interno por PPA; el `nala update` de abajo absorbe todos los repos en
         # una sola pasada. Idempotente: se salta si el .sources ya existe.
-        for ppa in ("ppa:duxlabs/dux", "ppa:duxlabs/dms"):
+        for ppa in ("ppa:duxlabs/dux", "ppa:duxlabs/dms",
+                    "ppa:cppiber/hyprland"):
             name = ppa.split("/", 1)[1]
-            if not glob.glob(f"/etc/apt/sources.list.d/duxlabs*{name}*"):
+            if not glob.glob(f"/etc/apt/sources.list.d/*{name}*"):
                 ok &= self.runner.ui.run_cmd(f"add {ppa}",
                     "add-apt-repository", "-y", "--no-update", ppa, sudo=True)
 
