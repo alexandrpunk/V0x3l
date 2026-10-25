@@ -31,17 +31,30 @@ class PreparationStep(BaseStep):
             ["lsb_release", "-sc"], capture_output=True, text=True
         ).stdout.strip()
 
-        # ButterRepo
-        if not os.path.exists("/etc/apt/sources.list.d/butterrepo.list"):
+        # ButterRepo — instrucciones actuales:
+        # https://justaguy.dev/drew/butterrepo#installation
+        # Migracion desde justaguylinux.codeberg.page al endpoint oficial
+        # apt.justaguy.dev (la URL Codeberg sigue siendo mirror, pero se
+        # usa el endpoint canonico para futuras instalaciones).
+        butterrepo_list = "/etc/apt/sources.list.d/butterrepo.list"
+        butterrepo_current = False
+        try:
+            with open(butterrepo_list) as f:
+                butterrepo_current = "https://apt.justaguy.dev" in f.read()
+        except OSError:
+            pass
+
+        if not butterrepo_current:
             ok &= self.runner.ui.run_cmd("butterrepo key", "bash", "-c",
                 "set -o pipefail && "
-                "curl -fsSL https://justaguylinux.codeberg.page/butterrepo/key.asc | "
-                "gpg --dearmor -o /usr/share/keyrings/butterrepo.gpg",
+                "install -d -m 0755 /usr/share/keyrings && "
+                "curl -fsSL https://apt.justaguy.dev/key.asc | "
+                "gpg --dearmor --yes -o /usr/share/keyrings/butterrepo.gpg",
                 sudo=True)
             ok &= self.runner.ui.run_cmd("butterrepo repo", "bash", "-c",
                 'echo "deb [arch=amd64 signed-by=/usr/share/keyrings/butterrepo.gpg] '
-                'https://justaguylinux.codeberg.page/butterrepo stable main" | '
-                "tee /etc/apt/sources.list.d/butterrepo.list",
+                'https://apt.justaguy.dev stable main" | '
+                f"tee {butterrepo_list}",
                 sudo=True)
 
         # XanMod (kernel)
