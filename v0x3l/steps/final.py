@@ -5,7 +5,6 @@
 
 import os
 import shutil
-import subprocess
 from v0x3l.steps.base import BaseStep
 from v0x3l.config import (TARGET_USER, TARGET_HOME,
                           DOTFILES_DIR, DOTFILES_MAP)
@@ -18,16 +17,15 @@ class DesktopStep(BaseStep):
     category = "final"
 
     def run(self) -> bool:
-        success = True
         user = TARGET_USER
         home = TARGET_HOME
-        # (DMS/Dux se instala, configura y bindea dms.service a
-        #  hyprland-session.target en Step 2: v0x3l/steps/packages.py.
-        #  loginctl enable-linger ya corre en Step 3.)
+        if not user or not home or user == "root" or home == "/root":
+            log("ERROR entorno: TARGET_USER/TARGET_HOME invalido; no se "
+                "instalan dotfiles ni LazyVim como root")
+            return False
+
+        ok = True
         # ---- Dotfiles (assets/dotfiles → ~/.config del usuario) ----
-        # Despliega cada entrada de DOTFILES_MAP a su ruta bajo $HOME. Es
-        # idempotente (no sobrescribe si ya existe) y deja ownership al
-        # usuario real (los cp corren como root).
         for src_name, dest_rel in DOTFILES_MAP.items():
             src = os.path.join(str(DOTFILES_DIR), src_name)
             dest = os.path.join(home, dest_rel)
@@ -37,62 +35,86 @@ class DesktopStep(BaseStep):
                 continue
             os.makedirs(os.path.dirname(dest), exist_ok=True)
             if src_name == "kitty" and os.path.isdir(dest):
-                # Dux crea primero ~/.config/kitty; Butter reemplaza solo sus
-                # archivos versionados y conserva otros archivos del usuario.
-                self.runner.ui.run_cmd(f"deploy dotfile {src_name}",
+                copied = self.runner.ui.run_cmd(f"deploy dotfile {src_name}",
                     "cp", "-r", f"{src}/.", dest, sudo=True)
             else:
-                self.runner.ui.run_cmd(f"deploy dotfile {src_name}",
+                copied = self.runner.ui.run_cmd(f"deploy dotfile {src_name}",
                     "cp", "-r", src, dest, sudo=True)
-            if user and os.geteuid() == 0:
-                subprocess.run(["chown", "-R", f"{user}:", dest],
-                               capture_output=True)
-        return self._install_zsh_lazyvim()
+            if not copied:
+                log(f"ERROR dotfile: fallo al desplegar {src_name}")
+                ok = False
+                continue
+            if os.geteuid() == 0:
+                chowned = self.runner.ui.run_cmd(
+                    f"chown dotfile {src_name}", "chown", "-R",
+                    f"{user}:", dest, sudo=True)
+                ok &= chowned
+        return ok and self._install_zsh_lazyvim()
 
     def _install_zsh_lazyvim(self) -> bool:
-        """Oh My Zsh + LazyVim al final: otros instaladores (DMS) pueden
-        pisar ~/.config o dejarlo root-owned; haciendolo ultimo evita
-        conflictos."""
-        ok = True
+        """Instala el starter oficial de LazyVim de forma idempotente.
+
+        Sigue https://www.lazyvim.org/installation: respalda config, data,
+        state y cache de Neovim; clona el starter y elimina su .git.
+        """
         user = TARGET_USER
         home = TARGET_HOME
+        if not user or user == "root" or not home or home == "/root":
+            log("ERROR lazyvim: TARGET_USER/TARGET_HOME invalido")
+            return False
 
-        # ── LazyVim ──
-        nvim_dir = f"{home}/.config/nvim"
-        if not os.path.exists(f"{nvim_dir}/init.lua"):
-            # Asegurar ~/.config existente y del usuario destino: varios
-            # instaladores (dms setup, dotfiles deploy) corren como root y
-            # pueden dejar ~/.config (o nvim/) root-owned; el clone como
-            # usuario falla con "could not create work tree dir ...
-            # Permission denied". Chown incondicional e inmediato antes
-            # del clone.
-            os.makedirs(f"{home}/.config", exist_ok=True)
-            if user and os.geteuid() == 0:
-                subprocess.run(["chown", "-R", f"{user}:", f"{home}/.config"],
-                               capture_output=True)
-                # chmod 755: por si quedo 0700 root o similar
-                subprocess.run(["chmod", "755", f"{home}/.config"],
-                               capture_output=True)
-            # Backup de config/data existente
-            shutil.rmtree(f"{nvim_dir}.bak", ignore_errors=True)
-            if os.path.isdir(nvim_dir):
-                shutil.move(nvim_dir, f"{nvim_dir}.bak")
-            # Clonar LazyVim starter como usuario destino con runuser
-            # (no depende de sudo ni de su env_reset; dms setup headless
-            # usa el mismo patron para correr cosas como el usuario real).
-            lok = self.runner.ui.run_cmd("install lazyvim",
-                "runuser", "-u", user, "--",
-                "git", "clone", "--depth", "1",
-                "https://github.com/LazyVim/starter", nvim_dir,
-                sudo=False)
-            if not lok:
-                log("ERROR lazyvim: git clone fallo — revisar permisos de "
-                    f"{home}/.config o red. nvim/ puede quedar vacio.")
-            ok &= lok
-            # Limpiar .git + asegurar ownership del usuario
-            if os.path.isdir(nvim_dir):
-                shutil.rmtree(f"{nvim_dir}/.git", ignore_errors=True)
-                subprocess.run(["chown", "-R", f"{user}:", nvim_dir],
-                               capture_output=True)
+        config_dir = os.path.join(home, ".config")
+        nvim_dir = os.path.join(config_dir, "nvim")
+        # El starter valido trae init.lua y lua/ (config y plugins). Un
+        # init.lua suelto es una config ajena: se respalda y se reinstala.
+        if (os.path.exists(os.path.join(nvim_dir, "init.lua"))
+                and os.path.isdir(os.path.join(nvim_dir, "lua"))):
+            return True
 
-        return ok
+        os.makedirs(config_dir, exist_ok=True)
+        if os.geteuid() == 0:
+            if not self.runner.ui.run_cmd("chown nvim parent",
+                    "chown", "-R", f"{user}:", config_dir, sudo=True):
+                return False
+            if not self.runner.ui.run_cmd("chmod nvim parent",
+                    "chmod", "755", config_dir, sudo=True):
+                return False
+
+        # LazyVim documenta estos cuatro paths. No borres backups anteriores:
+        # cada instalacion recibe un sufijo timestamped.
+        from datetime import datetime
+        stamp = datetime.now().strftime("%Y%m%d-%H%M%S")
+        backup_paths = (
+            nvim_dir,
+            os.path.join(home, ".local", "share", "nvim"),
+            os.path.join(home, ".local", "state", "nvim"),
+            os.path.join(home, ".cache", "nvim"),
+        )
+        for path in backup_paths:
+            if not os.path.exists(path):
+                continue
+            backup = f"{path}.bak.{stamp}"
+            try:
+                shutil.move(path, backup)
+            except OSError as exc:
+                log(f"ERROR lazyvim: no se pudo respaldar {path}: {exc}")
+                return False
+
+        clone_ok = self.runner.ui.run_cmd("install lazyvim",
+            "runuser", "-u", user, "--", "env",
+            f"HOME={home}", f"USER={user}",
+            "git", "clone", "--depth", "1",
+            "https://github.com/LazyVim/starter", nvim_dir,
+            sudo=False)
+        if not clone_ok:
+            log("ERROR lazyvim: git clone fallo; revisar red y permisos")
+            return False
+
+        git_dir = os.path.join(nvim_dir, ".git")
+        if os.path.isdir(git_dir):
+            shutil.rmtree(git_dir)
+        if os.geteuid() == 0 and not self.runner.ui.run_cmd(
+                "chown lazyvim", "chown", "-R", f"{user}:", nvim_dir,
+                sudo=True):
+            return False
+        return True
