@@ -70,18 +70,18 @@ class PreparationStep(BaseStep):
                 "https://ppa.floorp.app/Floorp.list",
                 sudo=True)
 
-        # Dux Labs (Dux Shell / DMS 2.x) — PPAs oficiales que usa el
-        # instalador dankinstall v2 (dankinstall --help, strings del binario):
-        #   avengemedia/danklinux -> dms-greeter, dankcalendar, cliphist,
-        #                        quickshell, matugen, dgop, danksearch,
-        #                        niri, xwayland-satellite, ghostty
-        #   avengemedia/dms       -> dms (shell + CLI)
+        # Dux Labs (Dux Shell / DMS 2.x) — PPAs oficiales de la documentacion:
+        # https://duxlabs.dev/docs/dms/installation#ubuntu
+        #   duxlabs/dux   -> quickshell, matugen, dgop, danksearch, cliphist,
+        #                  niri, ghostty, xwayland-satellite
+        #   duxlabs/dms   -> dms (shell + CLI)
+        # Greeter: ly (desde butterrepo, ya agregado en Step 0).
         # --no-update: NO dejamos que add-apt-repository corra su apt update
         # interno por PPA; el `nala update` de abajo absorbe todos los repos en
         # una sola pasada. Idempotente: se salta si el .sources ya existe.
-        for ppa in ("ppa:avengemedia/danklinux", "ppa:avengemedia/dms"):
+        for ppa in ("ppa:duxlabs/dux", "ppa:duxlabs/dms"):
             name = ppa.split("/", 1)[1]
-            if not glob.glob(f"/etc/apt/sources.list.d/avengemedia*{name}*"):
+            if not glob.glob(f"/etc/apt/sources.list.d/duxlabs*{name}*"):
                 ok &= self.runner.ui.run_cmd(f"add {ppa}",
                     "add-apt-repository", "-y", "--no-update", ppa, sudo=True)
 

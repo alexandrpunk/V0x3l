@@ -57,7 +57,7 @@ class SoftwareStep(BaseStep):
             sudo=True)
 
         DUXTAPE = ["hyprland", "kitty", "cliphist", "acl",
-                   "dms", "dms-greeter", "dankcalendar"]
+                   "dms", "ly", "dankcalendar"]
         if not self.runner.ui.run_cmd("install Dux stack",
                 "nala", "install", "--no-install-recommends", "-y",
                 *DUXTAPE, sudo=True):
@@ -72,24 +72,17 @@ class SoftwareStep(BaseStep):
 
 
         # ── Configuracion del stack Dux (post-install via paquetes) ──
-        # Docs: https://duxlabs.dev/docs/dms/cli-setup (headless) y
-        #       https://duxlabs.dev/docs/dms-greeter/installation
+        # Docs: https://duxlabs.dev/docs/dms/cli-setup (headless)
+        # Greeter: ly (desde butterrepo, ya agregado en Step 0).
         #
-        # 1) `dms-greeter install` (como root): instala greetd si falta y
-        #    maneja configuracion, permisos y enablement del servicio
-        #    automaticamente. NO arranca greetd en el momento (la doc dice
-        #    "To start the greeter immediately: sudo systemctl start greetd"
-        #    — deliberadamente no lo hacemos: tomaria el TTY/seat y mataria
-        #    la sesion del instalador; arranca solo tras el reboot final).
-        # 2) `dms setup headless` (como TARGET_USER via runuser, ejemplo
+        # 1) `dms setup headless` (como TARGET_USER via runuser, ejemplo
         #    literal de la doc): deploya configs Dux de Hyprland (lua) +
         #    kitty y bindea dms.service a hyprland-session.target. `dms` se
         #    niega a correr como root. --skip-existing: idempotente.
-        # 3) `dms-greeter sync` (como TARGET_USER, best-effort): theme sync
-        #    per-user del greeter (symlinks a settings/wallpapers del user).
-        #    Prerrequisitos cubiertos antes: acl en el mega-install y usuario
-        #    en grupo greeter via usermod (comando documentado en la seccion
-        #    Multi-user systems).
+        # 2) `ly` como greeter del sistema: habilitar el servicio ly
+        #    (systemctl enable ly). Ly es un greeter minimalista TUI que no
+        #    requiere configuracion de greetd ni temas complejos.
+        # 3) Grupos: input (Hyprland necesita /dev/input).
         if not TARGET_USER:
             log("ERROR dms: no se pudo resolver el usuario destino "
                 "(SUDO_USER/logname); la configuracion de Dux requiere un "
@@ -103,54 +96,30 @@ class SoftwareStep(BaseStep):
                 log("WARN dms: binario 'dms' no disponible (paquete dms no "
                     "instalado en el PPA); se omite configuracion de Dux")
                 ok = False
-            ok &= self.runner.ui.run_cmd("dms-greeter install",
-                "dms-greeter", "install", sudo=True)
+            else:
+                ok &= self.runner.ui.run_cmd("ensure user session bus",
+                    "bash", "-c",
+                    'u="$1"; uid=$(id -u "$u"); '
+                    'loginctl enable-linger "$u" 2>/dev/null || true; '
+                    'systemctl start "user@$uid" 2>/dev/null || true; '
+                    'export XDG_RUNTIME_DIR="/run/user/$uid"; '
+                    'export DBUS_SESSION_BUS_ADDRESS="unix:path=/run/user/$uid/bus"; '
+                    'runuser -u "$u" -- env XDG_RUNTIME_DIR="$XDG_RUNTIME_DIR" '
+                    'DBUS_SESSION_BUS_ADDRESS="$DBUS_SESSION_BUS_ADDRESS" '
+                    'dms setup headless --compositor hyprland --terminal kitty '
+                    '--skip-existing',
+                    "dms-setup", TARGET_USER, sudo=True)
 
-            # `dms setup headless` bindea dms.service a hyprland-session.target
-            # via systemctl --user, y `dms-greeter sync` tambien usa unidades
-            # de usuario. Corridos desde root sin sesion activa del usuario no
-            # hay bus de usuario (XDG_RUNTIME_DIR/DBUS_SESSION_BUS_ADDRESS), asi
-            # que el bindeo systemd cae al fallback. Replicamos el entorno de
-            # usuario: enable-linger + arrancar user@UID + exports (mismo
-            # patron que system.py usa para pipewire). El linger ya lo activa
-            # Step 3, pero este step puede correr standalone/range.
-            ok &= self.runner.ui.run_cmd("ensure user session bus",
-                "bash", "-c",
-                'u="$1"; uid=$(id -u "$u"); '
-                'loginctl enable-linger "$u" 2>/dev/null || true; '
-                'systemctl start "user@$uid" 2>/dev/null || true; '
-                'export XDG_RUNTIME_DIR="/run/user/$uid"; '
-                'export DBUS_SESSION_BUS_ADDRESS="unix:path=/run/user/$uid/bus"; '
-                'runuser -u "$u" -- env XDG_RUNTIME_DIR="$XDG_RUNTIME_DIR" '
-                'DBUS_SESSION_BUS_ADDRESS="$DBUS_SESSION_BUS_ADDRESS" '
-                'dms setup headless --compositor hyprland --terminal kitty '
-                '--skip-existing',
-                "dms-setup", TARGET_USER, sudo=True)
+                # Habilitar ly como greeter del sistema
+                ok &= self.runner.ui.run_cmd("enable ly greeter",
+                    "systemctl", "enable", "ly", sudo=True)
 
-            # Grupos: input (Hyprland necesita /dev/input), greeter (theme
-            # sync: "sudo usermod -aG greeter <username>")
-            ok &= self.runner.ui.run_cmd("add input+greeter groups",
-                "usermod", "-aG", "input,greeter", TARGET_USER, sudo=True)
-
-            # Theme sync per-user (best-effort: si falla, el greeter igual
-            # funciona con tema por defecto; no bloquea la instalacion).
-            # Mismo entorno de bus de usuario que dms setup.
-            sync_ok = self.runner.ui.run_cmd("dms-greeter sync",
-                "bash", "-c",
-                'u="$1"; uid=$(id -u "$u"); '
-                'export XDG_RUNTIME_DIR="/run/user/$uid"; '
-                'export DBUS_SESSION_BUS_ADDRESS="unix:path=/run/user/$uid/bus"; '
-                'runuser -u "$u" -- env XDG_RUNTIME_DIR="$XDG_RUNTIME_DIR" '
-                'DBUS_SESSION_BUS_ADDRESS="$DBUS_SESSION_BUS_ADDRESS" '
-                'dms-greeter sync',
-                "dms-sync", TARGET_USER, sudo=True)
-            if not sync_ok:
-                log("WARN dms-greeter sync fallo (no fatal): el greeter "
-                    "usara tema por defecto; re-ejecutar tras login")
+                # Grupos: input (Hyprland necesita /dev/input)
+                ok &= self.runner.ui.run_cmd("add input group",
+                    "usermod", "-aG", "input", TARGET_USER, sudo=True)
 
             # ~/.config pudo quedar root-owned (otros comandos root del
-            # instalador pueden tocarlo). Solo chown si existe para no
-            # fallar cuando dms no se instaló (sin .config creado).
+            # instalador pueden tocarlo). Solo chown si existe.
             home = os.path.expanduser(f"~{TARGET_USER}")
             config_dir = f"{home}/.config"
             if os.path.isdir(config_dir):
