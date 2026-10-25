@@ -53,6 +53,14 @@ DOTFILES_MAP = {
 ASCII_FILE = BASE_DIR / "ascii.sh"
 PALETTE_FILE = BASE_DIR / "collorPalette"
 
+# ── Harness de codificacion (omp) ──
+# Repo con la configuracion personal: config.yml, models.yml, AGENTS.md,
+# agents/, skills/, rules/, extensions/ y scripts/setup.sh.
+# El endpoint y la API key NO se versionan: se fijan despues con
+# scripts/setup.sh (interactivo) dentro de ~/.omp/agent.
+OMP_HARNESS_REPO = env("OMP_HARNESS_REPO",
+                       "https://github.com/alexandrpunk/omp-harness.git")
+
 # ── Config del sistema ──
 TLP_CONF_NAME = env("TLP_CONF_NAME", "01-v0x3l.conf")
 PLYMOUTH_THEME_NAME = env("PLYMOUTH_THEME_NAME", "v0x3l-boot-theme")

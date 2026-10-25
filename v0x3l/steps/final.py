@@ -1,14 +1,17 @@
-# Step 5: Entorno — dotfiles + Oh My Zsh + LazyVim
+# Step 5: Entorno — dotfiles + Oh My Zsh + LazyVim + harness omp
 # (DMS/Dux se instala y configura en Step 2: v0x3l/steps/packages.py;
-# dotfiles/zsh/lazyvim al final para evitar conflictos con instaladores
-# que tocan ~/.config)
+# dotfiles/zsh/lazyvim/omp al final para evitar conflictos con instaladores
+# que tocan ~/.config y ~/.local)
 
 import os
 import shutil
+import tempfile
 from v0x3l.steps.base import BaseStep
 from v0x3l.config import (TARGET_USER, TARGET_HOME,
-                          DOTFILES_DIR, DOTFILES_MAP)
+                          DOTFILES_DIR, DOTFILES_MAP, OMP_HARNESS_REPO)
 from v0x3l.shell import log
+
+OMP_HARNESS_KEEP = ("config.yml", "models.yml", ".env")
 
 
 class DesktopStep(BaseStep):
@@ -49,7 +52,7 @@ class DesktopStep(BaseStep):
                     f"chown dotfile {src_name}", "chown", "-R",
                     f"{user}:", dest, sudo=True)
                 ok &= chowned
-        return ok and self._install_zsh_lazyvim()
+        return ok and self._install_zsh_lazyvim() and self._install_omp_harness()
 
     def _install_zsh_lazyvim(self) -> bool:
         """Instala el starter oficial de LazyVim de forma idempotente.
@@ -117,4 +120,114 @@ class DesktopStep(BaseStep):
                 "chown lazyvim", "chown", "-R", f"{user}:", nvim_dir,
                 sudo=True):
             return False
+        return True
+
+    @staticmethod
+    def _omp_binary(home: str) -> str:
+        """Ruta del binario omp instalado, o '' si no existe.
+
+        El instalador oficial deja omp en ~/.local/bin (binario) o en
+        ~/.bun/bin (instalacion via bun).
+        """
+        if not home:
+            return ""
+        for rel in (".local/bin/omp", ".bun/bin/omp"):
+            path = os.path.join(home, rel)
+            if os.path.isfile(path) and os.access(path, os.X_OK):
+                return path
+        return ""
+
+    def _install_omp_harness(self) -> bool:
+        """Instala omp y despliega el harness personal desde el repo.
+
+        Docs: https://omp.sh/docs/quickstart
+        El binario oficial vive en ~/.local/bin/omp. La configuracion se
+        copia a ~/.omp/agent preservando config.yml, models.yml y .env: el
+        endpoint y la API key se fijan despues de forma manual con
+        scripts/setup.sh (genera la key e introduce la URL del proveedor).
+        """
+        user = TARGET_USER
+        home = TARGET_HOME
+        if not user or user == "root" or not home or home == "/root":
+            log("ERROR omp: TARGET_USER/TARGET_HOME invalido")
+            return False
+
+        agent_dir = os.path.join(home, ".omp", "agent")
+
+        # 1) Binario omp (instalador oficial, como usuario destino).
+        # El instalador usa ~/.bun/bin si hay bun compatible y ~/.local/bin
+        # si no; se resuelve el binario en vez de asumir una ruta.
+        omp_bin = self._omp_binary(home)
+        ok = True
+        if not omp_bin:
+            ok = self.runner.ui.run_cmd("install omp",
+                "runuser", "-u", user, "--", "env", f"HOME={home}",
+                "bash", "-c",
+                "curl -fsSL https://omp.sh/install | sh",
+                "omp-install", sudo=False)
+            omp_bin = self._omp_binary(home)
+        if not ok or not omp_bin:
+            log("ERROR omp: fallo la instalacion del binario")
+            return False
+
+        # Enlace global: la sesion grafica y otros shells pueden no incluir
+        # ~/.local/bin ni ~/.bun/bin en PATH.
+        if os.geteuid() == 0:
+            ok &= self.runner.ui.run_cmd("link omp in system PATH",
+                "ln", "-sf", omp_bin, "/usr/local/bin/omp", sudo=True)
+
+        # 2) Configuracion personal desde el repo.
+        staging = tempfile.mkdtemp(prefix="v0x3l-omp-")
+        try:
+            if os.geteuid() == 0:
+                shutil.chown(staging, user=user)
+            clone = os.path.join(staging, "repo")
+            if not self.runner.ui.run_cmd("clone omp-harness",
+                    "runuser", "-u", user, "--", "env", f"HOME={home}",
+                    "git", "clone", "--depth", "1", OMP_HARNESS_REPO, clone,
+                    sudo=False):
+                log("ERROR omp: no se pudo clonar el harness")
+                return False
+            if not self._deploy_omp_harness(clone, agent_dir):
+                return False
+        finally:
+            shutil.rmtree(staging, ignore_errors=True)
+
+        if os.geteuid() == 0:
+            ok &= self.runner.ui.run_cmd("chown omp agent dir",
+                "chown", "-R", f"{user}:", os.path.join(home, ".omp"),
+                sudo=True)
+
+        log("omp instalado. Configura endpoint y API key manualmente con: "
+            f"sh {agent_dir}/scripts/setup.sh")
+        return ok
+
+    def _deploy_omp_harness(self, src: str, agent_dir: str) -> bool:
+        """Copia el harness respetando los archivos locales del usuario."""
+        if not os.path.isdir(src):
+            log(f"ERROR omp: harness origen inexistente: {src}")
+            return False
+        keep = {}
+        for name in OMP_HARNESS_KEEP:
+            path = os.path.join(agent_dir, name)
+            if os.path.isfile(path):
+                with open(path, "rb") as f:
+                    keep[name] = f.read()
+
+        os.makedirs(agent_dir, exist_ok=True)
+        for entry in os.listdir(src):
+            if entry in (".git", ".gitignore"):
+                continue
+            source = os.path.join(src, entry)
+            target = os.path.join(agent_dir, entry)
+            if os.path.isdir(source):
+                shutil.copytree(source, target, dirs_exist_ok=True)
+            else:
+                shutil.copy2(source, target)
+
+        for name, content in keep.items():
+            path = os.path.join(agent_dir, name)
+            with open(path, "wb") as f:
+                f.write(content)
+            log(f"omp harness: se conservo {name} existente")
         return True
