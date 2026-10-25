@@ -137,6 +137,8 @@ class SoftwareStep(BaseStep):
         # Antes: 3 `flatpak list` + hasta 3 `flatpak install` separados.
         # flatpak install acepta varios refs en una sola transaccion y es
         # idempotente (las ya instaladas se reportan y no se re-descargan).
+        FLATHUB_APPS = ("org.gnome.Papers", "net.nokyan.Resources",
+                        "org.gnome.Showtime")
         if not shutil.which("flatpak"):
             # Flatpak es opcional: no fallar si no esta disponible en el
             # entorno de ejecucion.
