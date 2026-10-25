@@ -32,7 +32,11 @@ class SoftwareStep(BaseStep):
         #                Hyprland (wl-paste --watch cliphist store)
         #   acl        — prerrequisito del theme sync de dms-greeter
         # greetd/quickshell/wl-clipboard y demas deps: los resuelve apt solo.
-        ok &= self.runner.ui.run_cmd("mega-install + Dux stack",
+        # ── Mega-install de paquetes base ──
+        # Paquetes del sistema (sistema base + flatpak). Esta transaccion es
+        # independiente del stack Dux: si algun paquete Dux no esta disponible
+        # en el PPA, el paso no falla entero y flatpak se instala igual.
+        ok &= self.runner.ui.run_cmd("mega-install base",
             "nala", "install", "--no-install-recommends", "-y",
             "wayland-protocols", "libwayland-dev", "libegl1",
             "libgl1-mesa-dri", "mesa-vulkan-drivers", "xwayland",
@@ -50,10 +54,21 @@ class SoftwareStep(BaseStep):
             "gstreamer1.0-libav", "ffmpegthumbnailer",
             "floorp", "flatpak", "tlp", "tlp-rdw", "fonts-powerline", "fonts-noto", "fonts-noto-mono",
             "cups-pk-helper", "kimageformat-plugins",
-            # ── Stack Dux ──
-            "hyprland", "kitty", "cliphist", "acl",
-            "dms", "dms-greeter", "dankcalendar",
             sudo=True)
+
+        DUXTAPE = ["hyprland", "kitty", "cliphist", "acl",
+                   "dms", "dms-greeter", "dankcalendar"]
+        if not self.runner.ui.run_cmd("install Dux stack",
+                "nala", "install", "--no-install-recommends", "-y",
+                *DUXTAPE, sudo=True):
+            # Fallback paquete por paquete: si uno falta en el PPA, no
+            # dejamos de instalar los demas ni romper el paso 2.
+            log("WARN Dux stack: instalacion grupal fallo; probando "
+                "paquete por paquete")
+            for pkg in DUXTAPE:
+                ok &= self.runner.ui.run_cmd(f"install {pkg}",
+                    "nala", "install", "--no-install-recommends", "-y",
+                    pkg, sudo=True)
 
 
         # ── Configuracion del stack Dux (post-install via paquetes) ──
@@ -81,6 +96,13 @@ class SoftwareStep(BaseStep):
                 "usuario no-root")
             ok = False
         else:
+            dms_installed = subprocess.run(
+                ["command", "-v", "dms"], capture_output=True
+            ).returncode == 0
+            if not dms_installed:
+                log("WARN dms: binario 'dms' no disponible (paquete dms no "
+                    "instalado en el PPA); se omite configuracion de Dux")
+                ok = False
             ok &= self.runner.ui.run_cmd("dms-greeter install",
                 "dms-greeter", "install", sudo=True)
 
@@ -127,11 +149,14 @@ class SoftwareStep(BaseStep):
                     "usara tema por defecto; re-ejecutar tras login")
 
             # ~/.config pudo quedar root-owned (otros comandos root del
-            # instalador pueden tocarlo)
+            # instalador pueden tocarlo). Solo chown si existe para no
+            # fallar cuando dms no se instaló (sin .config creado).
             home = os.path.expanduser(f"~{TARGET_USER}")
-            ok &= self.runner.ui.run_cmd("fix ~/.config owner",
-                "chown", "-R", f"{TARGET_USER}:", f"{home}/.config",
-                sudo=True)
+            config_dir = f"{home}/.config"
+            if os.path.isdir(config_dir):
+                ok &= self.runner.ui.run_cmd("fix ~/.config owner",
+                    "chown", "-R", f"{TARGET_USER}:", config_dir,
+                    sudo=True)
 
         # ── Flatpak: 1 remote + 1 transaccion para todas las apps ──
         # Antes: 3 `flatpak list` + hasta 3 `flatpak install` separados.
