@@ -240,7 +240,20 @@ class V0x3lApp:
 
         log(f"=== Paso {step.number}/{TOTAL_STEPS}: {step.title} ===")
 
-        ok = step.run()
+        try:
+            ok = step.run()
+        except Exception as e:
+            log(f"EXCEPCION no controlada en paso {step.number} ({step.title}): {e}")
+            status = "failed"
+            if self.exec_screen:
+                self.exec_screen.set_step_status(step.number, status)
+            self.layout.show_result(False, f"Paso {step.number}")
+            if self.loop:
+                self.loop.draw_screen()
+            self.runner.save_checkpoint(step.number)
+            log(f"FAIL: Paso {step.number} - {step.title}")
+            self.current_progress = None
+            return False
 
         # Actualizar estado del paso
         status = "done" if ok else "failed"

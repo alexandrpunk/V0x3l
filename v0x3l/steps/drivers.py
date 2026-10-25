@@ -27,15 +27,18 @@ class PerformanceStep(BaseStep):
         # ── GPU detection ──
         # Filtrar SOLO lineas VGA/3D/display (antes buscaba "intel" en todo el
         # output de lspci, que incluye NICs, Wi-Fi, etc. → falsos positivos).
-        lspci = subprocess.run(
-            ["lspci", "-nn"], capture_output=True, text=True
-        ).stdout.lower()
-        gpu_lines = [line for line in lspci.splitlines()
-                     if any(tok in line for tok in ("vga", "3d", "display"))]
-
-
-        has_nvidia = any("nvidia" in line for line in gpu_lines)
-        has_intel = any("intel" in line for line in gpu_lines)
+        try:
+            lspci = subprocess.run(
+                ["lspci", "-nn"], capture_output=True, text=True
+            ).stdout.lower()
+            gpu_lines = [line for line in lspci.splitlines()
+                         if any(tok in line for tok in ("vga", "3d", "display"))]
+            has_nvidia = any("nvidia" in line for line in gpu_lines)
+            has_intel = any("intel" in line for line in gpu_lines)
+        except FileNotFoundError:
+            # lspci no disponible (pciutils no instalado): asumir nada
+            has_nvidia = os.environ.get("HAS_NVIDIA_GPU", "0") == "1"
+            has_intel = os.environ.get("HAS_NVIDIA_INTEL", "0") == "1"
 
         if not has_nvidia:
             os.environ["HAS_NVIDIA_GPU"] = "0"

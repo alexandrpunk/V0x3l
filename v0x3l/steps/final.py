@@ -20,7 +20,7 @@ class DesktopStep(BaseStep):
     def run(self) -> bool:
         success = True
         user = TARGET_USER
-
+        home = TARGET_HOME
         # (DMS/Dux se instala, configura y bindea dms.service a
         #  hyprland-session.target en Step 2: v0x3l/steps/packages.py.
         #  loginctl enable-linger ya corre en Step 3.)
