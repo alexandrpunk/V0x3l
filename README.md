@@ -6,9 +6,9 @@
   <b>V0x3l</b> — Post-instalador modular para Ubuntu Server 26.04+ con interfaz TUI (urwid).
 </p>
 
-<p align="center">
-  Automatiza toda la configuración posterior a la instalación: kernel XanMod Edge, drivers NVIDIA 595-open con soporte Optimus, Wayland + Nautilus + PipeWire, Flatpak con Flathub, TLP para optimización energética, Plymouth con tema propio, GRUB Vimix, Oh My Zsh con agnoster, LazyVim, firewall UFW, y gestor de escritorio DMS + Hyprland.
-</p>
+  <p align="center">
+    Automatiza toda la configuración posterior a la instalación: kernel XanMod Edge, drivers NVIDIA 595-open con soporte Optimus, Wayland + Nautilus + PipeWire, Flatpak con Flathub, TLP para optimización energética, Plymouth con tema propio, GRUB Vimix, Oh My Zsh con agnoster, LazyVim, firewall UFW, y escritorio Noctalia con compositor Umbriel y greeter sysc-greet.
+  </p>
 
 <p align="center">
   <img src="https://img.shields.io/badge/Ubuntu-26.04+-E95420?logo=ubuntu" />
@@ -55,10 +55,10 @@ python3 demo_ui.py
 
 | # | Sección | Descripción |
 |---|---------|-------------|
-| 0 | Preparación del sistema | herramientas base, repos, locale, zona horaria |
+| 0 | Preparación del sistema | herramientas base, repos Noctalia, locale, zona horaria |
 | 1 | Rendimiento y drivers | kernel XanMod Edge + GPU NVIDIA |
-| 2 | Software | Wayland, Nautilus, PipeWire, Flatpak, DMS, Hyprland, Kitty |
-| 3 | Configuración | Polkit, UFW, red, servicios, TLP |
+| 2 | Software | Wayland, Nautilus, PipeWire, Flatpak, Noctalia, Umbriel, Kitty |
+| 3 | Configuración | Polkit, UFW, red, servicios, TLP, Umbriel floating + sysc-greet |
 | 4 | Apariencia | Colloid icons, Plymouth, GRUB Vimix |
 | 5 | Entorno | Oh My Zsh, LazyVim y harness OMP |
 
@@ -68,9 +68,11 @@ Recursos utilizados:
 
 | Proyecto | Enlace |
 |----------|--------|
+| Noctalia | https://docs.noctalia.dev/noctalia/ |
+| Umbriel | https://docs.noctalia.dev/umbriel/ |
+| sysc-greet | https://github.com/Nomadcxx/sysc-greet |
 | GRUB Vimix | https://github.com/vinceliuice/vimix-grub2-theme |
 | Kitty | https://sw.kovidgoyal.net/kitty/ |
-| DMS | https://github.com/AvengeMedia/DankMaterialShell |
 
 ## Versiones
 

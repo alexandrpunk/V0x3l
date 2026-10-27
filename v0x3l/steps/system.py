@@ -110,7 +110,7 @@ class ConfigurationStep(BaseStep):
                 f.write(f"GDK_BACKEND=wayland\nQT_QPA_PLATFORM=wayland\n"
                         "SDL_VIDEODRIVER=wayland\nMOZ_ENABLE_WAYLAND=1\n"
                         f"XCURSOR_THEME={CURSOR_THEME_NAME}\n"
-                        "XDG_CURRENT_DESKTOP=Hyprland\nXDG_SESSION_TYPE=wayland\n")
+                        "XDG_CURRENT_DESKTOP=Umbriel\nXDG_SESSION_TYPE=wayland\n")
 
         # ── Cursor theme default ──
         cursor_dir = "/usr/share/icons/default"
@@ -120,11 +120,8 @@ class ConfigurationStep(BaseStep):
                 f.write(f"[Icon Theme]\nName=Default\nInherits={CURSOR_THEME_NAME}\n")
 
         # ---- Asegurar ownership de ~/.config al usuario ----
-        # Los writes anteriores (wayland.conf, dotfiles) corren como root y
-        # pueden dejar ~/.config (o sus subdirs) root-owned. Si eso pasa,
-        # herramientas del usuario (dms setup, etc.) no pueden crear subdirs
-        # bajo ~/.config y fallan con "permission denied". Se deja ownership
-        # recursivo al usuario real.
+        # Los writes como root pueden dejar ~/.config root-owned. Se deja
+        # ownership recursivo al usuario real.
         if user and os.geteuid() == 0 and os.path.isdir(f"{home}/.config"):
             subprocess.run(["chown", "-R", f"{user}:", f"{home}/.config"],
                            capture_output=True)
@@ -139,8 +136,8 @@ class ConfigurationStep(BaseStep):
                       "CPU_ENERGY_PERF_POLICY_ON_BAT=power\n"
                       "CPU_MAX_PERF_ON_AC=100\nCPU_MAX_PERF_ON_BAT=80\n"
                       "CPU_BOOST_ON_AC=1\nCPU_BOOST_ON_BAT=0\n"
-                      "PCIE_ASPM_ON_AC=powersupersave\n"
-                      "PCIE_ASPM_ON_BAT=powersupersave\n"
+                      "PCIE_ASPM_ON_AC=powersave\n"
+                      "PCIE_ASPM_ON_BAT=powersave\n"
                       "USB_AUTOSUSPEND=1\nWIFI_PWR_ON_AC=off\n"
                       "WIFI_PWR_ON_BAT=on\nSOUND_POWER_SAVE_ON_AC=1\n"
                       "SOUND_POWER_SAVE_ON_BAT=1\n")
@@ -161,5 +158,61 @@ class ConfigurationStep(BaseStep):
             subprocess.run(["sed", "-i",
                             f"s/^#?{key}=.*/{key}={val}/", logind],
                            capture_output=True)
+        umbriel_dir = os.path.join(home, ".config", "umbriel")
+        umbriel_config = os.path.join(umbriel_dir, "config.toml")
+        umbriel_config = f"{umbriel_dir}/config.toml"
+        if user and not os.path.exists(umbriel_config):
+            os.makedirs(umbriel_dir, exist_ok=True)
+            config_toml = (
+                "# Configuracion generada por V0x3l\n"
+                "# Layout: floating (solicitado)\n"
+                '[layout]\nmode = "floating"\n\n'
+                "# Autostart de Noctalia dentro de Umbriel\n"
+                "# Documentacion: https://docs.noctalia.dev/noctalia/getting-started/running-the-shell/\n"
+                "[general]\nautostart = [\"noctalia-shell\", \"kitty\"]\n"
+            )
+            with open(umbriel_config, "w") as f:
+                f.write(config_toml)
+            if os.geteuid() == 0:
+                subprocess.run(["chown", "-R", f"{user}:", umbriel_dir],
+                               capture_output=True)
+
+        # ── Configuracion sysc-greet para Umbriel ──
+        # Se crea una sesion personalizada para greetd con Umbriel como
+        # compositor de login y se habilita el servicio greetd.
+        # Ruta de configuracion de greetd: /etc/greetd/config.toml
+        greetd_dir = "/etc/greetd"
+        greetd_conf = f"{greetd_dir}/config.toml"
+        os.makedirs(greetd_dir, exist_ok=True)
+        greetd_toml = (
+            "[terminal]\n"
+            "vt = 1\n\n"
+            "[default_session]\n"
+            "command = \"umbriel\"\n"
+            "user = \"greeter\"\n"
+        )
+        with open(greetd_conf, "w") as f:
+            f.write(greetd_toml)
+
+        if user:
+            subprocess.run(["useradd", "-M", "-d", "/var/lib/greeter",
+                            "-G", "video,render,input", "-s",
+                            "/usr/sbin/nologin", "greeter"],
+                           capture_output=True)
+            for dir_path in ("/var/cache/sysc-greet",
+                             "/var/lib/greeter/Pictures/wallpapers",
+                             "/var/lib/greeter/.cache",
+                             "/var/lib/greeter/.config",
+                             "/var/lib/greeter/.local/state"):
+                os.makedirs(dir_path, exist_ok=True)
+            subprocess.run(["chown", "-R", "greeter:greeter",
+                            "/var/cache/sysc-greet", "/var/lib/greeter"],
+                           capture_output=True)
+            subprocess.run(["chmod", "755", "/var/lib/greeter"],
+                           capture_output=True)
+
+        self.runner.ui.run_cmd("enable greetd",
+            "systemctl", "enable", "--now", "greetd.service", sudo=True)
+
 
         return ok

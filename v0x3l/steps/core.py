@@ -31,11 +31,7 @@ class PreparationStep(BaseStep):
             ["lsb_release", "-sc"], capture_output=True, text=True
         ).stdout.strip()
 
-        # ButterRepo — instrucciones actuales:
-        # https://justaguy.dev/drew/butterrepo#installation
-        # Migracion desde justaguylinux.codeberg.page al endpoint oficial
-        # apt.justaguy.dev (la URL Codeberg sigue siendo mirror, pero se
-        # usa el endpoint canonico para futuras instalaciones).
+        # ButterRepo (endpoint oficial apt.justaguy.dev).
         butterrepo_list = "/etc/apt/sources.list.d/butterrepo.list"
         butterrepo_current = False
         try:
@@ -83,21 +79,25 @@ class PreparationStep(BaseStep):
                 "https://ppa.floorp.app/Floorp.list",
                 sudo=True)
 
-        # PPAs del instalador oficial Dux (dankinstall v2) + documentacion:
-        #   duxlabs/dux    -> quickshell, matugen, dgop, danksearch, cliphist,
-        #                   niri, ghostty, xwayland-satellite
-        #   duxlabs/dms    -> dms (shell + CLI)
-        #   cppiber/hyprland -> hyprland (versión más actual que la de Ubuntu)
-        # Greeter: ly (desde butterrepo, ya agregado en Step 0).
-        # --no-update: NO dejamos que add-apt-repository corra su apt update
-        # interno por PPA; el `nala update` de abajo absorbe todos los repos en
-        # una sola pasada. Idempotente: se salta si el .sources ya existe.
-        for ppa in ("ppa:duxlabs/dux", "ppa:duxlabs/dms",
-                    "ppa:cppiber/hyprland"):
-            name = ppa.split("/", 1)[1]
-            if not glob.glob(f"/etc/apt/sources.list.d/*{name}*"):
-                ok &= self.runner.ui.run_cmd(f"add {ppa}",
-                    "add-apt-repository", "-y", "--no-update", ppa, sudo=True)
+        # ── Repositorio oficial Noctalia (Ubuntu 26.04 resolute) ──
+        # Documentacion: https://docs.noctalia.dev/noctalia/getting-started/installation/
+        # Provee: noctalia, umbriel y xdg-desktop-portal-umbriel
+        noctalia_key = "/usr/share/keyrings/noctalia-archive-keyring.deb"
+        if not os.path.exists(noctalia_key):
+            ok &= self.runner.ui.run_cmd("install noctalia key",
+                "bash", "-c",
+                "set -euo pipefail; "
+                "wget -q https://pkg.noctalia.dev/deb/nickh-archive-keyring.deb "
+                "-O /usr/share/keyrings/noctalia-archive-keyring.deb",
+                sudo=True)
+        noctalia_list = "/etc/apt/sources.list.d/noctalia-resolute.sources"
+        if not os.path.exists(noctalia_list):
+            ok &= self.runner.ui.run_cmd("add noctalia repo",
+                "bash", "-c",
+                "set -euo pipefail; "
+                "wget -q https://pkg.noctalia.dev/deb/noctalia-resolute.sources "
+                "-O /etc/apt/sources.list.d/noctalia-resolute.sources",
+                sudo=True)
 
         # ── Actualizar paquetes (absorbe todos los repos) ──
         ok &= self.runner.ui.run_cmd("nala update",
@@ -123,12 +123,7 @@ class PreparationStep(BaseStep):
             "timedatectl", "set-timezone", "America/Mazatlan", sudo=True)
 
         # ── Locale ──
-        # Genera es_MX.UTF-8 si falta (idempotente + fallback: append a
-        # locale.gen si la linea no viene en instalaciones minimas/server).
-        # Setea LANG + LANGUAGE SIEMPRE (no solo al generar): sin LANGUAGE,
-        # apps GNOME/gettext como Nautilus caen a ingles aunque LANG=es_MX.
-        # Antes el update-locale estaba dentro del `if` y solo seteaba LANG,
-        # por eso Nautilus quedaba en ingles en re-runs.
+        # Locale: genera es_MX.UTF-8 si falta y setea LANG + LANGUAGE siempre.
         target_locale = "es_MX.UTF-8"
         la = subprocess.run(["locale", "-a"], capture_output=True, text=True).stdout.lower()
         have = any("es_mx" in tok and "utf" in tok for tok in la.split())

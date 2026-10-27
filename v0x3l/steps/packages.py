@@ -1,4 +1,4 @@
-# Step 2: Software (mega-install + stack Dux/DMS 2.x + flatpak)
+# Step 2: Software (mega-install + stack Noctalia/Umbriel/sysc-greet + flatpak)
 
 import shutil
 import os
@@ -18,19 +18,9 @@ class SoftwareStep(BaseStep):
         ok = True
 
         # ── Mega-install de paquetes base ──
-        # El stack Dux se instala en una transaccion separada mas abajo.
-        #   dms        — Dux Shell (deps: quickshell, danksearch, dgop,
-        #                matugen, cava, accountsservice, qt6 modules)
-        #   ly         — greeter TUI del sistema, desde butterrepo
-        #   dankcalendar — widget de calendario con integracion nativa
-        #   hyprland   — compositor desde ppa:cppiber/hyprland
-        #   cliphist   — clipboard manager usado por la config Dux
-        #   acl        — prerrequisito para integracion de permisos
-        # Kitty se instala despues mediante el instalador binario oficial
-        # (https://sw.kovidgoyal.net/kitty/binary/), como TARGET_USER.
         # Paquetes del sistema (sistema base + flatpak). Esta transaccion es
-        # independiente del stack Dux: si algun paquete Dux no esta disponible
-        # en el PPA, el paso no falla entero y flatpak se instala igual.
+        # independiente del stack Noctalia/Umbriel: si algun paquete no esta
+        # disponible, el paso no falla entero y flatpak se instala igual.
         ok &= self.runner.ui.run_cmd("mega-install base",
             "nala", "install", "--no-install-recommends", "-y",
             "wayland-protocols", "libwayland-dev", "libegl1",
@@ -51,27 +41,47 @@ class SoftwareStep(BaseStep):
             "cups-pk-helper", "kimageformat-plugins",
             sudo=True)
 
-        DUXTAPE = ["hyprland", "cliphist", "acl",
-                   "dms", "ly", "dankcalendar"]
-        if not self.runner.ui.run_cmd("install Dux stack",
+        # ── Noctalia + Umbriel ──
+        # Repositorio oficial Noctalia: compositor Umbriel, shell Noctalia
+        # y portal XDG para Umbriel.
+        umbriel_pkgs = ["noctalia", "umbriel", "xdg-desktop-portal-umbriel"]
+        if not self.runner.ui.run_cmd("install noctalia + umbriel",
                 "nala", "install", "--no-install-recommends", "-y",
-                *DUXTAPE, sudo=True):
-            # Fallback paquete por paquete: si uno falta en el PPA, no
-            # dejamos de instalar los demas ni romper el paso 2.
-            log("WARN Dux stack: instalacion grupal fallo; probando "
+                *umbriel_pkgs, sudo=True):
+            log("WARN Noctalia/Umbriel: instalacion grupal fallo; probando "
                 "paquete por paquete")
-            for pkg in DUXTAPE:
+            for pkg in umbriel_pkgs:
                 ok &= self.runner.ui.run_cmd(f"install {pkg}",
                     "nala", "install", "--no-install-recommends", "-y",
                     pkg, sudo=True)
 
+        # ── sysc-greet ──
+        # Paquete oficial v1.3.0 amd64 del greeter de greetd.
+        sysc_greet_deb = "/tmp/sysc-greet_1.3.0_amd64.deb"
+        if not os.path.exists(sysc_greet_deb):
+            ok &= self.runner.ui.run_cmd("download sysc-greet deb",
+                "bash", "-c",
+                "set -euo pipefail; "
+                "wget -q https://github.com/Nomadcxx/sysc-greet/releases/download/v1.3.0/"
+                "sysc-greet_1.3.0_amd64.deb -O /tmp/sysc-greet_1.3.0_amd64.deb",
+                sudo=True)
+        if os.path.exists(sysc_greet_deb):
+            installed = self.runner.ui.run_cmd("install sysc-greet deb",
+                "apt", "install", "-y", sysc_greet_deb, sudo=True)
+            ok &= installed
+            if installed:
+                os.remove(sysc_greet_deb)
+        else:
+            log("ERROR sysc-greet: no se pudo descargar el paquete .deb")
+            ok = False
 
+        # Umbriel es el compositor; Noctalia el shell. Su repo se agrega en
+        # Step 0; aqui solo se instalan los paquetes.
         # ── Kitty oficial (ultima version estable) ──
         # Docs: https://sw.kovidgoyal.net/kitty/binary/
         # El instalador instala en ~/.local/kitty.app del usuario destino;
         # nunca debe ejecutarse como root. Se crean symlinks para kitty y
-        # kitten en /usr/local/bin (PATH del sistema, visible a Hyprland/Dux)
-        # y se instala la integracion desktop en el HOME del usuario.
+        # kitten en /usr/local/bin (PATH del sistema).
         kitty_home = TARGET_HOME
         kitty_ok = False
         if not TARGET_USER:
@@ -108,73 +118,6 @@ class SoftwareStep(BaseStep):
                 ok &= self.runner.ui.run_cmd("link kitten in system PATH",
                     "ln", "-sf", f"{kitty_home}/.local/kitty.app/bin/kitten",
                     "/usr/local/bin/kitten", sudo=True)
-
-        if not kitty_ok:
-            log("ERROR kitty: DMS no se configurara sin una instalacion valida")
-        ok &= kitty_ok
-
-        # DMS genera la configuración de Hyprland y espera Kitty como
-        # terminal declarada; no ejecutarlo si esa dependencia falló.
-        if not kitty_ok:
-            return ok
-
-
-        # ── Configuracion del stack Dux (post-install via paquetes) ──
-        # Docs: https://duxlabs.dev/docs/dms/cli-setup (headless)
-        # Greeter: ly (desde butterrepo, ya agregado en Step 0).
-        #
-        # 1) `dms setup headless` (como TARGET_USER via runuser, ejemplo
-        #    literal de la doc): deploya configs Dux de Hyprland (lua) +
-        #    kitty y bindea dms.service a hyprland-session.target. `dms` se
-        #    niega a correr como root. --skip-existing: idempotente.
-        # 2) `ly` como greeter del sistema: habilitar el servicio ly
-        #    (systemctl enable ly). Ly es un greeter minimalista TUI que no
-        #    requiere configuracion de greetd ni temas complejos.
-        # 3) Grupos: input (Hyprland necesita /dev/input).
-        if not TARGET_USER:
-            log("ERROR dms: no se pudo resolver el usuario destino "
-                "(SUDO_USER/logname); la configuracion de Dux requiere un "
-                "usuario no-root")
-            ok = False
-        else:
-            dms_installed = shutil.which("dms") is not None
-            if not dms_installed:
-                log("WARN dms: binario 'dms' no disponible (paquete dms no "
-                    "instalado en el PPA); se omite configuracion de Dux")
-                ok = False
-            else:
-                ok &= self.runner.ui.run_cmd("ensure user session bus",
-                    "bash", "-c",
-                    'u="$1"; uid=$(id -u "$u"); '
-                    'home=$(getent passwd "$u" | cut -d: -f6); '
-                    'loginctl enable-linger "$u" 2>/dev/null || true; '
-                    'systemctl start "user@$uid" 2>/dev/null || true; '
-                    'export XDG_RUNTIME_DIR="/run/user/$uid"; '
-                    'export DBUS_SESSION_BUS_ADDRESS="unix:path=/run/user/$uid/bus"; '
-                    'runuser -u "$u" -- env HOME="$home" '
-                    'PATH="$home/.local/bin:$PATH" '
-                    'XDG_RUNTIME_DIR="$XDG_RUNTIME_DIR" '
-                    'DBUS_SESSION_BUS_ADDRESS="$DBUS_SESSION_BUS_ADDRESS" '
-                    'dms setup headless --compositor hyprland --terminal kitty '
-                    '--skip-existing',
-                    "dms-setup", TARGET_USER, sudo=True)
-
-                # Habilitar ly como greeter del sistema
-                ok &= self.runner.ui.run_cmd("enable ly greeter",
-                    "systemctl", "enable", "ly", sudo=True)
-
-                # Grupos: input (Hyprland necesita /dev/input)
-                ok &= self.runner.ui.run_cmd("add input group",
-                    "usermod", "-aG", "input", TARGET_USER, sudo=True)
-
-            # ~/.config pudo quedar root-owned (otros comandos root del
-            # instalador pueden tocarlo). Solo chown si existe.
-            home = os.path.expanduser(f"~{TARGET_USER}")
-            config_dir = f"{home}/.config"
-            if os.path.isdir(config_dir):
-                ok &= self.runner.ui.run_cmd("fix ~/.config owner",
-                    "chown", "-R", f"{TARGET_USER}:", config_dir,
-                    sudo=True)
 
         # ── Flatpak: 1 remote + 1 transaccion para todas las apps ──
         # Antes: 3 `flatpak list` + hasta 3 `flatpak install` separados.

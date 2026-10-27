@@ -1,5 +1,5 @@
-# Step 5: Entorno — dotfiles + Oh My Zsh + LazyVim + harness omp
-# (DMS/Dux se instala y configura en Step 2: v0x3l/steps/packages.py;
+# Paso 5: Entorno — dotfiles + Oh My Zsh + LazyVim + harness omp
+# (Noctalia/Umbriel/sysc-greet se instalan en Step 2: packages.py;
 # dotfiles/zsh/lazyvim/omp al final para evitar conflictos con instaladores
 # que tocan ~/.config y ~/.local)
 
@@ -197,6 +197,23 @@ class DesktopStep(BaseStep):
             ok &= self.runner.ui.run_cmd("chown omp agent dir",
                 "chown", "-R", f"{user}:", os.path.join(home, ".omp"),
                 sudo=True)
+
+        # ── sysclet (perfiles ASCII para sysc-greet) ──
+        # Instalador oficial como usuario destino (nunca como root).
+        # Documentacion: https://github.com/Nomadcxx/sysclet
+        sysclet_ok = self.runner.ui.run_cmd("install sysclet",
+            "runuser", "-u", user, "--", "env", f"HOME={home}",
+            "bash", "-c",
+            "set -euo pipefail; "
+            "curl -fsSL "
+            "https://raw.githubusercontent.com/Nomadcxx/sysclet/main/install.sh "
+            "| sh",
+            "sysclet-install", sudo=False)
+        if sysclet_ok:
+            log("sysclet instalado en ~/.local/bin/sysclet")
+        else:
+            log("WARN sysclet: no se pudo instalar; perfiles ASCII "
+                "no disponibles para sysc-greet")
 
         log("omp instalado. Configura endpoint y API key manualmente con: "
             f"sh {agent_dir}/scripts/setup.sh")

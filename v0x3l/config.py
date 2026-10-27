@@ -53,6 +53,27 @@ DOTFILES_MAP = {
 ASCII_FILE = BASE_DIR / "ascii.sh"
 PALETTE_FILE = BASE_DIR / "collorPalette"
 
+# ── Stack Noctalia / Umbriel / sysc-greet ──
+# Documentacion: https://docs.noctalia.dev/noctalia/getting-started/installation/
+# https://docs.noctalia.dev/umbriel/installation/
+# https://github.com/Nomadcxx/sysc-greet/releases/tag/v1.3.0
+NOCTALIA_KEY_FILE = "/usr/share/keyrings/noctalia-archive-keyring.deb"
+NOCTALIA_KEY_URL = "https://pkg.noctalia.dev/deb/nickh-archive-keyring.deb"
+NOCTALIA_LIST_URL = "https://pkg.noctalia.dev/deb/noctalia-resolute.sources"
+NOCTALIA_LIST_FILE = "/etc/apt/sources.list.d/noctalia-resolute.sources"
+SYSCLET_INSTALL_URL = ("https://raw.githubusercontent.com/Nomadcxx/sysclet/"
+                       "main/install.sh")
+
+SYSC_GREET_DEB_URL = ("https://github.com/Nomadcxx/sysc-greet/releases/"
+                      "download/v1.3.0/sysc-greet_1.3.0_amd64.deb")
+SYSC_GREET_DEB_FILE = "/tmp/sysc-greet_1.3.0_amd64.deb"
+
+GREETD_DIR = "/etc/greetd"
+GREETD_CONFIG_FILE = "/etc/greetd/config.toml"
+GREET_USER = "greeter"
+GREET_HOME = "/var/lib/greeter"
+GREET_GROUPS = ["video", "render", "input"]
+
 # ── Harness de codificacion (omp) ──
 # Repo con la configuracion personal: config.yml, models.yml, AGENTS.md,
 # agents/, skills/, rules/, extensions/ y scripts/setup.sh.
