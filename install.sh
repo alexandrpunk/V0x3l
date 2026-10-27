@@ -3,14 +3,18 @@
 # V0x3l — Bootstrap entry point
 # ============================================================
 # Uso:
-#   curl -fsSL https://raw.githubusercontent.com/alexandrpunk/V0x3l/development/install.sh | bash
-# ============================================================
+#   curl -fsSL https://raw.githubusercontent.com/alexandrpunk/V0x3l/optimizacion/install.sh | bash
+#   REPO_URL=... REPO_BRANCH=... bash install.sh
+#
+# El bootstrap no puede leer el .env antes de clonar el repositorio. Acepta
+# las mismas variables por entorno y mantiene defaults seguros para el
+# one-liner; el .env clonado queda como configuración de la aplicación.
 
 set -euo pipefail
 
-REPO_URL="https://github.com/alexandrpunk/V0x3l.git"
+REPO_URL="${REPO_URL:-https://github.com/alexandrpunk/V0x3l.git}"
 INSTALL_DIR="${HOME}/.local/share/v0x3l"
-V0X3L_BRANCH="${V0X3L_BRANCH:-optimizacion}"
+V0X3L_BRANCH="${V0X3L_BRANCH:-${REPO_BRANCH:-optimizacion}}"
 
 # ── Spinner y mensajes ──
 SPINNER_PID=""

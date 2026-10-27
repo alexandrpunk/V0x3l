@@ -221,3 +221,36 @@ class OmpHarnessTests(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+class ShellAndRunnerRegressionTests(unittest.TestCase):
+    def test_run_timeout_applies_while_child_is_silent(self):
+        from v0x3l.shell import run
+
+        with patch("v0x3l.shell.log"):
+            self.assertFalse(run(
+                "silent timeout", "bash", "-c", "sleep 5", timeout=0.2
+            ))
+
+    def test_failed_step_does_not_advance_checkpoint(self):
+        from v0x3l.app import V0x3lApp
+
+        app = V0x3lApp.__new__(V0x3lApp)
+        app.exec_screen = None
+        app.current_progress = None
+        app.loop = None
+        app.layout = type("Layout", (), {
+            "set_header": lambda self, text: None,
+            "show_result": lambda self, ok, label: None,
+        })()
+        app.runner = type("Runner", (), {
+            "save_checkpoint": lambda self, step_num: (_ for _ in ()).throw(
+                AssertionError("failed step advanced checkpoint")
+            ),
+        })()
+        step = type("FailingStep", (), {
+            "number": 2,
+            "title": "fallo",
+            "run": lambda self: (_ for _ in ()).throw(RuntimeError("boom")),
+        })()
+
+        self.assertFalse(app.run_step(step))

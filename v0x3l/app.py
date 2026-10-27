@@ -250,7 +250,6 @@ class V0x3lApp:
             self.layout.show_result(False, f"Paso {step.number}")
             if self.loop:
                 self.loop.draw_screen()
-            self.runner.save_checkpoint(step.number)
             log(f"FAIL: Paso {step.number} - {step.title}")
             self.current_progress = None
             return False

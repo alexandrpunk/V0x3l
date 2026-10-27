@@ -57,10 +57,10 @@ python3 demo_ui.py
 |---|---------|-------------|
 | 0 | Preparación del sistema | herramientas base, repos, locale, zona horaria |
 | 1 | Rendimiento y drivers | kernel XanMod Edge + GPU NVIDIA |
-| 2 | Software | Wayland, Nautilus, PipeWire, Flatpak, Zsh, LazyVim |
+| 2 | Software | Wayland, Nautilus, PipeWire, Flatpak, DMS, Hyprland, Kitty |
 | 3 | Configuración | Polkit, UFW, red, servicios, TLP |
 | 4 | Apariencia | Colloid icons, Plymouth, GRUB Vimix |
-| 5 | Entorno | Gestor de escritorio DMS + Hyprland |
+| 5 | Entorno | Oh My Zsh, LazyVim y harness OMP |
 
 ## Recursos
 
@@ -69,11 +69,13 @@ Recursos utilizados:
 | Proyecto | Enlace |
 |----------|--------|
 | GRUB Vimix | https://github.com/vinceliuice/vimix-grub2-theme |
+| Kitty | https://sw.kovidgoyal.net/kitty/ |
+| DMS | https://github.com/AvengeMedia/DankMaterialShell |
 
 ## Versiones
 
+- `optimizacion` — rama de instalación y desarrollo activo
 - `main` — versiones estables
-- `development` — desarrollo activo
 
 ## Licencia
 

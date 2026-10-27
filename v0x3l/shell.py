@@ -1,9 +1,10 @@
 # Shell helper - ejecucion de comandos, sudo, logging
 
 import select
-import subprocess
 import os
+import subprocess
 from datetime import datetime
+import time
 from typing import Optional, Callable
 from v0x3l.config import LOG_FILE
 
@@ -54,32 +55,44 @@ def run(
         )
 
         if capture_output and proc.stdout:
-            # Loop con select: redibuja (on_tick) cada ~100ms haya o no output,
-            # y lee lineas en cuanto llegan. Asi la UI no se congela con
-            # comandos silenciosos.
+            # Leer salida sin bloquear la aplicación y vigilar el límite desde
+            # el mismo bucle, incluso si el proceso no produce ninguna línea.
             fd = proc.stdout.fileno()
+            started = time.monotonic()
             while True:
+                if timeout is not None and time.monotonic() - started >= timeout:
+                    proc.kill()
+                    proc.wait()
+                    if proc.stdout:
+                        proc.stdout.close()
+                    log(f"TIMEOUT: {description}")
+                    return False
                 ready, _, _ = select.select([fd], [], [], 0.1)
                 if on_tick:
                     on_tick()
                 if fd in ready:
                     line = proc.stdout.readline()
-                    if line == "":  # EOF
+                    if line == "":
                         break
                     line = line.rstrip()
                     log(f"  {line}")
                     if on_line:
                         on_line(line)
-                elif proc.poll() is not None:  # sin datos y el proc ya termino
+                elif proc.poll() is not None:
                     break
-
-        proc.wait(timeout=timeout)
+            proc.wait(timeout=timeout)
+        else:
+            proc.wait(timeout=timeout)
+        proc.stdout.close() if proc.stdout else None
         ok = proc.returncode == 0
         log(f"RESULT: {'OK' if ok else f'FAIL({proc.returncode})'} [{description}]")
         return ok
 
     except subprocess.TimeoutExpired:
         proc.kill()
+        proc.wait()
+        if proc.stdout:
+            proc.stdout.close()
         log(f"TIMEOUT: {description}")
         return False
     except FileNotFoundError:

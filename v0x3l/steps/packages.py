@@ -84,13 +84,14 @@ class SoftwareStep(BaseStep):
                 "set -eu; "
                 "curl -fL https://sw.kovidgoyal.net/kitty/installer.sh | "
                 "sh /dev/stdin; "
+                "test -x \"$HOME/.local/kitty.app/bin/kitty\"; "
+                "test -x \"$HOME/.local/kitty.app/bin/kitten\"; "
                 "mkdir -p \"$HOME/.local/bin\" \"$HOME/.local/share/applications\"; "
                 "ln -sf \"$HOME/.local/kitty.app/bin/kitty\" \"$HOME/.local/bin/kitty\"; "
                 "ln -sf \"$HOME/.local/kitty.app/bin/kitten\" \"$HOME/.local/bin/kitten\"; "
-                "cp \"$HOME/.local/kitty.app/share/applications/kitty.desktop\" "
-                "\"$HOME/.local/share/applications/kitty.desktop\"; "
-                "cp \"$HOME/.local/kitty.app/share/applications/kitty-open.desktop\" "
-                "\"$HOME/.local/share/applications/kitty-open.desktop\"; "
+                "for desktop in \"$HOME/.local/kitty.app/share/applications/kitty.desktop\" "
+                "\"$HOME/.local/kitty.app/share/applications/kitty-open.desktop\"; do "
+                "test -f \"$desktop\"; cp \"$desktop\" \"$HOME/.local/share/applications/\"; done; "
                 "kitty_root=\"$(readlink -f \"$HOME/.local/kitty.app\")\"; "
                 "sed -i \"s|Icon=kitty|Icon=$kitty_root/share/icons/hicolor/256x256/apps/kitty.png|g; "
                 "s|Exec=kitty|Exec=$kitty_root/bin/kitty|g\" "
@@ -109,9 +110,13 @@ class SoftwareStep(BaseStep):
                     "/usr/local/bin/kitten", sudo=True)
 
         if not kitty_ok:
-            log("WARN kitty: instalacion oficial fallo; se omite setup "
-                "de Dux que requiere terminal kitty")
+            log("ERROR kitty: DMS no se configurara sin una instalacion valida")
         ok &= kitty_ok
+
+        # DMS genera la configuración de Hyprland y espera Kitty como
+        # terminal declarada; no ejecutarlo si esa dependencia falló.
+        if not kitty_ok:
+            return ok
 
 
         # ── Configuracion del stack Dux (post-install via paquetes) ──
