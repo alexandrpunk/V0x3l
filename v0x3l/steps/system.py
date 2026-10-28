@@ -75,15 +75,14 @@ class ConfigurationStep(BaseStep):
 
         netplan_file = "/etc/netplan/01-netcfg.yaml"
         if not os.path.exists(netplan_file):
-            # Validar iface: solo caracteres seguros para YAML (evita parse
-            # errors si la deteccion captura basura con espacios o comas)
-            import re
-            if iface and not re.match(r'^[a-zA-Z0-9_-]+$', iface):
-                iface = ""
+            # Netplan minimo: solo renderer NetworkManager. No se fuerzan
+            # interfaces bajo ethernets/wifi porque el nombre detectado
+            # (ej. wlp3s0) puede no casar con el device type real y
+            # netplan apply rechaza cambiar el tipo de una interfaz
+            # existente. NetworkManager ya gestiona la red por defecto.
             with open(netplan_file, "w") as f:
                 f.write("network:\n  version: 2\n  renderer: NetworkManager\n")
-                if iface:
-                    f.write(f"  ethernets:\n    {iface}:\n      dhcp4: true\n")
+            os.chmod(netplan_file, 0o600)
             ok &= self.runner.ui.run_cmd("netplan apply",
                 "netplan", "apply", sudo=True)
 
