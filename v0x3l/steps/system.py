@@ -188,12 +188,24 @@ class ConfigurationStep(BaseStep):
             "[terminal]\n"
             "vt = 1\n\n"
             "[default_session]\n"
-            "command = \"umbriel\"\n"
+            "command = \"sysc-greet\"\n"
             "user = \"greeter\"\n"
         )
         with open(greetd_conf, "w") as f:
             f.write(greetd_toml)
-
+        # Sesion de usuario de Umbriel para que greetd sepa arrancarla
+        # tras el login con sysc-greet (no es el greeter; es la sesion real).
+        if user:
+            umbriel_session = "/usr/share/wayland-sessions/umbriel.desktop"
+            os.makedirs("/usr/share/wayland-sessions", exist_ok=True)
+            with open(umbriel_session, "w") as f:
+                f.write("[Desktop Entry]\n"
+                        "Name=Umbriel\n"
+                        "Comment=Umbriel Wayland compositor\n"
+                        "Exec=umbriel\n"
+                        "Type=Application\n")
+            subprocess.run(["chmod", "644", umbriel_session],
+                           capture_output=True)
         if user:
             subprocess.run(["useradd", "-M", "-d", "/var/lib/greeter",
                             "-G", "video,render,input", "-s",
