@@ -25,7 +25,7 @@ class SoftwareStep(BaseStep):
             "nala", "install", "--no-install-recommends", "-y",
             "wayland-protocols", "libwayland-dev", "libegl1",
             "libgl1-mesa-dri", "mesa-vulkan-drivers", "xwayland",
-            "thunar", "thunar-volman", "gvfs-backends", "gvfs-fuse", "udisks2", "polkitd",
+            "thunar", "thunar-volman", "gvfs-backends", "gvfs-fuse", "udisks2", "polkitd", "greetd",
             "ntfs-3g", "exfatprogs", "libglib2.0-bin",
             "neovim", "tmux", "fastfetch", "geany",
             "nwg-look", "dialog", "apt-utils",
