@@ -84,13 +84,16 @@ class PreparationStep(BaseStep):
         # Provee: noctalia, umbriel y xdg-desktop-portal-umbriel
         noctalia_key_deb = "/tmp/noctalia-archive-keyring.deb"
         if not os.path.exists(noctalia_key_deb):
-            ok &= self.runner.ui.run_cmd("install noctalia key",
+            key_ok = self.runner.ui.run_cmd("install noctalia key",
                 "bash", "-c",
                 "set -euo pipefail; "
                 "wget -q https://pkg.noctalia.dev/deb/nickh-archive-keyring.deb "
                 f"-O {noctalia_key_deb} && "
                 f"apt install -y {noctalia_key_deb}",
                 sudo=True)
+            if not key_ok:
+                log("WARN noctalia key: no se pudo instalar; nala update puede "
+                    "mostrar advertencias de firma pero continua")
             try:
                 os.remove(noctalia_key_deb)
             except OSError:
