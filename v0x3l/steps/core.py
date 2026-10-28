@@ -3,7 +3,7 @@
 import glob
 import os
 import subprocess
-
+from v0x3l.shell import log
 from v0x3l.config import BASE_DIR, TARGET_USER
 from v0x3l.steps.base import BaseStep
 
@@ -89,7 +89,7 @@ class PreparationStep(BaseStep):
                 "set -euo pipefail; "
                 "wget -q https://pkg.noctalia.dev/deb/nickh-archive-keyring.deb "
                 f"-O {noctalia_key_deb} && "
-                f"apt install -y {noctalia_key_deb}",
+                f"apt install -y --allow-downgrades {noctalia_key_deb}",
                 sudo=True)
             if not key_ok:
                 log("WARN noctalia key: no se pudo instalar; nala update puede "
