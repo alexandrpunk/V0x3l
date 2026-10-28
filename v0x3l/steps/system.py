@@ -4,6 +4,7 @@ import os
 import subprocess
 from v0x3l.steps.base import BaseStep
 from v0x3l.config import TLP_CONF_NAME, CURSOR_THEME_NAME, TARGET_USER, TARGET_HOME
+from v0x3l.shell import log
 
 
 class ConfigurationStep(BaseStep):
@@ -177,19 +178,17 @@ class ConfigurationStep(BaseStep):
                                capture_output=True)
 
         # ── Configuracion ly (display manager) + seatd para Umbriel ──
-        # ly es un display manager TUI compatible con sesiones Wayland.
-        # seatd da acceso a GPU/input sin root, necesario para que ly
-        # pueda lanzar Umbriel como compositor Wayland.
+        # ly es un display manager TUI que NO usa systemd; se instala y
+        # arranca de forma independiente. seatd SÍ necesita systemd para
+        # dar acceso a dispositivos de asiento (input/GPU) sin root.
         if user:
             subprocess.run(["usermod", "-aG", "seat", user],
                            capture_output=True)
-        ok &= self.runner.ui.run_cmd("enable seatd",
+        ok_seatd = self.runner.ui.run_cmd("enable seatd",
             "systemctl", "enable", "--now", "seatd.service", sudo=True)
-        ok &= self.runner.ui.run_cmd("enable ly",
-            "systemctl", "enable", "--now", "ly.service", sudo=True)
-        if not ok:
-            log("WARN ly.service/seatd.service no disponibles; se "
-                "intentara de nuevo en el siguiente arranque")
+        if not ok_seatd:
+            log("WARN seatd.service no disponible; ly podria no tener "
+                "acceso a input/GPU sin root")
 
         # Sesion de usuario de Umbriel para que ly sepa arrancarla tras
         # el login (ly lee /usr/share/wayland-sessions y xsessions).
@@ -204,6 +203,5 @@ class ConfigurationStep(BaseStep):
                         "Type=Application\n")
             subprocess.run(["chmod", "644", umbriel_session],
                            capture_output=True)
-
 
         return ok
