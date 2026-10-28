@@ -25,7 +25,7 @@ class SoftwareStep(BaseStep):
             "nala", "install", "--no-install-recommends", "-y",
             "wayland-protocols", "libwayland-dev", "libegl1",
             "libgl1-mesa-dri", "mesa-vulkan-drivers", "xwayland",
-            "nautilus", "gvfs-backends", "gvfs-fuse", "udisks2", "polkitd",
+            "thunar", "thunar-volman", "gvfs-backends", "gvfs-fuse", "udisks2", "polkitd",
             "ntfs-3g", "exfatprogs", "libglib2.0-bin",
             "neovim", "tmux", "fastfetch", "geany",
             "nwg-look", "dialog", "apt-utils",
@@ -124,7 +124,7 @@ class SoftwareStep(BaseStep):
         # flatpak install acepta varios refs en una sola transaccion y es
         # idempotente (las ya instaladas se reportan y no se re-descargan).
         FLATHUB_APPS = ("org.gnome.Papers", "net.nokyan.Resources",
-                        "org.gnome.Showtime")
+                        "io.github.diegopvlk.Cine", "org.atheme.audacious")
         if not shutil.which("flatpak"):
             # Flatpak es opcional: no fallar si no esta disponible en el
             # entorno de ejecucion.

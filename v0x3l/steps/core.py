@@ -82,14 +82,19 @@ class PreparationStep(BaseStep):
         # ── Repositorio oficial Noctalia (Ubuntu 26.04 resolute) ──
         # Documentacion: https://docs.noctalia.dev/noctalia/getting-started/installation/
         # Provee: noctalia, umbriel y xdg-desktop-portal-umbriel
-        noctalia_key = "/usr/share/keyrings/noctalia-archive-keyring.deb"
-        if not os.path.exists(noctalia_key):
+        noctalia_key_deb = "/tmp/noctalia-archive-keyring.deb"
+        if not os.path.exists(noctalia_key_deb):
             ok &= self.runner.ui.run_cmd("install noctalia key",
                 "bash", "-c",
                 "set -euo pipefail; "
                 "wget -q https://pkg.noctalia.dev/deb/nickh-archive-keyring.deb "
-                "-O /usr/share/keyrings/noctalia-archive-keyring.deb",
+                f"-O {noctalia_key_deb} && "
+                f"apt install -y {noctalia_key_deb}",
                 sudo=True)
+            try:
+                os.remove(noctalia_key_deb)
+            except OSError:
+                pass
         noctalia_list = "/etc/apt/sources.list.d/noctalia-resolute.sources"
         if not os.path.exists(noctalia_list):
             ok &= self.runner.ui.run_cmd("add noctalia repo",
@@ -100,8 +105,19 @@ class PreparationStep(BaseStep):
                 sudo=True)
 
         # ── Actualizar paquetes (absorbe todos los repos) ──
-        ok &= self.runner.ui.run_cmd("nala update",
+        # nala update puede fallar transientemente (mirror, red, keyrings
+        # recién agregados). Reintenta una vez; si sigue fallando, solo WARN
+        # para no bloquear todo el paso: las instalaciones manejan su propio
+        # error si falta un paquete del repo.
+        nala_ok = self.runner.ui.run_cmd("nala update",
             "nala", "update", sudo=True)
+        if not nala_ok:
+            import time as _time
+            _time.sleep(2)
+            nala_ok = self.runner.ui.run_cmd("nala update (reintento)",
+                "nala", "update", sudo=True)
+        if not nala_ok:
+            log("WARN nala update falló; continuando sin actualizar índice")
         # nala upgrade: one-shot con marker file. Evita re-upgradear todo en
         # cada re-run (lento, puede romper DKMS con kernel bumps).
         upgrade_marker = "/var/lib/v0x3l/.upgraded"
@@ -114,12 +130,12 @@ class PreparationStep(BaseStep):
         # ── Grupos ──
         user = TARGET_USER
         if user:
-            self.runner.ui.run_cmd("add groups",
+            ok &= self.runner.ui.run_cmd("add groups",
                 "usermod", "-aG", "video,render,audio,plugdev,netdev", user,
                 sudo=True)
 
         # ── Timezone ──
-        self.runner.ui.run_cmd("timezone",
+        ok &= self.runner.ui.run_cmd("timezone",
             "timedatectl", "set-timezone", "America/Mazatlan", sudo=True)
 
         # ── Locale ──
@@ -128,14 +144,14 @@ class PreparationStep(BaseStep):
         la = subprocess.run(["locale", "-a"], capture_output=True, text=True).stdout.lower()
         have = any("es_mx" in tok and "utf" in tok for tok in la.split())
         if not have:
-            self.runner.ui.run_cmd("locale-gen", "bash", "-c",
+            ok &= self.runner.ui.run_cmd("locale-gen", "bash", "-c",
                 f"sed -i 's/^# *{target_locale} UTF-8/{target_locale} UTF-8/' "
                 f"/etc/locale.gen; "
                 f"grep -q '^{target_locale} UTF-8' /etc/locale.gen || "
                 f"echo '{target_locale} UTF-8' >> /etc/locale.gen; "
                 f"locale-gen",
                 sudo=True)
-        self.runner.ui.run_cmd("update-locale",
+        ok &= self.runner.ui.run_cmd("update-locale",
             "update-locale", f"LANG={target_locale}", "LANGUAGE=es_MX:es",
             sudo=True)
 

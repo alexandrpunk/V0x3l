@@ -37,7 +37,7 @@ def run(
     Returns:
         True si el comando retorno 0, False en otro caso
     """
-    log(f"CMD: {' '.join(args)} (sudo={sudo})")
+    log(f"CMD: pid={os.getpid()} desc='{description}' sudo={sudo} -> {' '.join(args)}")
 
     cmd = list(args)
     if sudo and os.geteuid() != 0:
@@ -84,20 +84,22 @@ def run(
         else:
             proc.wait(timeout=timeout)
         proc.stdout.close() if proc.stdout else None
+        elapsed = time.monotonic() - started if 'started' in locals() else 0.0
         ok = proc.returncode == 0
-        log(f"RESULT: {'OK' if ok else f'FAIL({proc.returncode})'} [{description}]")
+        log(f"RESULT: pid={os.getpid()} rc={proc.returncode} elapsed={elapsed:.2f}s {'OK' if ok else f'FAIL({proc.returncode})'} [{description}]")
         return ok
 
     except subprocess.TimeoutExpired:
+        elapsed = time.monotonic() - started if 'started' in locals() else 0.0
         proc.kill()
         proc.wait()
         if proc.stdout:
             proc.stdout.close()
-        log(f"TIMEOUT: {description}")
+        log(f"TIMEOUT: pid={os.getpid()} elapsed={elapsed:.2f}s [{description}]")
         return False
     except FileNotFoundError:
-        log(f"NOT_FOUND: {args[0] if args else '?'} - comando no encontrado")
+        log(f"NOT_FOUND: pid={os.getpid()} cmd={args[0] if args else '?'} - comando no encontrado")
         return False
     except OSError as e:
-        log(f"ERROR: {e}")
+        log(f"ERROR: pid={os.getpid()} [{description}] {e}")
         return False

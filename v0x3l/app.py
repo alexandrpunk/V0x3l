@@ -269,7 +269,7 @@ class V0x3lApp:
             self.runner.save_checkpoint(step.number)
             log(f"OK: Paso {step.number} - {step.title}")
         else:
-            log(f"FAIL: Paso {step.number} - {step.title}")
+            log(f"FAIL: Paso {step.number} - {step.title} | ver LOG_FILE={LOG_FILE} para CMD/RESULT previos")
 
         self.current_progress = None
         return ok

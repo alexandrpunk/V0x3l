@@ -7,7 +7,7 @@
 </p>
 
   <p align="center">
-    Automatiza toda la configuración posterior a la instalación: kernel XanMod Edge, drivers NVIDIA 595-open con soporte Optimus, Wayland + Nautilus + PipeWire, Flatpak con Flathub, TLP para optimización energética, Plymouth con tema propio, GRUB Vimix, Oh My Zsh con agnoster, LazyVim, firewall UFW, y escritorio Noctalia con compositor Umbriel y greeter sysc-greet.
+  <b>V0x3l</b> — Post-instalador modular para Ubuntu Server 26.04+ con interfaz TUI (urwid).
   </p>
 
 <p align="center">
@@ -57,7 +57,7 @@ python3 demo_ui.py
 |---|---------|-------------|
 | 0 | Preparación del sistema | herramientas base, repos Noctalia, locale, zona horaria |
 | 1 | Rendimiento y drivers | kernel XanMod Edge + GPU NVIDIA |
-| 2 | Software | Wayland, Nautilus, PipeWire, Flatpak, Noctalia, Umbriel, Kitty |
+| 2 | Software | Wayland, Thunar, PipeWire, Flatpak, Noctalia, Umbriel, Kitty |
 | 3 | Configuración | Polkit, UFW, red, servicios, TLP, Umbriel floating + sysc-greet |
 | 4 | Apariencia | Colloid icons, Plymouth, GRUB Vimix |
 | 5 | Entorno | Oh My Zsh, LazyVim y harness OMP |

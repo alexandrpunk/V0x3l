@@ -29,7 +29,7 @@ NALA_OUTPUT_SIMULATION = [
     "Get:2 libegl1 (0.2 MB) [5%]",
     "Get:3 libgl1-mesa-dri (8.2 MB) [10%]",
     "Get:4 xwayland (1.5 MB) [18%]",
-    "Get:5 nautilus (2.3 MB) [22%]",
+    "Get:5 thunar (1.8 MB) [22%]",
     "Get:6 pipewire (3.6 MB) [30%]",
     "Get:7 bluez (5.2 MB) [38%]",
     "Get:8 flatpak (6.8 MB) [45%]",

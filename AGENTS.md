@@ -1,11 +1,13 @@
 # V0x3l — Agent Notes
 
-## What this is
-
-Post-instalador modular para Ubuntu Server 26.04+ escrito en Python con interfaz TUI urwid.  
+Post-instalador modular para Ubuntu Server 26.04+ escrito en Python con interfaz TUI urwid.
 El nombre del proyecto, versión, repo y rutas se configuran desde `.env`.
 
-## Estructura
+## Estado actual
+
+- Gestor de archivos: **Thunar** con **thunar-volman** (automontaje de unidades USB mediante gvfs + udisks2 + polkit; usuario destino en grupo `plugdev`).
+- Stack de escritorio: **Noctalia + Umbriel + sysc-greet** (migración de Dux/DMS completa; se eliminaron PPAs `ppa:duxlabs/dux`, `ppa:duxlabs/dms`, `ppa:cppiber/hyprland` y referencias a Niri/DANKInstall/ly).
+- Terminal: **Kitty** (reemplazó a Foot).
 
 ```
 V0x3l/
