@@ -211,8 +211,13 @@ class ConfigurationStep(BaseStep):
             subprocess.run(["chmod", "755", "/var/lib/greeter"],
                            capture_output=True)
 
-        self.runner.ui.run_cmd("enable greetd",
+        # greetd puede no tener unit file aun si sysc-greet se instalo
+        # recientemente o el paquete no lo incluye; no es fatal para el paso.
+        greetd_ok = self.runner.ui.run_cmd("enable greetd",
             "systemctl", "enable", "--now", "greetd.service", sudo=True)
+        if not greetd_ok:
+            log("WARN greetd.service no esta disponible; se habilitara "
+                "manualmente o en el siguiente arranque")
 
 
         return ok
