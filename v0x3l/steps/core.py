@@ -17,7 +17,7 @@ class PreparationStep(BaseStep):
         ok = True
 
         # ── Bootstrap: herramientas base ──
-        ok &= self.runner.ui.run_cmd("apt update",
+        self.runner.ui.run_cmd("apt update",
             "apt", "update", sudo=True)
         ok &= self.runner.ui.run_cmd("apt install base",
             "apt", "install", "-y",
