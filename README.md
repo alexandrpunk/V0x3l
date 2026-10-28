@@ -58,7 +58,7 @@ python3 demo_ui.py
 | 0 | Preparación del sistema | herramientas base, repos Noctalia, locale, zona horaria |
 | 1 | Rendimiento y drivers | kernel XanMod Edge + GPU NVIDIA |
 | 2 | Software | Wayland, Thunar, PipeWire, Flatpak, Noctalia, Umbriel, Kitty |
-| 3 | Configuración | Polkit, UFW, red, servicios, TLP, Umbriel floating + sysc-greet |
+| 3 | Configuración | Polkit, UFW, red, servicios, TLP, Umbriel floating + ly |
 | 4 | Apariencia | Colloid icons, Plymouth, GRUB Vimix |
 | 5 | Entorno | Oh My Zsh, LazyVim y harness OMP |
 
@@ -70,7 +70,7 @@ Recursos utilizados:
 |----------|--------|
 | Noctalia | https://docs.noctalia.dev/noctalia/ |
 | Umbriel | https://docs.noctalia.dev/umbriel/ |
-| sysc-greet | https://github.com/Nomadcxx/sysc-greet |
+| ly | https://github.com/cmgeldenhuys/ly |
 | GRUB Vimix | https://github.com/vinceliuice/vimix-grub2-theme |
 | Kitty | https://sw.kovidgoyal.net/kitty/ |
 

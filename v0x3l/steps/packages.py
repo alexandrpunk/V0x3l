@@ -1,4 +1,4 @@
-# Step 2: Software (mega-install + stack Noctalia/Umbriel/sysc-greet + flatpak)
+# Step 2: Software (mega-install + stack Noctalia/Umbriel/ly + flatpak)
 
 import shutil
 import os
@@ -25,7 +25,7 @@ class SoftwareStep(BaseStep):
             "nala", "install", "--no-install-recommends", "-y",
             "wayland-protocols", "libwayland-dev", "libegl1",
             "libgl1-mesa-dri", "mesa-vulkan-drivers", "xwayland",
-            "thunar", "thunar-volman", "gvfs-backends", "gvfs-fuse", "udisks2", "polkitd", "greetd",
+            "thunar", "thunar-volman", "gvfs-backends", "gvfs-fuse", "udisks2", "polkitd", "seatd", "ly",
             "ntfs-3g", "exfatprogs", "libglib2.0-bin",
             "neovim", "tmux", "fastfetch", "geany",
             "nwg-look", "dialog", "apt-utils",
@@ -55,25 +55,6 @@ class SoftwareStep(BaseStep):
                     "nala", "install", "--no-install-recommends", "-y",
                     pkg, sudo=True)
 
-        # ── sysc-greet ──
-        # Paquete oficial v1.3.0 amd64 del greeter de greetd.
-        sysc_greet_deb = "/tmp/sysc-greet_1.3.0_amd64.deb"
-        if not os.path.exists(sysc_greet_deb):
-            ok &= self.runner.ui.run_cmd("download sysc-greet deb",
-                "bash", "-c",
-                "set -euo pipefail; "
-                "wget -q https://github.com/Nomadcxx/sysc-greet/releases/download/v1.3.0/"
-                "sysc-greet_1.3.0_amd64.deb -O /tmp/sysc-greet_1.3.0_amd64.deb",
-                sudo=True)
-        if os.path.exists(sysc_greet_deb):
-            installed = self.runner.ui.run_cmd("install sysc-greet deb",
-                "apt", "install", "-y", sysc_greet_deb, sudo=True)
-            ok &= installed
-            if installed:
-                os.remove(sysc_greet_deb)
-        else:
-            log("ERROR sysc-greet: no se pudo descargar el paquete .deb")
-            ok = False
 
         # Umbriel es el compositor; Noctalia el shell. Su repo se agrega en
         # Step 0; aqui solo se instalan los paquetes.

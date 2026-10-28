@@ -222,7 +222,7 @@ class OmpHarnessTests(unittest.TestCase):
 if __name__ == "__main__":
     unittest.main()
 
-class NoctaliaUmbrielSyscGreetTests(unittest.TestCase):
+class NoctaliaUmbrielLyTests(unittest.TestCase):
     def test_core_uses_noctalia_repo_not_dux(self):
         import v0x3l.steps.core as core_mod
         source = core_mod.__file__
@@ -233,7 +233,7 @@ class NoctaliaUmbrielSyscGreetTests(unittest.TestCase):
         self.assertNotIn("ppa:duxlabs/dms", content)
         self.assertNotIn("ppa:cppiber/hyprland", content)
 
-    def test_packages_installs_noctalia_umbriel_and_sysc_greet(self):
+    def test_packages_installs_noctalia_umbriel_and_ly(self):
         import v0x3l.steps.packages as pkg_mod
         source = pkg_mod.__file__
         with open(source) as f:
@@ -241,21 +241,24 @@ class NoctaliaUmbrielSyscGreetTests(unittest.TestCase):
         self.assertIn("noctalia", content)
         self.assertIn("umbriel", content)
         self.assertIn("xdg-desktop-portal-umbriel", content)
-        self.assertIn("sysc-greet_1.3.0_amd64.deb", content)
+        self.assertIn("seatd", content)
+        self.assertIn("ly", content)
         self.assertNotIn("DUXTAPE", content)
         self.assertNotIn("dms setup headless", content)
-        self.assertNotIn("ly", content)
+        self.assertNotIn("sysc-greet_1.3.0_amd64.deb", content)
 
-    def test_system_configures_umbriel_floating_and_greetd(self):
+    def test_system_configures_umbriel_floating_and_ly(self):
         import v0x3l.steps.system as sys_mod
         source = sys_mod.__file__
         with open(source) as f:
             content = f.read()
         self.assertIn('mode = "floating"', content)
         self.assertIn("noctalia-shell", content)
-        self.assertIn("/etc/greetd/config.toml", content)
+        self.assertIn("ly.service", content)
+        self.assertIn("seatd.service", content)
         self.assertIn("umbriel", content)
-        self.assertIn("greetd.service", content)
+        self.assertNotIn("/etc/greetd/config.toml", content)
+        self.assertNotIn("greetd.service", content)
 
 class ShellAndRunnerRegressionTests(unittest.TestCase):
     def test_run_timeout_applies_while_child_is_silent(self):

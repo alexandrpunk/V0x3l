@@ -6,7 +6,7 @@ El nombre del proyecto, versión, repo y rutas se configuran desde `.env`.
 ## Estado actual
 
 - Gestor de archivos: **Thunar** con **thunar-volman** (automontaje de unidades USB mediante gvfs + udisks2 + polkit; usuario destino en grupo `plugdev`).
-- Stack de escritorio: **Noctalia + Umbriel + sysc-greet** (migración de Dux/DMS completa; se eliminaron PPAs `ppa:duxlabs/dux`, `ppa:duxlabs/dms`, `ppa:cppiber/hyprland` y referencias a Niri/DANKInstall/ly).
+- Stack de escritorio: **Noctalia + Umbriel + ly** (display manager TUI; se eliminaron sysc-greet/greetd y referencias a Niri/DANKInstall).
 - Terminal: **Kitty** (reemplazó a Foot).
 
 ```

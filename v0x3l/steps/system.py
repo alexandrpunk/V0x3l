@@ -176,24 +176,23 @@ class ConfigurationStep(BaseStep):
                 subprocess.run(["chown", "-R", f"{user}:", umbriel_dir],
                                capture_output=True)
 
-        # ── Configuracion sysc-greet para Umbriel ──
-        # Se crea una sesion personalizada para greetd con Umbriel como
-        # compositor de login y se habilita el servicio greetd.
-        # Ruta de configuracion de greetd: /etc/greetd/config.toml
-        greetd_dir = "/etc/greetd"
-        greetd_conf = f"{greetd_dir}/config.toml"
-        os.makedirs(greetd_dir, exist_ok=True)
-        greetd_toml = (
-            "[terminal]\n"
-            "vt = 1\n\n"
-            "[default_session]\n"
-            "command = \"sysc-greet\"\n"
-            "user = \"greeter\"\n"
-        )
-        with open(greetd_conf, "w") as f:
-            f.write(greetd_toml)
-        # Sesion de usuario de Umbriel para que greetd sepa arrancarla
-        # tras el login con sysc-greet (no es el greeter; es la sesion real).
+        # ── Configuracion ly (display manager) + seatd para Umbriel ──
+        # ly es un display manager TUI compatible con sesiones Wayland.
+        # seatd da acceso a GPU/input sin root, necesario para que ly
+        # pueda lanzar Umbriel como compositor Wayland.
+        if user:
+            subprocess.run(["usermod", "-aG", "seat", user],
+                           capture_output=True)
+        ok &= self.runner.ui.run_cmd("enable seatd",
+            "systemctl", "enable", "--now", "seatd.service", sudo=True)
+        ok &= self.runner.ui.run_cmd("enable ly",
+            "systemctl", "enable", "--now", "ly.service", sudo=True)
+        if not ok:
+            log("WARN ly.service/seatd.service no disponibles; se "
+                "intentara de nuevo en el siguiente arranque")
+
+        # Sesion de usuario de Umbriel para que ly sepa arrancarla tras
+        # el login (ly lee /usr/share/wayland-sessions y xsessions).
         if user:
             umbriel_session = "/usr/share/wayland-sessions/umbriel.desktop"
             os.makedirs("/usr/share/wayland-sessions", exist_ok=True)
@@ -205,30 +204,6 @@ class ConfigurationStep(BaseStep):
                         "Type=Application\n")
             subprocess.run(["chmod", "644", umbriel_session],
                            capture_output=True)
-        if user:
-            subprocess.run(["useradd", "-M", "-d", "/var/lib/greeter",
-                            "-G", "video,render,input", "-s",
-                            "/usr/sbin/nologin", "greeter"],
-                           capture_output=True)
-            for dir_path in ("/var/cache/sysc-greet",
-                             "/var/lib/greeter/Pictures/wallpapers",
-                             "/var/lib/greeter/.cache",
-                             "/var/lib/greeter/.config",
-                             "/var/lib/greeter/.local/state"):
-                os.makedirs(dir_path, exist_ok=True)
-            subprocess.run(["chown", "-R", "greeter:greeter",
-                            "/var/cache/sysc-greet", "/var/lib/greeter"],
-                           capture_output=True)
-            subprocess.run(["chmod", "755", "/var/lib/greeter"],
-                           capture_output=True)
-
-        # greetd puede no tener unit file aun si sysc-greet se instalo
-        # recientemente o el paquete no lo incluye; no es fatal para el paso.
-        greetd_ok = self.runner.ui.run_cmd("enable greetd",
-            "systemctl", "enable", "--now", "greetd.service", sudo=True)
-        if not greetd_ok:
-            log("WARN greetd.service no esta disponible; se habilitara "
-                "manualmente o en el siguiente arranque")
 
 
         return ok
