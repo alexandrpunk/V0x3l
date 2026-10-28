@@ -77,15 +77,22 @@ class MainMenu:
 
         banner_text = get_banner_text()
 
-        self.widget = urwid.Pile([
-            ("pack", urwid.Padding(
+        banner_panel = urwid.LineBox(
+            urwid.Padding(
                 urwid.AttrMap(urwid.Text(banner_text, align="center"), "title"),
                 left=2, right=2
-            )),
-            ("pack", urwid.AttrMap(
-                urwid.Text("Modular post-installer for Ubuntu Server", align="center"),
-                "dim"
-            )),
+            ),
+            title=" V0x3l ",
+            title_align="center",
+            tlcorner="\u2554", trcorner="\u2557",
+            blcorner="\u255A", brcorner="\u255D",
+            tline="\u2550", bline="\u2550",
+            lline="\u2551", rline="\u2551",
+        )
+
+        self.widget = urwid.Pile([
+            ("pack", banner_panel),
+            ("pack", urwid.Text("Modular post-installer for Ubuntu Server", align="center")),
             ("pack", urwid.Text("")),
             ("weight", 1, panel),
         ])

@@ -8,4 +8,8 @@ cat <<'EOF'
  ╚████╔╝ ╚██████╔╝██╔╝ ██╗██████╔╝███████╗██╗███████║██║  ██║
   ╚═══╝   ╚═════╝ ╚═╝  ╚═╝╚═════╝ ╚══════╝╚═╝╚══════╝╚═╝  ╚═╝
 
+                   V0x3l — Post-Instalador para Ubuntu Server 26.04+
+                                  v1.0.0
+                    Tu sistema. Tus reglas. Tu forja.
+
 EOF
