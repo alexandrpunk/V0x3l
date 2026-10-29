@@ -6,6 +6,7 @@
 import os
 import shutil
 import tempfile
+import subprocess
 from v0x3l.steps.base import BaseStep
 from v0x3l.config import (TARGET_USER, TARGET_HOME,
                           DOTFILES_DIR, DOTFILES_MAP, OMP_HARNESS_REPO)
@@ -13,7 +14,253 @@ from v0x3l.shell import log
 
 OMP_HARNESS_KEEP = ("config.yml", "models.yml", ".env")
 
+# Plugin Noctalia: Optimus GPU Manager (Luau)
+OPTIMUS_PLUGIN_FILES = {
+    "plugin.toml": '''plugin_api = 37
+name = "Optimus GPU Manager"
+author = "v0x3l"
+version = "1.0.0"
+description = "Gestión NVIDIA Optimus desde Noctalia (Intel iGPU / NVIDIA dGPU)"
 
+[settings]
+startup_mode = { type = "enum", options = ["intel", "nvidia", "auto"], default = "intel" }
+show_vram_usage = { type = "bool", default = true }
+show_gpu_temp = { type = "bool", default = true }
+notify_on_switch = { type = "bool", default = true }
+
+[[entry]]
+name = "bar"
+file = "entries/bar.lua"
+type = "bar_widget"
+
+[[entry]]
+name = "panel"
+file = "entries/panel.lua"
+type = "panel"
+
+[[entry]]
+name = "service"
+file = "entries/service.lua"
+type = "service"
+''',
+    "entries/bar.lua": '''-- Widget barra: GPU actual + VRAM/Temp (NVIDIA)
+local widget = require("widget")
+local ui = require("ui")
+
+local current_gpu = "intel"
+local vram_used, vram_total, gpu_temp = 0, 0, 0
+local last_update = 0
+local driver_version = "desconocido"
+
+local function parse_optimus_status()
+    noctalia.runAsync({ "optimus-manager", "--status" }, function(result)
+        if result.exitCode == 0 and result.stdout then
+            if result.stdout:match("nvidia") then
+                current_gpu = "nvidia"
+            elseif result.stdout:match("intel") then
+                current_gpu = "intel"
+            end
+        end
+    end)
+end
+
+local function parse_nvidia_smi()
+    if current_gpu ~= "nvidia" then return end
+    noctalia.runAsync({ "nvidia-smi", "--query-gpu=memory.used,memory.total,temperature.gpu,driver_version", "--format=csv,noheader,nounits" }, function(result)
+        if result.exitCode == 0 and result.stdout then
+            local u, t, tmp, drv = result.stdout:match("(%d+)%s*,%s*(%d+)%s*,%s*(%d+)%s*,%s*([%d.]+)")
+            if u then
+                vram_used, vram_total, gpu_temp, driver_version = tonumber(u), tonumber(t), tonumber(tmp), drv
+            end
+        end
+    end)
+end
+
+noctalia.setUpdateInterval(1000)
+
+function update()
+    local now = noctalia.nowMs()
+    if now - last_update > 5000 then
+        last_update = now
+        parse_optimus_status()
+        parse_nvidia_smi()
+    end
+end
+
+function build()
+    local show_vram = noctalia.getConfig("show_vram_usage")
+    local show_temp = noctalia.getConfig("show_gpu_temp")
+
+    local icon = current_gpu == "nvidia" and "🟢" or "🔵"
+    local label = current_gpu == "nvidia" and "NVIDIA" or "Intel"
+
+    local parts = { widget.text(icon .. " " .. label) }
+
+    if current_gpu == "nvidia" then
+        if show_vram and vram_total > 0 then
+            local pct = math.floor(vram_used / vram_total * 100)
+            table.insert(parts, widget.text(string.format(" VRAM:%d%%", pct)))
+        end
+        if show_temp and gpu_temp > 0 then
+            table.insert(parts, widget.text(string.format(" %d°C", gpu_temp)))
+        end
+    end
+
+    return widget.hbox(parts)
+end
+
+function onClick(button)
+    if button == 1 then
+        noctalia.togglePanel("v0x3l/optimus-manager:panel")
+    elseif button == 3 then
+        switch_gpu()
+    end
+end
+
+function switch_gpu()
+    local target = current_gpu == "nvidia" and "intel" or "nvidia"
+    current_gpu = "switching"
+    noctalia.notify("GPU Switch", "Cambiando a " .. target .. "...")
+    noctalia.runAsync({ "optimus-manager", "--switch", target, "--no-confirm" }, function(result)
+        if result.exitCode == 0 then
+            current_gpu = target
+            if noctalia.getConfig("notify_on_switch") then
+                noctalia.notify("GPU Switch", "Ahora en " .. target .. " (requiere relogin)")
+            end
+        else
+            current_gpu = target == "nvidia" and "intel" or "nvidia"
+            noctalia.notifyError("GPU Switch", "Falló: " .. (result.stderr or "desconocido"))
+        end
+    end)
+end
+
+return { build = build, update = update, onClick = onClick }
+''',
+    "entries/panel.lua": '''-- Panel expandible: controles completos Optimus
+local widget = require("widget")
+local ui = require("ui")
+
+local current_mode = "intel"
+local is_switching = false
+local vram_used, vram_total, gpu_temp = 0, 0, 0
+local driver_version = "desconocido"
+
+local function refresh_mode()
+    noctalia.runAsync({ "optimus-manager", "--status" }, function(result)
+        if result.exitCode == 0 and result.stdout then
+            current_mode = result.stdout:match("nvidia") and "nvidia" or "intel"
+        end
+    end)
+end
+
+refresh_mode()
+
+function onOpen()
+    refresh_mode()
+    if current_mode == "nvidia" then
+        noctalia.runAsync({ "nvidia-smi", "--query-gpu=memory.used,memory.total,temperature.gpu,driver_version", "--format=csv,noheader,nounits" }, function(r)
+            if r.exitCode == 0 and r.stdout then
+                local u, t, tmp, drv = r.stdout:match("(%d+)%s*,%s*(%d+)%s*,%s*(%d+)%s*,%s*([%d.]+)")
+                if u then vram_used, vram_total, gpu_temp, driver_version = tonumber(u), tonumber(t), tonumber(tmp), drv end
+            end
+        end)
+    end
+end
+
+function build()
+    local info = current_mode == "nvidia"
+        and { name = "NVIDIA RTX 4050", icon = "🟢", desc = "Máximo rendimiento, ComfyUI/Steam" }
+        or { name = "Intel UHD Graphics", icon = "🔵", desc = "Ahorro energía, escritorio/video" }
+
+    return widget.vbox({
+        widget.hbox({
+            widget.text(info.icon .. "  " .. info.name, { style = "heading" }),
+            widget.spacer(),
+            widget.button(is_switching and "Cambiando..." or "Switch GPU", {
+                onClick = function()
+                    if is_switching then return end
+                    local target = current_mode == "nvidia" and "intel" or "nvidia"
+                    is_switching = true
+                    noctalia.notify("GPU", "Cambiando a " .. target .. "...")
+                    noctalia.runAsync({ "optimus-manager", "--switch", target }, function(r)
+                        is_switching = false
+                        if r.exitCode == 0 then
+                            current_mode = target
+                            noctalia.notify("GPU", "Cambiado a " .. target .. " — relogin requerido")
+                        else
+                            noctalia.notifyError("GPU", "Error: " .. (r.stderr or "desconocido"))
+                        end
+                    end)
+                end,
+                enabled = not is_switching
+            })
+        }),
+        widget.separator(),
+        widget.text("Modo actual: " .. current_mode),
+        widget.text("Descripción: " .. info.desc),
+        widget.separator(),
+        current_mode == "nvidia" and widget.vbox({
+            widget.text("📊 NVIDIA Stats:", { style = "subheading" }),
+            widget.text("VRAM: " .. vram_used .. " / " .. vram_total .. " MB"),
+            widget.text("Temp: " .. gpu_temp .. "°C"),
+            widget.text("Driver: " .. driver_version),
+        }) or widget.text("Usa NVIDIA on-demand: prime-run <app>"),
+        widget.separator(),
+        widget.text("⚡ Acciones rápidas:", { style = "subheading" }),
+        widget.hbox({
+            widget.button("prime-run comfyui", {
+                onClick = function() noctalia.runAsync("prime-run comfyui") end
+            }),
+            widget.button("prime-run steam", {
+                onClick = function() noctalia.runAsync("prime-run steam") end
+            }),
+            widget.button("nvidia-smi (live)", {
+                onClick = function()
+                    noctalia.runInTerminal("nvidia-smi -l 1")
+                end
+            }),
+        }),
+        widget.separator(),
+        widget.button("⚙️ Configuración del plugin", {
+            onClick = function() noctalia.openSettings() end
+        }),
+    })
+end
+
+return { build = build, onOpen = onOpen }
+''',
+    "entries/service.lua": '''-- Servicio background: polling + alertas
+noctalia.setUpdateInterval(10000)
+
+local notify_on_switch = noctalia.getConfig("notify_on_switch")
+local last_mode = nil
+
+function update()
+    noctalia.runAsync({ "optimus-manager", "--status" }, function(result)
+        if result.exitCode ~= 0 or not result.stdout then return end
+        local new_mode = result.stdout:match("nvidia") and "nvidia" or "intel"
+        if last_mode and new_mode ~= last_mode and notify_on_switch then
+            noctalia.notify("GPU Changed", "Ahora usando: " .. new_mode)
+        end
+        last_mode = new_mode
+    end)
+
+    -- Alerta temperatura crítica NVIDIA
+    if last_mode == "nvidia" then
+        noctalia.runAsync({ "nvidia-smi", "--query-gpu=temperature.gpu", "--format=csv,noheader,nounits" }, function(r)
+            if r.exitCode == 0 then
+                local temp = tonumber(r.stdout:match("(%d+)"))
+                if temp and temp > 85 then
+                    noctalia.notifyError("GPU Temp", "Temperatura crítica: " .. temp .. "°C")
+                end
+            end
+        end)
+    end
+end
+
+return { update = update }
+'''
+}
 class DesktopStep(BaseStep):
     number = 5
     title = "Entorno"
@@ -81,7 +328,7 @@ class DesktopStep(BaseStep):
                     f"chown dotfile {src_name}", "chown", "-R",
                     f"{user}:", dest, sudo=True)
                 ok &= chowned
-        return ok and self._install_zsh_lazyvim() and self._install_omp_harness()
+        return ok and self._install_zsh_lazyvim() and self._install_omp_harness() and self._install_optimus_plugin()
 
     def _install_zsh_lazyvim(self) -> bool:
         """Instala el starter oficial de LazyVim de forma idempotente.
@@ -261,3 +508,36 @@ class DesktopStep(BaseStep):
                 f.write(content)
             log(f"omp harness: se conservo {name} existente")
         return True
+
+    def _install_optimus_plugin(self) -> bool:
+        """Instala plugin Noctalia para gestión de NVIDIA Optimus."""
+        user = TARGET_USER
+        home = TARGET_HOME
+        if not user or user == "root" or not home or home == "/root":
+            log("WARN optimus-plugin: usuario invalido, omitiendo")
+            return False
+
+        plugin_dir = os.path.join(home, ".config", "noctalia", "plugins", "optimus-manager")
+        entries_dir = os.path.join(plugin_dir, "entries")
+        os.makedirs(entries_dir, exist_ok=True)
+
+        ok = True
+        for rel_path, content in OPTIMUS_PLUGIN_FILES.items():
+            dest = os.path.join(plugin_dir, rel_path)
+            try:
+                with open(dest, "w") as f:
+                    f.write(content)
+                log(f"INFO optimus-plugin: escrito {rel_path}")
+            except Exception as e:
+                log(f"ERROR optimus-plugin: {rel_path}: {type(e).__name__}: {e}")
+                ok = False
+
+        if os.geteuid() == 0:
+            subprocess.run(
+                ["chown", "-R", f"{user}:", plugin_dir],
+                capture_output=True, check=False
+            )
+
+        if ok:
+            log("INFO optimus-plugin instalado en ~/.config/noctalia/plugins/optimus-manager")
+        return ok
