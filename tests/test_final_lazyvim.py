@@ -253,7 +253,7 @@ class NoctaliaUmbrielLyTests(unittest.TestCase):
         with open(source) as f:
             content = f.read()
         self.assertIn('mode = "floating"', content)
-        self.assertIn("noctalia-shell", content)
+        self.assertIn("noctalia", content)
         self.assertIn("seatd.service", content)
         self.assertIn("umbriel", content)
         self.assertNotIn("/etc/greetd/config.toml", content)

@@ -17,39 +17,86 @@ class ConfigurationStep(BaseStep):
         user = TARGET_USER
         home = TARGET_HOME
 
+        # ---- Helpers para operaciones robustas ----
+        def run_nonfatal(desc: str, *args, **kwargs) -> bool:
+            """Ejecuta comando no crítico; loggea warning si falla pero no rompe ok."""
+            try:
+                result = self.runner.ui.run_cmd(desc, *args, **kwargs)
+                if not result:
+                    log(f"WARN {desc}: comando fallo (no fatal)")
+                return result
+            except Exception as e:
+                log(f"WARN {desc}: excepcion {type(e).__name__}: {e}")
+                return False
+
+        def run_critical(desc: str, *args, **kwargs) -> bool:
+            """Ejecuta comando crítico; falla ok si falla."""
+            try:
+                result = self.runner.ui.run_cmd(desc, *args, **kwargs)
+                if not result:
+                    log(f"ERROR {desc}: comando fallo (critico)")
+                return result
+            except Exception as e:
+                log(f"ERROR {desc}: excepcion {type(e).__name__}: {e}")
+                return False
+
+        def write_file_if_missing(path: str, content: str, mode: int = 0o644) -> bool:
+            """Escribe archivo solo si no existe; retorna True si escrito, False si ya existía."""
+            try:
+                if not os.path.exists(path):
+                    os.makedirs(os.path.dirname(path), exist_ok=True)
+                    with open(path, "w") as f:
+                        f.write(content)
+                    os.chmod(path, mode)
+                    log(f"INFO escrito: {path}")
+                    return True
+                return False
+            except Exception as e:
+                log(f"ERROR escribiendo {path}: {type(e).__name__}: {e}")
+                return False
+
+        def ensure_user_ownership(path: str) -> bool:
+            """Asegura ownership al usuario real; no crítico."""
+            if user and os.geteuid() == 0 and os.path.exists(path):
+                try:
+                    subprocess.run(
+                        ["chown", "-R", f"{user}:", path], capture_output=True, check=False
+                    )
+                    return True
+                except Exception:
+                    pass
+            return True
+
         # ---- Polkit automontaje ----
         rule_path = "/etc/polkit-1/rules.d/90-udisks2-automount.rules"
-        if not os.path.exists(rule_path):
-            os.makedirs("/etc/polkit-1/rules.d", exist_ok=True)
-            rule = ('polkit.addRule(function(action, subject) {\n'
-                    '    if ((action.id == "org.freedesktop.udisks2.filesystem-mount"'
-                    ' || action.id == "org.freedesktop.udisks2.filesystem-mount-system")'
-                    ' && subject.isInGroup("plugdev")) {\n'
-                    '        return polkit.Result.YES;\n    }\n});\n')
-            with open(rule_path, "w") as f:
-                f.write(rule)
+        write_file_if_missing(rule_path, (
+            'polkit.addRule(function(action, subject) {\n'
+            '    if ((action.id == "org.freedesktop.udisks2.filesystem-mount"'
+            ' || action.id == "org.freedesktop.udisks2.filesystem-mount-system")'
+            ' && subject.isInGroup("plugdev")) {\n'
+            '        return polkit.Result.YES;\n    }\n});\n'
+        ), mode=0o644)
 
         # ---- xdg-user-dirs ----
         if not os.path.exists(f"{home}/Documentos") and not os.path.exists(
                 f"{home}/Documents"):
-            subprocess.run(["sudo", "-u", user, "-H", "xdg-user-dirs-update"],
-                           capture_output=True)
+            run_nonfatal("xdg-user-dirs-update",
+                "sudo", "-u", user, "-H", "xdg-user-dirs-update", sudo=False)
 
         # ---- UFW ----
-        result = subprocess.run(["ufw", "status"],
-                                capture_output=True, text=True)
+        result = subprocess.run(["ufw", "status"], capture_output=True, text=True)
         if "active" not in result.stdout:
-            ok &= self.runner.ui.run_cmd("ufw default deny",
+            ok &= run_critical("ufw default deny",
                 "ufw", "default", "deny", "incoming", sudo=True)
-            ok &= self.runner.ui.run_cmd("ufw default allow",
+            ok &= run_critical("ufw default allow",
                 "ufw", "default", "allow", "outgoing", sudo=True)
-            ok &= self.runner.ui.run_cmd("ufw enable",
+            ok &= run_critical("ufw enable",
                 "bash", "-c", "echo y | ufw enable", sudo=True)
-            ok &= self.runner.ui.run_cmd("ufw allow ssh",
+            ok &= run_critical("ufw allow ssh",
                 "ufw", "allow", "ssh", sudo=True)
 
         # ---- Red + NetworkManager ----
-        self.runner.ui.run_cmd("mask wait-online",
+        run_nonfatal("mask wait-online",
             "systemctl", "mask", "systemd-networkd-wait-online.service",
             sudo=True)
 
@@ -71,120 +118,123 @@ class ConfigurationStep(BaseStep):
                 if iface:
                     break
 
-        self.runner.ui.run_cmd("enable NetworkManager",
+        run_critical("enable NetworkManager",
             "systemctl", "enable", "--now", "NetworkManager", sudo=True)
 
+        # Netplan mínimo: solo renderer NetworkManager.
+        # No se fuerzan interfaces porque el nombre detectado
+        # (ej. wlp3s0) puede no casar con el device type real y
+        # netplan apply rechaza cambiar el tipo de una interfaz existente.
         netplan_file = "/etc/netplan/01-netcfg.yaml"
-        if not os.path.exists(netplan_file):
-            # Netplan minimo: solo renderer NetworkManager. No se fuerzan
-            # interfaces bajo ethernets/wifi porque el nombre detectado
-            # (ej. wlp3s0) puede no casar con el device type real y
-            # netplan apply rechaza cambiar el tipo de una interfaz
-            # existente. NetworkManager ya gestiona la red por defecto.
-            with open(netplan_file, "w") as f:
-                f.write("network:\n  version: 2\n  renderer: NetworkManager\n")
-            os.chmod(netplan_file, 0o600)
-            ok &= self.runner.ui.run_cmd("netplan apply",
-                "netplan", "apply", sudo=True)
+        if write_file_if_missing(netplan_file, (
+            "network:\n  version: 2\n  renderer: NetworkManager\n"
+        ), mode=0o600):
+            ok &= run_critical("netplan apply", "netplan", "apply", sudo=True)
 
-        # ---- Servicios ----
+        # ---- Servicios básicos ----
         for svc in ("udisks2.service", "bluetooth.service"):
-            ok &= self.runner.ui.run_cmd(f"enable {svc}",
+            ok &= run_critical(f"enable {svc}",
                 "systemctl", "enable", "--now", svc, sudo=True)
 
-        ok &= self.runner.ui.run_cmd("enable linger",
+        ok &= run_critical("enable linger",
             "loginctl", "enable-linger", user, sudo=True)
 
-        self.runner.ui.run_cmd("enable pipewire",
+        # Pipewire user services
+        run_nonfatal("enable pipewire user",
             "sudo", "-u", user, "-H", "bash", "-c",
             'export XDG_RUNTIME_DIR="/run/user/$(id -u)"; '
             'export DBUS_SESSION_BUS_ADDRESS="unix:path=/run/user/$(id -u)/bus"; '
             "systemctl --user enable pipewire.socket wireplumber.service",
             sudo=False)
 
+        # Variables de entorno Wayland
         env_dir = f"{home}/.config/environment.d"
         env_file = f"{env_dir}/wayland.conf"
-        if not os.path.exists(env_file):
-            os.makedirs(env_dir, exist_ok=True)
-            with open(env_file, "w") as f:
-                f.write(f"GDK_BACKEND=wayland\nQT_QPA_PLATFORM=wayland\n"
-                        "SDL_VIDEODRIVER=wayland\nMOZ_ENABLE_WAYLAND=1\n"
-                        f"XCURSOR_THEME={CURSOR_THEME_NAME}\n"
-                        "XDG_CURRENT_DESKTOP=Umbriel\nXDG_SESSION_TYPE=wayland\n")
+        write_file_if_missing(env_file, (
+            "GDK_BACKEND=wayland\nQT_QPA_PLATFORM=wayland\n"
+            "SDL_VIDEODRIVER=wayland\nMOZ_ENABLE_WAYLAND=1\n"
+            f"XCURSOR_THEME={CURSOR_THEME_NAME}\n"
+            "XDG_CURRENT_DESKTOP=Umbriel\nXDG_SESSION_TYPE=wayland\n"
+        ))
+        ensure_user_ownership(f"{home}/.config")
 
-        # ── Cursor theme default ──
+        # ---- Cursor theme default ----
         cursor_dir = "/usr/share/icons/default"
-        if not os.path.exists(f"{cursor_dir}/index.theme"):
-            os.makedirs(cursor_dir, exist_ok=True)
-            with open(f"{cursor_dir}/index.theme", "w") as f:
-                f.write(f"[Icon Theme]\nName=Default\nInherits={CURSOR_THEME_NAME}\n")
-
-        # ---- Asegurar ownership de ~/.config al usuario ----
-        # Los writes como root pueden dejar ~/.config root-owned. Se deja
-        # ownership recursivo al usuario real.
-        if user and os.geteuid() == 0 and os.path.isdir(f"{home}/.config"):
-            subprocess.run(["chown", "-R", f"{user}:", f"{home}/.config"],
-                           capture_output=True)
+        write_file_if_missing(f"{cursor_dir}/index.theme", (
+            f"[Icon Theme]\nName=Default\nInherits={CURSOR_THEME_NAME}\n"
+        ))
 
         # ---- TLP ----
         tlp_conf = f"/etc/tlp.d/{TLP_CONF_NAME}"
-        if not os.path.exists(tlp_conf):
-            os.makedirs("/etc/tlp.d", exist_ok=True)
-            config = ("TLP_ENABLE=1\nCPU_SCALING_GOVERNOR_ON_AC=powersave\n"
-                      "CPU_SCALING_GOVERNOR_ON_BAT=powersave\n"
-                      "CPU_ENERGY_PERF_POLICY_ON_AC=balance_performance\n"
-                      "CPU_ENERGY_PERF_POLICY_ON_BAT=power\n"
-                      "CPU_MAX_PERF_ON_AC=100\nCPU_MAX_PERF_ON_BAT=80\n"
-                      "CPU_BOOST_ON_AC=1\nCPU_BOOST_ON_BAT=0\n"
-                      "PCIE_ASPM_ON_AC=powersave\n"
-                      "PCIE_ASPM_ON_BAT=powersave\n"
-                      "USB_AUTOSUSPEND=1\nWIFI_PWR_ON_AC=off\n"
-                      "WIFI_PWR_ON_BAT=on\nSOUND_POWER_SAVE_ON_AC=1\n"
-                      "SOUND_POWER_SAVE_ON_BAT=1\n")
-            with open(tlp_conf, "w") as f:
-                f.write(config)
-            self.runner.ui.run_cmd("enable tlp",
-                "systemctl", "enable", "tlp", sudo=True)
+        if write_file_if_missing(tlp_conf, (
+            "TLP_ENABLE=1\nCPU_SCALING_GOVERNOR_ON_AC=powersave\n"
+            "CPU_SCALING_GOVERNOR_ON_BAT=powersave\n"
+            "CPU_ENERGY_PERF_POLICY_ON_AC=balance_performance\n"
+            "CPU_ENERGY_PERF_POLICY_ON_BAT=power\n"
+            "CPU_MAX_PERF_ON_AC=100\nCPU_MAX_PERF_ON_BAT=80\n"
+            "CPU_BOOST_ON_AC=1\nCPU_BOOST_ON_BAT=0\n"
+            "PCIE_ASPM_ON_AC=powersave\n"
+            "PCIE_ASPM_ON_BAT=powersave\n"
+            "USB_AUTOSUSPEND=1\nWIFI_PWR_ON_AC=off\n"
+            "WIFI_PWR_ON_BAT=on\nSOUND_POWER_SAVE_ON_AC=1\n"
+            "SOUND_POWER_SAVE_ON_BAT=1\n"
+        )):
+            run_critical("enable tlp", "systemctl", "enable", "tlp", sudo=True)
 
+        # ---- Logind config ----
         logind = "/etc/systemd/logind.conf"
-        replacements = {"HandleLidSwitch": "suspend",
-                        "HandleLidSwitchExternalPower": "suspend",
-                        "HandleLidSwitchDocked": "ignore",
-                        "PowerKeyAction": "poweroff"}
+        replacements = {
+            "HandleLidSwitch": "suspend",
+            "HandleLidSwitchExternalPower": "suspend",
+            "HandleLidSwitchDocked": "ignore",
+            "PowerKeyAction": "poweroff"
+        }
         for key, val in replacements.items():
-            # Patron ^#?\{key}=: matchea lineas comentadas (#Key=) Y
-            # descomentadas (Key=). Antes solo matcheaba comentadas -> no-op
-            # en re-runs donde la linea ya estaba descomentada.
-            subprocess.run(["sed", "-i",
-                            f"s/^#?{key}=.*/{key}={val}/", logind],
-                           capture_output=True)
+            run_nonfatal(f"logind {key}",
+                "sed", "-i", f"s/^#?{key}=.*/{key}={val}/", logind,
+                sudo=True)
+
+        # ---- Configuración de Umbriel para Noctalia ----
         umbriel_dir = os.path.join(home, ".config", "umbriel")
         umbriel_config = os.path.join(umbriel_dir, "config.toml")
-        umbriel_config = f"{umbriel_dir}/config.toml"
-        if user and not os.path.exists(umbriel_config):
-            os.makedirs(umbriel_dir, exist_ok=True)
-            config_toml = (
-                "# Configuracion generada por V0x3l\n"
-                "# Layout: floating (solicitado)\n"
-                '[layout]\nmode = "floating"\n\n'
-                "# Autostart de Noctalia dentro de Umbriel\n"
-                "# Documentacion: https://docs.noctalia.dev/noctalia/getting-started/running-the-shell/\n"
-                "[general]\nautostart = [\"noctalia-shell\", \"kitty\"]\n"
-            )
-            with open(umbriel_config, "w") as f:
-                f.write(config_toml)
-            if os.geteuid() == 0:
-                subprocess.run(["chown", "-R", f"{user}:", umbriel_dir],
-                               capture_output=True)
+        if user and write_file_if_missing(umbriel_config, (
+            "# Configuracion generada por V0x3l\n"
+            "# Layout: floating (solicitado)\n"
+            '[layout]\nmode = "floating"\n\n'
+            "# Autostart de Noctalia dentro de Umbriel (Noctalia v5 usa ejecutable 'noctalia')\n"
+            "# Documentacion: https://docs.noctalia.dev/noctalia/getting-started/running-the-shell/\n"
+            "# Documentacion integracion Umbriel: https://docs.noctalia.dev/noctalia/compositor-settings/umbriel/\n"
+            "[general]\nautostart = [\"noctalia\", \"kitty\"]\n\n"
+            "# Configuracion de apariencia recomendada para integracion Noctalia\n"
+            "[appearance]\nprefer_no_csd = true\nborder_width = 2\ncorner_radius = 10\n\n"
+            "[appearance.blur]\nenabled = true\noptimized = true\npasses = 2\nradius = 3\nnoise = 0.02\nbrightness = 0.9\ncontrast = 0.9\nsaturation = 1.1\n\n"
+            "# Window rules para settings de Noctalia\n"
+            "# Blur all windows\n"
+            "[[window_rule]]\nblur = true\nblur_optimized = true\n\n"
+            "# Float Noctalia settings window\n"
+            "[[window_rule]]\nmatch = \"title:Noctalia Settings\"\nfloat = true\n"
+        )):
+            ensure_user_ownership(umbriel_dir)
+
+        # Verificación post-escritura: validar config.toml
+        if os.path.exists(umbriel_config):
+            try:
+                subprocess.run(
+                    ["sudo", "-u", user, "-H", "umbriel", "config", "validate", umbriel_config],
+                    capture_output=True, check=False
+                )
+            except Exception:
+                pass
 
         # ── Configuracion ly (display manager) + seatd para Umbriel ──
         # ly es un display manager TUI que NO usa systemd; se instala y
         # arranca de forma independiente. seatd SÍ necesita systemd para
         # dar acceso a dispositivos de asiento (input/GPU) sin root.
         if user:
-            subprocess.run(["usermod", "-aG", "seat", user],
-                           capture_output=True)
-        ok_seatd = self.runner.ui.run_cmd("enable seatd",
+            run_nonfatal("usermod seat group",
+                "usermod", "-aG", "seat", user, sudo=True)
+
+        ok_seatd = run_critical("enable seatd",
             "systemctl", "enable", "--now", "seatd.service", sudo=True)
         if not ok_seatd:
             log("WARN seatd.service no disponible; ly podria no tener "
@@ -194,14 +244,56 @@ class ConfigurationStep(BaseStep):
         # el login (ly lee /usr/share/wayland-sessions y xsessions).
         if user:
             umbriel_session = "/usr/share/wayland-sessions/umbriel.desktop"
-            os.makedirs("/usr/share/wayland-sessions", exist_ok=True)
-            with open(umbriel_session, "w") as f:
-                f.write("[Desktop Entry]\n"
-                        "Name=Umbriel\n"
-                        "Comment=Umbriel Wayland compositor\n"
-                        "Exec=umbriel\n"
-                        "Type=Application\n")
-            subprocess.run(["chmod", "644", umbriel_session],
-                           capture_output=True)
+            write_file_if_missing(umbriel_session, (
+                "[Desktop Entry]\n"
+                "Name=Umbriel\n"
+                "Comment=Umbriel Wayland compositor\n"
+                "Exec=umbriel\n"
+                "Type=Application\n"
+            ), mode=0o644)
+
+        # ---- Verificaciones finales (smoke tests) ----
+        def verify_service_active(svc: str) -> bool:
+            """Verifica si un servicio systemd está activo."""
+            try:
+                result = subprocess.run(
+                    ["systemctl", "is-active", svc],
+                    capture_output=True, text=True, timeout=5
+                )
+                return result.returncode == 0 and "active" in result.stdout
+            except Exception:
+                return False
+
+        # Verificaciones no fatales, solo informativas
+        if not verify_service_active("seatd.service"):
+            log("WARN seatd.service no está activo tras habilitar")
+
+        if not verify_service_active("NetworkManager.service"):
+            log("WARN NetworkManager.service no está activo")
+
+        if not verify_service_active("udisks2.service"):
+            log("WARN udisks2.service no está activo")
+
+        if not verify_service_active("bluetooth.service"):
+            log("WARN bluetooth.service no está activo")
+
+        # Verificar netplan config válida
+        if os.path.exists(netplan_file):
+            try:
+                subprocess.run(
+                    ["netplan", "generate"], capture_output=True, check=False
+                )
+            except Exception:
+                pass
+
+        # Verificar que umbriel config es válida
+        if os.path.exists(umbriel_config):
+            try:
+                subprocess.run(
+                    ["umbriel", "config", "validate"],
+                    capture_output=True, check=False
+                )
+            except Exception:
+                pass
 
         return ok

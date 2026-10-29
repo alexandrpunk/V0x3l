@@ -20,21 +20,50 @@ class DesktopStep(BaseStep):
     category = "final"
 
     def run(self) -> bool:
-        user = TARGET_USER
-        home = TARGET_HOME
-        if not user or not home or user == "root" or home == "/root":
-            log("ERROR entorno: TARGET_USER/TARGET_HOME invalido; no se "
-                "instalan dotfiles ni LazyVim como root")
-            return False
-
         ok = True
+
+        # ---- Helpers ----
+        def run_critical(desc: str, *args, **kwargs) -> bool:
+            try:
+                result = self.runner.ui.run_cmd(desc, *args, **kwargs)
+                if not result:
+                    log(f"ERROR {desc}: comando fallo (critico)")
+                return result
+            except Exception as e:
+                log(f"ERROR {desc}: excepcion {type(e).__name__}: {e}")
+                return False
+
+        def run_nonfatal(desc: str, *args, **kwargs) -> bool:
+            try:
+                result = self.runner.ui.run_cmd(desc, *args, **kwargs)
+                if not result:
+                    log(f"WARN {desc}: comando fallo (no fatal)")
+                return result
+            except Exception as e:
+                log(f"WARN {desc}: excepcion {type(e).__name__}: {e}")
+                return False
+
+        def ensure_user_ownership(path: str) -> bool:
+            if user and os.geteuid() == 0 and os.path.exists(path):
+                try:
+                    subprocess.run(
+                        ["chown", "-R", f"{user}:", path],
+                        capture_output=True, check=False
+                    )
+                    return True
+                except Exception:
+                    pass
+            return True
+
         # ---- Dotfiles (assets/dotfiles → ~/.config del usuario) ----
         for src_name, dest_rel in DOTFILES_MAP.items():
             src = os.path.join(str(DOTFILES_DIR), src_name)
             dest = os.path.join(home, dest_rel)
             if not os.path.exists(src):
+                log(f"WARN dotfile fuente faltante: {src}")
                 continue
             if os.path.exists(dest) and src_name != "kitty":
+                log(f"INFO dotfile existente preservado: {dest}")
                 continue
             os.makedirs(os.path.dirname(dest), exist_ok=True)
             if src_name == "kitty" and os.path.isdir(dest):

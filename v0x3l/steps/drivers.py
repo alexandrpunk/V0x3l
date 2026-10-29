@@ -13,20 +13,52 @@ class PerformanceStep(BaseStep):
     def run(self) -> bool:
         ok = True
 
+        # ---- Helpers ----
+        def run_critical(desc: str, *args, **kwargs) -> bool:
+            try:
+                result = self.runner.ui.run_cmd(desc, *args, **kwargs)
+                if not result:
+                    print(f"ERROR {desc}: comando fallo (critico)")
+                return result
+            except Exception as e:
+                print(f"ERROR {desc}: excepcion {type(e).__name__}: {e}")
+                return False
+
+        def run_nonfatal(desc: str, *args, **kwargs) -> bool:
+            try:
+                result = self.runner.ui.run_cmd(desc, *args, **kwargs)
+                if not result:
+                    print(f"WARN {desc}: comando fallo (no fatal)")
+                return result
+            except Exception as e:
+                print(f"WARN {desc}: excepcion {type(e).__name__}: {e}")
+                return False
+
+        def _which(cmd: str) -> bool:
+            try:
+                subprocess.run(["which", cmd], capture_output=True, check=True)
+                return True
+            except Exception:
+                return False
+
         # ── Kernel XanMod (repo agregado en Step 0) ──
         current_kernel = subprocess.run(
             ["uname", "-r"], capture_output=True, text=True
         ).stdout
 
         if "xanmod" not in current_kernel:
-            ok &= self.runner.ui.run_cmd("install xanmod + dkms toolchain",
+            ok &= run_critical("install xanmod + dkms toolchain",
                 "nala", "install", "--no-install-recommends", "-y",
                 "linux-xanmod-edge-x64v3",
                 "dkms", "libelf-dev", "clang", "lld", "llvm", sudo=True)
 
+            # Verificar instalación
+            if not _which("dkms"):
+                print("WARN dkms no instalado; módulos kernel pueden no compilar")
+
         # ── GPU detection ──
         # Filtrar SOLO lineas VGA/3D/display (antes buscaba "intel" en todo el
-        # output de lspci, que incluye NICs, Wi-Fi, etc. → falsos positivos).
+        # output de lspci, que incluye NICs, Wi-Fi, etc. -> falsos positivos).
         try:
             lspci = subprocess.run(
                 ["lspci", "-nn"], capture_output=True, text=True
@@ -44,28 +76,45 @@ class PerformanceStep(BaseStep):
             os.environ["HAS_NVIDIA_GPU"] = "0"
             return ok
 
-        ok &= self.runner.ui.run_cmd("nala update",
-            "nala", "update", sudo=True)
-
-        if has_intel:
-            ok &= self.runner.ui.run_cmd("install nvidia+prime",
-                "nala", "install", "-y",
-                "nvidia-driver-595-open", "nvidia-prime", "nvidia-settings",
-                sudo=True)
-            ok &= self.runner.ui.run_cmd("prime-select",
-                "prime-select", "on-demand", sudo=True)
-        else:
-            ok &= self.runner.ui.run_cmd("install nvidia",
-                "nala", "install", "-y",
-                "nvidia-driver-595-open", "nvidia-settings",
-                sudo=True)
-
-        for svc in ("nvidia-suspend", "nvidia-resume", "nvidia-hibernate"):
-            ok &= self.runner.ui.run_cmd(f"enable {svc}",
-                "systemctl", "enable", svc, sudo=True)
-
         os.environ["HAS_NVIDIA_GPU"] = "1"
-        if has_intel:
-            os.environ["HAS_NVIDIA_INTEL"] = "1"
+
+        ok &= run_critical("nala update", "nala", "update", sudo=True)
+
+        # Detectar versión de driver recomendada
+        # Primero intentar ubuntu-drivers
+        driver_pkgs = ["nvidia-driver-560"]
+        try:
+            result = subprocess.run(
+                ["ubuntu-drivers", "devices"], capture_output=True, text=True, timeout=30
+            )
+            if result.returncode == 0 and result.stdout:
+                # Parsear salida para driver recomendado
+                for line in result.stdout.splitlines():
+                    if "nvidia-driver-" in line and "recommended" in line:
+                        parts = line.split()
+                        for p in parts:
+                            if p.startswith("nvidia-driver-"):
+                                driver_pkgs = [p]
+                                break
+        except Exception:
+            pass
+
+        ok &= run_critical("install nvidia drivers",
+            "nala", "install", "--no-install-recommends", "-y",
+            *driver_pkgs, sudo=True)
+
+        # Configurar nvidia-suspend para suspend/resume
+        nvidia_suspend_src = "/lib/systemd/system-sleep/nvidia-suspend.sh"
+        if os.path.exists(nvidia_suspend_src):
+            ok &= run_nonfatal("enable nvidia-suspend",
+                "systemctl", "enable", "nvidia-suspend", "nvidia-hibernate",
+                "nvidia-resume", sudo=True)
+
+        # Verificar instalación de drivers
+        try:
+            subprocess.run(["nvidia-smi"], capture_output=True, check=True)
+            print("INFO nvidia-smi: GPU detectada correctamente")
+        except Exception:
+            print("WARN nvidia-smi fallo; revisar drivers NVIDIA")
 
         return ok

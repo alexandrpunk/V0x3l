@@ -1,17 +1,11 @@
-# Step 4: Apariencia (iconos + cursors + Plymouth + GRUB)
+# Step 4: Apariencia (cursores, iconos, temas GTK, Plymouth, GRUB)
 
 import os
 import subprocess
 import tempfile
 import shutil
 from v0x3l.steps.base import BaseStep
-from v0x3l.config import (
-    PLYMOUTH_THEME_SRC, PLYMOUTH_THEME_NAME,
-    CURSOR_THEME_SRC, CURSOR_THEME_NAME,
-    GRUB_THEME_SRC, GRUB_THEME_NAME,
-    COLLOID_DIR, COLLOID_THEME_NAME,
-    FONTS_DIR,
-)
+from v0x3l.config import CURSOR_THEME_NAME, CURSOR_THEME_SRC, COLLOID_THEME_NAME, COLLOID_DIR
 
 
 class AppearanceStep(BaseStep):
@@ -21,6 +15,42 @@ class AppearanceStep(BaseStep):
 
     def run(self) -> bool:
         ok = True
+
+        # ---- Helpers ----
+        def run_critical(desc: str, *args, **kwargs) -> bool:
+            try:
+                result = self.runner.ui.run_cmd(desc, *args, **kwargs)
+                if not result:
+                    print(f"ERROR {desc}: comando fallo (critico)")
+                return result
+            except Exception as e:
+                print(f"ERROR {desc}: excepcion {type(e).__name__}: {e}")
+                return False
+
+        def run_nonfatal(desc: str, *args, **kwargs) -> bool:
+            try:
+                result = self.runner.ui.run_cmd(desc, *args, **kwargs)
+                if not result:
+                    print(f"WARN {desc}: comando fallo (no fatal)")
+                return result
+            except Exception as e:
+                print(f"WARN {desc}: excepcion {type(e).__name__}: {e}")
+                return False
+
+        def write_file_if_missing(path: str, content: str, mode: int = 0o644) -> bool:
+            try:
+                if not os.path.exists(path):
+                    os.makedirs(os.path.dirname(path), exist_ok=True)
+                    with open(path, "w") as f:
+                        f.write(content)
+                    os.chmod(path, mode)
+                    print(f"INFO escrito: {path}")
+                    return True
+                return False
+            except Exception as e:
+                print(f"ERROR escribiendo {path}: {type(e).__name__}: {e}")
+                return False
+
         # Detectar NVIDIA en runtime via lspci (no depender del env var de
         # step 1, que se pierde si step 4 corre standalone o tras reboot).
         # Mismo filtro que drivers.py: solo lineas VGA/3D/display.
@@ -38,165 +68,55 @@ class AppearanceStep(BaseStep):
             if os.path.isfile(CURSOR_THEME_SRC):
                 tmpdir = tempfile.mkdtemp()
                 shutil.copy(CURSOR_THEME_SRC, f"{tmpdir}/cursors.zip")
-                self.runner.ui.run_cmd("extract cursors",
+                ok &= run_critical("extract cursors",
                     "unzip", "-q", f"{tmpdir}/cursors.zip", "-d", "/usr/share/icons/", sudo=True)
                 subprocess.run(["rm", "-rf", tmpdir])
             else:
-                ok = False
+                print(f"WARN cursores {CURSOR_THEME_NAME} no disponibles")
 
         # ── Colloid icons ──
         if not os.path.exists(f"/usr/share/icons/{COLLOID_THEME_NAME}") and os.path.isdir(COLLOID_DIR):
-            ok &= self.runner.ui.run_cmd("install Colloid",
+            ok &= run_critical("install Colloid",
                 "bash", f"{COLLOID_DIR}/install.sh", "-b", "-s",
                 "catppuccin", "-t", "green", sudo=True)
 
         # ── Juno (GTK theme, github.com/EliverLara/Juno) ──
         if not os.path.exists("/usr/share/themes/Juno"):
-            ok &= self.runner.ui.run_cmd("install Juno GTK theme", "bash", "-c",
+            ok &= run_critical("install Juno GTK theme", "bash", "-c",
                 "git clone --depth 1 https://github.com/EliverLara/Juno.git "
                 "/usr/share/themes/Juno && "
-                "rm -rf /usr/share/themes/Juno/.git",
+                "cd /usr/share/themes/Juno && "
+                "bash install.sh",
                 sudo=True)
 
-        # ── Pure (icon theme, system dir — github.com/mjkim0727/Pure-icon-theme) ──
-        if not os.path.exists("/usr/share/icons/Pure"):
-            ok &= self.runner.ui.run_cmd("clone Pure icons", "bash", "-c",
-                "rm -rf /tmp/Pure-icon-theme && "
-                "git clone --depth 1 https://github.com/mjkim0727/Pure-icon-theme.git "
-                "/tmp/Pure-icon-theme",
-                sudo=True)
-            ok &= self.runner.ui.run_cmd("install Pure icons", "bash", "-c",
-                "cp -r /tmp/Pure-icon-theme/src/Pure* /usr/share/icons/",
+        # ── Plymouth (boot splash) ──
+        if not os.path.exists("/usr/share/plymouth/themes/vimix"):
+            ok &= run_critical("install Plymouth theme", "bash", "-c",
+                "git clone --depth 1 https://github.com/vinceliuice/vimix-plymouth.git "
+                "/tmp/vimix-plymouth && "
+                "cd /tmp/vimix-plymouth && "
+                "sudo ./install.sh",
                 sudo=True)
 
-        # ── Fuentes (assets/fonts → instalacion global) ──
-        # Copia FiraCode/FiraMono/Hack a /usr/share/fonts y refresca el cache
-        # de fontconfig. Noto (y Noto-mono) se instalan via apt en el Step 2.
-        # Marcador: FiraCode (no suele venir preinstalado).
-        if os.path.isdir(FONTS_DIR) and not os.path.exists("/usr/share/fonts/FiraCode"):
-            ok &= self.runner.ui.run_cmd("install fonts", "bash", "-c",
-                "cp -r " + str(FONTS_DIR) + "/. /usr/share/fonts/ && "
-                "{ fc-cache -f || true; }",
+        # ── GRUB Vimix theme ──
+        if not os.path.exists("/usr/share/grub/themes/vimix"):
+            ok &= run_critical("install GRUB theme", "bash", "-c",
+                "git clone --depth 1 https://github.com/vinceliuice/vimix-grub2-theme.git "
+                "/tmp/vimix-grub && "
+                "cd /tmp/vimix-grub && "
+                "sudo ./install.sh",
                 sudo=True)
 
-        # ── Plymouth ──
-        ok &= self.runner.ui.run_cmd("install plymouth",
-            "nala", "install", "-y", "plymouth", "plymouth-themes", "dconf-cli",
-            sudo=True)
-        os.makedirs("/usr/share/plymouth/themes", exist_ok=True)
-
-        theme_src = PLYMOUTH_THEME_SRC
-        theme_name = PLYMOUTH_THEME_NAME
-        theme_dir = f"/usr/share/plymouth/themes/{theme_name}"
-        theme_file = f"{theme_dir}/{theme_name}.plymouth"
-
-        if os.path.isdir(theme_src) and os.path.exists(
-                f"{theme_src}/{theme_name}.plymouth"):
-            os.makedirs(theme_dir, exist_ok=True)
-            # Copiar el tema siempre (refresca assets en re-runs)
-            self.runner.ui.run_cmd("copy plymouth theme",
-                "cp", "-r", f"{theme_src}/.", f"{theme_dir}/", sudo=True)
-
-            # Corregir rutas absolutas dentro del .plymouth (ImageDir, etc.)
-            # para que apunten al theme_dir real. Evita bugs de renombrado
-            # del proyecto (p.ej. ImageDir apuntaba a voidforge-boot-theme).
-            self.runner.ui.run_cmd("fix plymouth paths", "bash", "-c",
-                f'sed -i "s|/usr/share/plymouth/themes/[^ /]*/|{theme_dir}/|g" '
-                f'"{theme_file}"',
-                sudo=True)
-
-            if os.path.isfile(theme_file):
-                self.runner.ui.run_cmd("plymouth alternatives",
-                    "update-alternatives", "--install",
-                    "/usr/share/plymouth/themes/default.plymouth",
-                    "default.plymouth", theme_file, "100", sudo=True)
-                self.runner.ui.run_cmd("plymouth set",
-                    "update-alternatives", "--set",
-                    "default.plymouth", theme_file, sudo=True)
-
-        # ── GRUB theme ──
-        grub_theme = f"/usr/share/grub/themes/{GRUB_THEME_NAME}"
-        if os.path.isdir(GRUB_THEME_SRC):
-            os.makedirs(grub_theme, exist_ok=True)
-            if not os.path.exists(f"{grub_theme}/theme.txt"):
-                self.runner.ui.run_cmd("copy GRUB theme",
-                    "cp", "-r", f"{GRUB_THEME_SRC}/.", f"{grub_theme}/", sudo=True)
-
-        grub_cfg = "/etc/default/grub"
-
-        # 1. GRUB_THEME (obligatorio para que GRUB use el tema visual)
-        theme_line = f'GRUB_THEME="{grub_theme}/theme.txt"'
-        self.runner.ui.run_cmd("set GRUB_THEME", "bash", "-c",
-            f'grep -q "^GRUB_THEME=" "{grub_cfg}" && '
-            f'sed -i "s|^GRUB_THEME=.*|{theme_line}|" "{grub_cfg}" || '
-            f'echo "{theme_line}" >> "{grub_cfg}"',
-            sudo=True)
-
-        # 2. GRUB_GFXPAYLOAD_LINUX (necesario para Plymouth)
-        self.runner.ui.run_cmd("set gfxpayload", "bash", "-c",
-            f'grep -q "^GRUB_GFXPAYLOAD_LINUX=" "{grub_cfg}" || '
-            f'echo "GRUB_GFXPAYLOAD_LINUX=keep" >> "{grub_cfg}"',
-            sudo=True)
-
-        # 3. Kernel params: quiet splash + NVIDIA si corresponde
-        if has_nvidia:
-            self.runner.ui.run_cmd("set kernel nvidia params", "bash", "-c",
-                'sed -i "s/^GRUB_CMDLINE_LINUX_DEFAULT=.*/'
-                'GRUB_CMDLINE_LINUX_DEFAULT=\\"quiet splash '
-                'nvidia-drm.modeset=1 nvidia-drm.fbdev=1 '
-                'nvidia.NVreg_PreserveVideoMemoryAllocations=1\\"/"'
-                f' "{grub_cfg}"',
-                sudo=True)
-        else:
-            self.runner.ui.run_cmd("set kernel splash", "bash", "-c",
-                'sed -i "s/^GRUB_CMDLINE_LINUX_DEFAULT=.*/'
-                'GRUB_CMDLINE_LINUX_DEFAULT=\\"quiet splash\\"/"'
-                f' "{grub_cfg}"',
-                sudo=True)
-
-        os.makedirs("/etc/initramfs-tools/conf.d", exist_ok=True)
-        with open("/etc/initramfs-tools/conf.d/splash", "w") as f:
-            f.write("FRAMEBUFFER=y\n")
-        if has_nvidia:
-            # Idempotente: leer modules existente y solo agregar los que faltan
-            # (antes hcia append sin check -> acumulaba duplicados en re-runs)
-            modules_file = "/etc/initramfs-tools/modules"
-            existing = ""
-            if os.path.exists(modules_file):
-                with open(modules_file) as f:
-                    existing = f.read()
-            with open(modules_file, "a") as f:
-                for mod in ("nvidia", "nvidia-drm", "nvidia-modeset", "nvidia-uvm"):
-                    if mod not in existing:
-                        f.write(f"{mod}\n")
-
-        ok &= self.runner.ui.run_cmd("grub-mkconfig",
-            "grub-mkconfig", "-o", "/boot/grub/grub.cfg", sudo=True)
-        ok &= self.runner.ui.run_cmd("update-initramfs",
-            "update-initramfs", "-u", sudo=True)
-        self.runner.ui.run_cmd("nala autoremove",
-            "nala", "autoremove", "-y", sudo=True)
-        self.runner.ui.run_cmd("nala clean",
-            "nala", "clean", sudo=True)
-
-        # ── Temas GTK/iconos por defecto del sistema (dconf system-db) ──
-        # Aplica Juno (GTK) y Pure (iconos) a todas las sesiones. Necesita
-        # dconf-cli (instalado arriba con plymouth).
-        if not os.path.exists("/etc/dconf/profile/user"):
-            os.makedirs("/etc/dconf/profile", exist_ok=True)
-            with open("/etc/dconf/profile/user", "w") as f:
-                f.write("user-db:user\nsystem-db:local\n")
-        if not os.path.exists("/etc/dconf/db/local.d/01-themes"):
-            os.makedirs("/etc/dconf/db/local.d", exist_ok=True)
-            with open("/etc/dconf/db/local.d/01-themes", "w") as f:
-                f.write(
-                    "[org/gnome/desktop/interface]\n"
-                    "gtk-theme='Juno'\n"
-                    "icon-theme='Pure'\n\n"
-                    "[org/gnome/desktop/wm/preferences]\n"
-                    "theme='Juno'\n"
-                )
-            self.runner.ui.run_cmd("dconf update",
-                "dconf", "update", sudo=True)
+        # ---- Verificaciones finales ----
+        # Verificar que los temas clave están presentes
+        for theme_path in [
+            f"/usr/share/icons/{CURSOR_THEME_NAME}",
+            f"/usr/share/icons/{COLLOID_THEME_NAME}",
+            "/usr/share/themes/Juno",
+            "/usr/share/plymouth/themes/vimix",
+            "/usr/share/grub/themes/vimix"
+        ]:
+            if not os.path.exists(theme_path):
+                print(f"WARN tema faltante: {theme_path}")
 
         return ok
