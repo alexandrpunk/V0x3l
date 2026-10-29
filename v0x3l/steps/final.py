@@ -328,7 +328,7 @@ class DesktopStep(BaseStep):
                     f"chown dotfile {src_name}", "chown", "-R",
                     f"{user}:", dest, sudo=True)
                 ok &= chowned
-        return ok and self._install_zsh_lazyvim() and self._install_omp_harness() and self._install_optimus_plugin()
+        return ok and self._install_zsh_lazyvim() and self._install_omp_harness() and (self._install_optimus_plugin() if os.environ.get("HAS_NVIDIA_GPU", "0") == "1" and (os.environ.get("HAS_INTEL_GPU", "0") == "1" or os.environ.get("HAS_AMD_GPU", "0") == "1") else True)
 
     def _install_zsh_lazyvim(self) -> bool:
         """Instala el starter oficial de LazyVim de forma idempotente.
@@ -510,12 +510,21 @@ class DesktopStep(BaseStep):
         return True
 
     def _install_optimus_plugin(self) -> bool:
-        """Instala plugin Noctalia para gestión de NVIDIA Optimus."""
+        """Instala plugin Noctalia para gestión de NVIDIA Optimus (solo si aplica)."""
         user = TARGET_USER
         home = TARGET_HOME
         if not user or user == "root" or not home or home == "/root":
             log("WARN optimus-plugin: usuario invalido, omitiendo")
             return False
+
+        # Verificar si el sistema es Optimus (NVIDIA + Intel/AMD iGPU)
+        has_nvidia = os.environ.get("HAS_NVIDIA_GPU", "0") == "1"
+        has_intel = os.environ.get("HAS_INTEL_GPU", "0") == "1"
+        has_amd = os.environ.get("HAS_AMD_GPU", "0") == "1"
+
+        if not (has_nvidia and (has_intel or has_amd)):
+            log("INFO optimus-plugin: sistema no es Optimus, omitiendo instalación")
+            return True  # No es error, solo no aplica
 
         plugin_dir = os.path.join(home, ".config", "noctalia", "plugins", "optimus-manager")
         entries_dir = os.path.join(plugin_dir, "entries")
