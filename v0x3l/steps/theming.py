@@ -10,7 +10,40 @@ from v0x3l.config import (
     COLLOID_THEME_NAME, COLLOID_DIR,
     PLYMOUTH_THEME_NAME, PLYMOUTH_THEME_SRC,
     GRUB_THEME_NAME, GRUB_THEME_SRC,
+    JUNO_THEME_NAME, JUNO_THEME_SRC,
+    TARGET_USER, TARGET_HOME,
 )
+
+
+def gtk_settings_ini(include_gtk3: bool) -> str:
+    """Contenido de ~/.config/gtk-3.0|gtk-4.0/settings.ini.
+
+    Activa los temas instalados (Juno GTK, Colloid icons, cursores Catppuccin);
+    los nombres salen de config (.env) para no divergir de lo instalado.
+    """
+    ini = (
+        "[Settings]\n"
+        f"gtk-theme-name={JUNO_THEME_NAME}\n"
+        f"gtk-icon-theme-name={COLLOID_THEME_NAME}\n"
+        f"gtk-cursor-theme-name={CURSOR_THEME_NAME}\n"
+        "gtk-cursor-theme-size=24\n"
+        "gtk-font-name=Noto Sans 11\n"
+        "gtk-application-prefer-dark-theme=1\n"
+    )
+    if include_gtk3:
+        ini += (
+            "gtk-toolbar-style=GTK_TOOLBAR_BOTH_HORIZ\n"
+            "gtk-toolbar-icon-size=GTK_ICON_SIZE_LARGE_TOOLBAR\n"
+            "gtk-button-images=1\n"
+            "gtk-menu-images=1\n"
+            "gtk-enable-event-sounds=1\n"
+            "gtk-enable-input-feedback-sounds=0\n"
+            "gtk-xft-antialias=1\n"
+            "gtk-xft-hinting=1\n"
+            "gtk-xft-hintstyle=hintslight\n"
+            "gtk-xft-rgba=rgb\n"
+        )
+    return ini
 
 
 class AppearanceStep(BaseStep):
@@ -93,23 +126,16 @@ class AppearanceStep(BaseStep):
                 "bash", f"{COLLOID_DIR}/install.sh", "-b", "-s",
                 "catppuccin", "-t", "green", sudo=True)
 
-        # ── Juno GTK theme (asset local si existe, sino fallback) ──
-        juno_local = "/home/alexandr/proyects/VoidForge/assets/themes/juno-gtk"
-        if not os.path.exists("/usr/share/themes/Juno"):
-            if os.path.isdir(juno_local):
-                ok &= copy_theme_local(juno_local, "/usr/share/themes/Juno", "Juno GTK theme")
+        # ── Juno GTK theme (asset local vendorizado en assets/themes/juno-gtk) ──
+        juno_dest = f"/usr/share/themes/{JUNO_THEME_NAME}"
+        if not os.path.exists(juno_dest):
+            if os.path.isdir(JUNO_THEME_SRC):
+                ok &= copy_theme_local(JUNO_THEME_SRC, juno_dest, "Juno GTK theme")
             else:
-                # Fallback: clona solo si no hay asset local (último recurso)
-                ok &= run_nonfatal("install Juno GTK theme (fallback git)",
-                    "bash", "-c",
-                    "git clone --depth 1 https://github.com/EliverLara/Juno.git "
-                    "/usr/share/themes/Juno && "
-                    "cd /usr/share/themes/Juno && "
-                    "bash install.sh",
-                    sudo=True)
+                print(f"WARN Juno theme origen no existe: {JUNO_THEME_SRC}")
 
         # ── Plymouth theme (asset local v0x3l-boot-theme) ──
-        plymouth_src = "/home/alexandr/proyects/VoidForge/assets/themes/v0x3l-boot-theme"
+        plymouth_src = PLYMOUTH_THEME_SRC
         plymouth_dest = "/usr/share/plymouth/themes/v0x3l"
         if not os.path.exists(plymouth_dest):
             if os.path.isdir(plymouth_src):
@@ -121,7 +147,7 @@ class AppearanceStep(BaseStep):
                 print(f"WARN Plymouth theme origen no existe: {plymouth_src}")
 
         # ── GRUB Vimix theme (asset local grub-vimix) ──
-        grub_src = "/home/alexandr/proyects/VoidForge/assets/themes/grub-vimix"
+        grub_src = GRUB_THEME_SRC
         grub_dest = "/usr/share/grub/themes/vimix"
         if not os.path.exists(grub_dest):
             if os.path.isdir(grub_src):
@@ -141,11 +167,34 @@ class AppearanceStep(BaseStep):
             else:
                 print(f"WARN GRUB theme origen no existe: {grub_src}")
 
+        # ── Activar temas GTK para el usuario (settings.ini) ──
+        # Los temas se copian a /usr/share; sin settings.ini las apps GTK
+        # siguen usando Adwaita. Los valores salen de config (.env) para no
+        # divergir de lo realmente instalado.
+        if TARGET_USER and TARGET_HOME:
+            for rel, content in (
+                (".config/gtk-3.0/settings.ini", gtk_settings_ini(True)),
+                (".config/gtk-4.0/settings.ini", gtk_settings_ini(False)),
+            ):
+                gtk_path = os.path.join(TARGET_HOME, rel)
+                if os.path.exists(gtk_path):
+                    continue
+                try:
+                    os.makedirs(os.path.dirname(gtk_path), exist_ok=True)
+                    with open(gtk_path, "w") as f:
+                        f.write(content)
+                    if os.geteuid() == 0:
+                        subprocess.run(["chown", "-R", f"{TARGET_USER}:",
+                                        os.path.dirname(gtk_path)], check=False)
+                    print(f"INFO GTK settings activados: {gtk_path}")
+                except Exception as e:
+                    print(f"WARN GTK settings {gtk_path}: {type(e).__name__}: {e}")
+
         # ── Verificaciones finales ----
         for theme_path, name in [
             (f"/usr/share/icons/{CURSOR_THEME_NAME}", "Cursors"),
             (f"/usr/share/icons/{COLLOID_THEME_NAME}", "Colloid icons"),
-            ("/usr/share/themes/Juno", "Juno GTK"),
+            (f"/usr/share/themes/{JUNO_THEME_NAME}", "Juno GTK"),
             (plymouth_dest, "Plymouth v0x3l"),
             (grub_dest, "GRUB Vimix"),
         ]:

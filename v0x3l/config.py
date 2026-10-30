@@ -49,6 +49,7 @@ DOTFILES_DIR = ASSETS_DIR / "dotfiles"
 DOTFILES_MAP = {
     "kitty": ".config/kitty",
     "tmux": ".config/tmux",
+    "fastfetch": ".config/fastfetch",
 }
 ASCII_FILE = BASE_DIR / "ascii.sh"
 PALETTE_FILE = BASE_DIR / "collorPalette"
@@ -77,8 +78,17 @@ CURSOR_THEME_NAME = env("CURSOR_THEME_NAME", "catppuccin-mocha-dark-cursors")
 CURSOR_THEME_SRC = str(CURSORS_DIR / f"{CURSOR_THEME_NAME}.zip")
 GRUB_THEME_NAME = env("GRUB_THEME_NAME", "grub-theme-vimix-very-dark-blue")
 GRUB_THEME_SRC = str(THEMES_DIR / "grub-vimix")
-COLLOID_THEME_NAME = env("COLLOID_THEME_NAME", "Colloid-catppuccin-green-dark")
+COLLOID_THEME_NAME = env("COLLOID_THEME_NAME", "Colloid-Green-Catppuccin-Dark")
 COLLOID_DIR = str(THEMES_DIR / "colloid-icon-theme")
+
+# Juno GTK theme (vendorizado en assets/themes/juno-gtk)
+JUNO_THEME_NAME = env("JUNO_THEME_NAME", "Juno")
+JUNO_THEME_SRC = str(THEMES_DIR / "juno-gtk")
+
+# Umbriel: config de referencia vendorizado (defaults de Umbriel + keybinds).
+# El step de Configuracion parte del config empaquetado del sistema
+# (/usr/share/umbriel/config.toml) y cae a este template si no existe.
+UMBRIEL_CONFIG_TEMPLATE = str(DOTFILES_DIR / "umbriel" / "config.toml")
 
 # ── Resolucion centralizada del usuario destino ──
 # Todos los steps usan TARGET_USER y TARGET_HOME en vez de resolver

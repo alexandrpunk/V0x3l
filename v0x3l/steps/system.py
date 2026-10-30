@@ -1,10 +1,99 @@
 # Step 3: Configuracion (polkit + xdg-ufw + red + servicios + TLP)
 
 import os
+import re
+import shutil
 import subprocess
 from v0x3l.steps.base import BaseStep
-from v0x3l.config import TLP_CONF_NAME, CURSOR_THEME_NAME, TARGET_USER, TARGET_HOME
+from v0x3l.config import (TLP_CONF_NAME, CURSOR_THEME_NAME, TARGET_USER,
+                          TARGET_HOME, UMBRIEL_CONFIG_TEMPLATE)
 from v0x3l.shell import log
+
+
+# ---- Umbriel: config base ------------------------------------------------
+# Se parte del config EMPAQUETADO de Umbriel (/usr/share/umbriel/config.toml):
+# ya trae el set completo de keybinds por defecto (lanzador Noctalia, cerrar
+# ventana, workspaces, medios) y va versionado junto al binario. Umbriel
+# REEMPLAZA ese set cuando el usuario define [keybinds], asi que un config
+# minimo los borra. Solo aplicamos las preferencias de V0x3l por encima.
+UMBRIEL_PACKAGED = "/usr/share/umbriel/config.toml"
+UMBRIEL_VALID_MODES = ("scrolling", "dwindle", "master", "stacking")
+# (seccion, clave, valor TOML ya formateado)
+UMBRIEL_PREFS = (
+    ("layout", "mode", '"stacking"'),          # ventanas flotantes
+    ("general", "autostart", '["noctalia"]'),  # sin kitty al arrancar
+    ("general", "xwayland", "true"),           # XWayland cuando se necesite
+)
+
+
+def section_key(text: str, section: str, key: str):
+    """Valor de `key` dentro de [section], ignorando comentarios y subsecciones."""
+    cur, value = None, None
+    for raw in text.splitlines():
+        line = raw.strip()
+        if line.startswith("[") and not line.startswith("[["):
+            cur = line.strip("[]").strip()
+        elif cur == section:
+            m = re.match(rf'^{re.escape(key)}\s*=\s*(.+)$', line)
+            if m:
+                value = m.group(1).strip()
+    return value
+
+
+def set_section_key(text: str, section: str, key: str, value: str) -> str:
+    """Fija `key = value` en [section]: reemplaza si existe, si no inserta tras el header."""
+    lines = text.splitlines()
+    header = f"[{section}]"
+    start = next((i for i, l in enumerate(lines) if l.strip() == header), None)
+    if start is None:
+        return f"{text.rstrip()}\n\n{header}\n{key} = {value}\n"
+    end = next((i for i in range(start + 1, len(lines))
+                if lines[i].strip().startswith("[") and not lines[i].strip().startswith("[[")),
+               len(lines))
+    for i in range(start + 1, end):
+        if re.match(rf'^{re.escape(key)}\s*=', lines[i].strip()):
+            lines[i] = f"{key} = {value}"
+            break
+    else:
+        lines.insert(start + 1, f"{key} = {value}")
+    return "\n".join(lines) + "\n"
+
+
+def seed_umbriel_config(dest: str,
+                        packaged: str = UMBRIEL_PACKAGED,
+                        template: str = UMBRIEL_CONFIG_TEMPLATE) -> bool:
+    """Genera el config desde el empaquetado (version-correcto) o el template vendorizado."""
+    src = packaged if os.path.isfile(packaged) else template
+    try:
+        with open(src) as f:
+            text = f.read()
+    except Exception as e:
+        log(f"ERROR umbriel config: origen {src}: {type(e).__name__}: {e}")
+        return False
+    for section, key, value in UMBRIEL_PREFS:
+        text = set_section_key(text, section, key, value)
+    try:
+        os.makedirs(os.path.dirname(dest), exist_ok=True)
+        with open(dest, "w") as f:
+            f.write(text)
+        log(f"INFO umbriel config generado desde {src} -> {dest}")
+        return True
+    except Exception as e:
+        log(f"ERROR umbriel config: escribiendo {dest}: {type(e).__name__}: {e}")
+        return False
+
+
+def umbriel_needs_reseed(path: str) -> bool:
+    """True si el config existente usa un layout invalido o no define atajos."""
+    try:
+        with open(path) as f:
+            text = f.read()
+    except Exception:
+        return True
+    mode = (section_key(text, "layout", "mode") or "").strip('"')
+    if mode and mode not in UMBRIEL_VALID_MODES:
+        return True
+    return "[keybinds]" not in text
 
 
 class ConfigurationStep(BaseStep):
@@ -195,25 +284,25 @@ class ConfigurationStep(BaseStep):
                 sudo=True)
 
         # ---- Configuración de Umbriel para Noctalia ----
+        # La lógica vive a nivel de modulo (UMBRIEL_PREFS): se parte del config
+        # empaquetado de Umbriel y solo se aplican las preferencias de V0x3l.
         umbriel_dir = os.path.join(home, ".config", "umbriel")
         umbriel_config = os.path.join(umbriel_dir, "config.toml")
-        if user and write_file_if_missing(umbriel_config, (
-            "# Configuracion generada por V0x3l\n"
-            "# Layout: floating (solicitado)\n"
-            '[layout]\nmode = "floating"\n\n'
-            "# Autostart de Noctalia dentro de Umbriel (Noctalia v5 usa ejecutable 'noctalia')\n"
-            "# Documentacion: https://docs.noctalia.dev/noctalia/getting-started/running-the-shell/\n"
-            "# Documentacion integracion Umbriel: https://docs.noctalia.dev/noctalia/compositor-settings/umbriel/\n"
-            "[general]\nautostart = [\"noctalia\", \"kitty\"]\n\n"
-            "# Configuracion de apariencia recomendada para integracion Noctalia\n"
-            "[appearance]\nprefer_no_csd = true\nborder_width = 2\ncorner_radius = 10\n\n"
-            "[appearance.blur]\nenabled = true\noptimized = true\npasses = 2\nradius = 3\nnoise = 0.02\nbrightness = 0.9\ncontrast = 0.9\nsaturation = 1.1\n\n"
-            "# Window rules para settings de Noctalia\n"
-            "# Blur all windows\n"
-            "[[window_rule]]\nblur = true\nblur_optimized = true\n\n"
-            "# Float Noctalia settings window\n"
-            "[[window_rule]]\nmatch = \"title:Noctalia Settings\"\nfloat = true\n"
-        )):
+
+        if user:
+            os.makedirs(umbriel_dir, exist_ok=True)
+            if os.path.exists(umbriel_config):
+                if umbriel_needs_reseed(umbriel_config):
+                    try:
+                        shutil.copy2(umbriel_config, umbriel_config + ".bak")
+                        log(f"INFO umbriel config: backup en {umbriel_config}.bak")
+                    except Exception:
+                        pass
+                    ok &= seed_umbriel_config(umbriel_config)
+                else:
+                    log("INFO umbriel config: existente valido, sin cambios")
+            else:
+                ok &= seed_umbriel_config(umbriel_config)
             ensure_user_ownership(umbriel_dir)
 
         # Verificación post-escritura: validar config.toml
