@@ -27,7 +27,7 @@ class SoftwareStep(BaseStep):
             "libgl1-mesa-dri", "mesa-vulkan-drivers", "xwayland",
             "thunar", "thunar-volman", "gvfs-backends", "gvfs-fuse", "udisks2", "polkitd", "seatd", "ly",
             "ntfs-3g", "exfatprogs", "libglib2.0-bin",
-            "neovim", "tmux", "fastfetch", "geany",
+            "unzip", "neovim", "tmux", "fastfetch", "geany",
             "nwg-look", "dialog", "apt-utils",
             "libheif-plugin-libde265", "ufw", "gnome-sushi", "xdg-user-dirs",
             "pipewire", "wireplumber", "libpipewire-0.3-0",

@@ -268,67 +268,67 @@ class DesktopStep(BaseStep):
 
     def run(self) -> bool:
         ok = True
-
-        # ---- Helpers ----
-        def run_critical(desc: str, *args, **kwargs) -> bool:
-            try:
-                result = self.runner.ui.run_cmd(desc, *args, **kwargs)
-                if not result:
-                    log(f"ERROR {desc}: comando fallo (critico)")
-                return result
-            except Exception as e:
-                log(f"ERROR {desc}: excepcion {type(e).__name__}: {e}")
-                return False
-
-        def run_nonfatal(desc: str, *args, **kwargs) -> bool:
-            try:
-                result = self.runner.ui.run_cmd(desc, *args, **kwargs)
-                if not result:
-                    log(f"WARN {desc}: comando fallo (no fatal)")
-                return result
-            except Exception as e:
-                log(f"WARN {desc}: excepcion {type(e).__name__}: {e}")
-                return False
-
-        def ensure_user_ownership(path: str) -> bool:
-            if user and os.geteuid() == 0 and os.path.exists(path):
-                try:
-                    subprocess.run(
-                        ["chown", "-R", f"{user}:", path],
-                        capture_output=True, check=False
-                    )
-                    return True
-                except Exception:
-                    pass
-            return True
+        user = TARGET_USER
+        home = TARGET_HOME
+        # Precondicion fatal: sin usuario/home destino no se puede desplegar nada.
+        if not user or user == "root" or not home or home == "/root":
+            log("ERROR paso 5: TARGET_USER/TARGET_HOME invalido")
+            return False
 
         # ---- Dotfiles (assets/dotfiles → ~/.config del usuario) ----
         for src_name, dest_rel in DOTFILES_MAP.items():
-            src = os.path.join(str(DOTFILES_DIR), src_name)
-            dest = os.path.join(home, dest_rel)
-            if not os.path.exists(src):
-                log(f"WARN dotfile fuente faltante: {src}")
-                continue
-            if os.path.exists(dest) and src_name != "kitty":
-                log(f"INFO dotfile existente preservado: {dest}")
-                continue
-            os.makedirs(os.path.dirname(dest), exist_ok=True)
-            if src_name == "kitty" and os.path.isdir(dest):
-                copied = self.runner.ui.run_cmd(f"deploy dotfile {src_name}",
-                    "cp", "-r", f"{src}/.", dest, sudo=True)
-            else:
-                copied = self.runner.ui.run_cmd(f"deploy dotfile {src_name}",
-                    "cp", "-r", src, dest, sudo=True)
-            if not copied:
-                log(f"ERROR dotfile: fallo al desplegar {src_name}")
+            try:
+                src = os.path.join(str(DOTFILES_DIR), src_name)
+                dest = os.path.join(home, dest_rel)
+                if not os.path.exists(src):
+                    log(f"WARN dotfile fuente faltante: {src}")
+                    continue
+                if os.path.exists(dest) and src_name != "kitty":
+                    log(f"INFO dotfile existente preservado: {dest}")
+                    continue
+                os.makedirs(os.path.dirname(dest), exist_ok=True)
+                if src_name == "kitty" and os.path.isdir(dest):
+                    copied = self.runner.ui.run_cmd(
+                        f"deploy dotfile {src_name}",
+                        "cp", "-r", f"{src}/.", dest, sudo=True)
+                else:
+                    copied = self.runner.ui.run_cmd(
+                        f"deploy dotfile {src_name}",
+                        "cp", "-r", src, dest, sudo=True)
+                if not copied:
+                    log(f"ERROR dotfile: fallo al desplegar {src_name}")
+                    ok = False
+                    continue
+                if os.geteuid() == 0:
+                    chowned = self.runner.ui.run_cmd(
+                        f"chown dotfile {src_name}", "chown", "-R",
+                        f"{user}:", dest, sudo=True)
+                    ok &= bool(chowned)
+            except Exception as e:
+                log(f"ERROR dotfile {src_name}: {type(e).__name__}: {e}")
                 ok = False
-                continue
-            if os.geteuid() == 0:
-                chowned = self.runner.ui.run_cmd(
-                    f"chown dotfile {src_name}", "chown", "-R",
-                    f"{user}:", dest, sudo=True)
-                ok &= chowned
-        return ok and self._install_zsh_lazyvim() and self._install_omp_harness() and (self._install_optimus_plugin() if os.environ.get("HAS_NVIDIA_GPU", "0") == "1" and (os.environ.get("HAS_INTEL_GPU", "0") == "1" or os.environ.get("HAS_AMD_GPU", "0") == "1") else True)
+
+        # Cada componente es independiente: un fallo no debe impedir que los
+        # demas se ejecuten (antes se encadenaban con `and`, asi que un fallo de
+        # dotfiles o de LazyVim saltaba OMP y el plugin Optimus). Ademas, los
+        # componentes del entorno no son criticos para el sistema: se registran y
+        # NO detienen la instalacion (ver StepRunner.run_all).
+        has_optimus = (os.environ.get("HAS_NVIDIA_GPU", "0") == "1"
+                       and (os.environ.get("HAS_INTEL_GPU", "0") == "1"
+                            or os.environ.get("HAS_AMD_GPU", "0") == "1"))
+        results = {
+            "dotfiles": ok,
+            "lazyvim": self._install_zsh_lazyvim(),
+            "omp": self._install_omp_harness(),
+            "optimus-plugin": self._install_optimus_plugin() if has_optimus else True,
+        }
+        failed = [name for name, done in results.items() if not done]
+        if failed:
+            log(f"ERROR paso 5: componentes que fallaron: {', '.join(failed)} "
+                "(el resto si se aplico; re-ejecutar el paso es idempotente)")
+        else:
+            log("INFO paso 5: entorno completo")
+        return True
 
     def _install_zsh_lazyvim(self) -> bool:
         """Instala el starter oficial de LazyVim de forma idempotente.
@@ -369,6 +369,7 @@ class DesktopStep(BaseStep):
             os.path.join(home, ".local", "state", "nvim"),
             os.path.join(home, ".cache", "nvim"),
         )
+        backups: list[tuple[str, str]] = []
         for path in backup_paths:
             if not os.path.exists(path):
                 continue
@@ -377,7 +378,9 @@ class DesktopStep(BaseStep):
                 shutil.move(path, backup)
             except OSError as exc:
                 log(f"ERROR lazyvim: no se pudo respaldar {path}: {exc}")
+                self._restore_backups(backups)
                 return False
+            backups.append((backup, path))
 
         clone_ok = self.runner.ui.run_cmd("install lazyvim",
             "runuser", "-u", user, "--", "env",
@@ -386,17 +389,34 @@ class DesktopStep(BaseStep):
             "https://github.com/LazyVim/starter", nvim_dir,
             sudo=False)
         if not clone_ok:
-            log("ERROR lazyvim: git clone fallo; revisar red y permisos")
+            # No dejar al usuario sin su config previa si el clone falla.
+            log("ERROR lazyvim: git clone fallo; restaurando configuracion previa")
+            self._restore_backups(backups)
             return False
 
         git_dir = os.path.join(nvim_dir, ".git")
         if os.path.isdir(git_dir):
-            shutil.rmtree(git_dir)
+            try:
+                shutil.rmtree(git_dir)
+            except OSError as exc:
+                log(f"WARN lazyvim: no se pudo eliminar {git_dir}: {exc}")
+
         if os.geteuid() == 0 and not self.runner.ui.run_cmd(
                 "chown lazyvim", "chown", "-R", f"{user}:", nvim_dir,
                 sudo=True):
             return False
         return True
+
+    @staticmethod
+    def _restore_backups(backups: list[tuple[str, str]]) -> None:
+        """Deshace respaldos de LazyVim si el clone falla (no perder config)."""
+        for backup, original in reversed(backups):
+            if not os.path.exists(backup) or os.path.exists(original):
+                continue
+            try:
+                shutil.move(backup, original)
+            except OSError as exc:
+                log(f"WARN lazyvim: no se pudo restaurar {original}: {exc}")
 
     @staticmethod
     def _omp_binary(home: str) -> str:
@@ -487,26 +507,36 @@ class DesktopStep(BaseStep):
         keep = {}
         for name in OMP_HARNESS_KEEP:
             path = os.path.join(agent_dir, name)
-            if os.path.isfile(path):
-                with open(path, "rb") as f:
-                    keep[name] = f.read()
+            try:
+                if os.path.isfile(path):
+                    with open(path, "rb") as f:
+                        keep[name] = f.read()
+            except OSError as exc:
+                log(f"WARN omp: no se pudo leer {name} existente: {exc}")
 
-        os.makedirs(agent_dir, exist_ok=True)
-        for entry in os.listdir(src):
-            if entry in (".git", ".gitignore"):
-                continue
-            source = os.path.join(src, entry)
-            target = os.path.join(agent_dir, entry)
-            if os.path.isdir(source):
-                shutil.copytree(source, target, dirs_exist_ok=True)
-            else:
-                shutil.copy2(source, target)
+        try:
+            os.makedirs(agent_dir, exist_ok=True)
+            for entry in os.listdir(src):
+                if entry in (".git", ".gitignore"):
+                    continue
+                source = os.path.join(src, entry)
+                target = os.path.join(agent_dir, entry)
+                if os.path.isdir(source):
+                    shutil.copytree(source, target, dirs_exist_ok=True)
+                else:
+                    shutil.copy2(source, target)
+        except Exception as e:
+            log(f"ERROR omp: desplegando harness: {type(e).__name__}: {e}")
+            return False
 
         for name, content in keep.items():
             path = os.path.join(agent_dir, name)
-            with open(path, "wb") as f:
-                f.write(content)
-            log(f"omp harness: se conservo {name} existente")
+            try:
+                with open(path, "wb") as f:
+                    f.write(content)
+                log(f"omp harness: se conservo {name} existente")
+            except OSError as exc:
+                log(f"WARN omp: no se pudo conservar {name}: {exc}")
         return True
 
     def _install_optimus_plugin(self) -> bool:
@@ -528,7 +558,11 @@ class DesktopStep(BaseStep):
 
         plugin_dir = os.path.join(home, ".config", "noctalia", "plugins", "optimus-manager")
         entries_dir = os.path.join(plugin_dir, "entries")
-        os.makedirs(entries_dir, exist_ok=True)
+        try:
+            os.makedirs(entries_dir, exist_ok=True)
+        except Exception as e:
+            log(f"ERROR optimus-plugin: {type(e).__name__}: {e}")
+            return False
 
         ok = True
         for rel_path, content in OPTIMUS_PLUGIN_FILES.items():

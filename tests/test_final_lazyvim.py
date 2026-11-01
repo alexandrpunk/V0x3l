@@ -247,12 +247,42 @@ class NoctaliaUmbrielLyTests(unittest.TestCase):
         self.assertNotIn("dms setup headless", content)
         self.assertNotIn("sysc-greet_1.3.0_amd64.deb", content)
 
-    def test_system_configures_umbriel_floating_and_ly(self):
+    def test_system_generates_floating_umbriel_config(self):
+        """El config de Umbriel se siembra desde el empaquetado con 'stacking'.
+
+        'floating' no es un modo valido de Umbriel; el flotante es 'stacking'.
+        """
+        import tomllib
+        from v0x3l.steps import system as sys_mod
+
+        with tempfile.TemporaryDirectory() as tmp:
+            dest = Path(tmp) / "config.toml"
+            self.assertTrue(sys_mod.seed_umbriel_config(
+                str(dest), packaged="/nonexistent",
+                template=sys_mod.UMBRIEL_CONFIG_TEMPLATE))
+            cfg = tomllib.loads(dest.read_text())
+
+        self.assertEqual(cfg["layout"]["mode"], "stacking")
+        self.assertEqual(cfg["general"]["autostart"], ["noctalia"])
+        self.assertEqual(cfg["general"]["xwayland"], True)
+        self.assertGreater(len(cfg["keybinds"]), 0)
+
+    def test_umbriel_needs_reseed_flags_invalid_layout_or_missing_keybinds(self):
+        from v0x3l.steps import system as sys_mod
+
+        with tempfile.TemporaryDirectory() as tmp:
+            broken = Path(tmp) / "broken.toml"
+            broken.write_text('[layout]\nmode = "floating"\n')
+            self.assertTrue(sys_mod.umbriel_needs_reseed(str(broken)))
+
+            good = Path(tmp) / "good.toml"
+            good.write_text(
+                '[layout]\nmode = "stacking"\n\n[keybinds]\n"Mod+Q" = "window-close"\n')
+            self.assertFalse(sys_mod.umbriel_needs_reseed(str(good)))
+
+    def test_system_has_no_greetd_or_ly_service(self):
         import v0x3l.steps.system as sys_mod
-        source = sys_mod.__file__
-        with open(source) as f:
-            content = f.read()
-        self.assertIn('mode = "floating"', content)
+        content = Path(sys_mod.__file__).read_text()
         self.assertIn("noctalia", content)
         self.assertIn("seatd.service", content)
         self.assertIn("umbriel", content)
