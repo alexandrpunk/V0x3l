@@ -23,6 +23,9 @@ UMBRIEL_PREFS = (
     ("layout", "mode", '"stacking"'),          # ventanas flotantes
     ("general", "autostart", '["noctalia"]'),  # sin kitty al arrancar
     ("general", "xwayland", "true"),           # XWayland cuando se necesite
+    # Cursor del compositor: en Wayland lo fija Umbriel, no GTK.
+    ("input.cursor", "theme", f'"{CURSOR_THEME_NAME}"'),
+    ("input.cursor", "size", "24"),
 )
 
 
@@ -94,6 +97,29 @@ def umbriel_needs_reseed(path: str) -> bool:
     if mode and mode not in UMBRIEL_VALID_MODES:
         return True
     return "[keybinds]" not in text
+
+
+def apply_umbriel_prefs(path: str) -> bool:
+    """Aplica UMBRIEL_PREFS sobre un config existente sin regenerarlo.
+
+    Necesario para que una preferencia nueva (p. ej. [input.cursor]) llegue a
+    instalaciones ya hechas sin descartar el resto del archivo del usuario.
+    """
+    try:
+        with open(path) as f:
+            text = f.read()
+    except OSError:
+        return False
+    for section, key, value in UMBRIEL_PREFS:
+        text = set_section_key(text, section, key, value)
+    try:
+        with open(path, "w") as f:
+            f.write(text)
+        log(f"INFO umbriel config: preferencias aplicadas en {path}")
+        return True
+    except OSError as e:
+        log(f"ERROR umbriel config: escribiendo {path}: {e}")
+        return False
 
 
 class ConfigurationStep(BaseStep):
@@ -299,8 +325,10 @@ class ConfigurationStep(BaseStep):
                     except Exception:
                         pass
                     ok &= seed_umbriel_config(umbriel_config)
+                elif apply_umbriel_prefs(umbriel_config):
+                    log("INFO umbriel config: existente valido, preferencias aplicadas")
                 else:
-                    log("INFO umbriel config: existente valido, sin cambios")
+                    log("WARN umbriel config: no se pudieron aplicar las preferencias")
             else:
                 ok &= seed_umbriel_config(umbriel_config)
             ensure_user_ownership(umbriel_dir)

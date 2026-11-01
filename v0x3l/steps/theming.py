@@ -3,6 +3,7 @@
 
 import configparser
 import os
+import re
 import subprocess
 import shutil
 from v0x3l.steps.base import BaseStep
@@ -15,6 +16,16 @@ from v0x3l.config import (
     TARGET_USER, TARGET_HOME,
 )
 from v0x3l.shell import log
+
+
+# Rutas del sistema. Constantes para poder testear el paso sin root.
+SYSTEM_ICONS = "/usr/share/icons"
+SYSTEM_THEMES = "/usr/share/themes"
+PLYMOUTH_THEMES = "/usr/share/plymouth/themes"
+PLYMOUTH_DEFAULT_LINK = f"{PLYMOUTH_THEMES}/default.plymouth"
+GRUB_THEMES = "/usr/share/grub/themes"
+GRUB_DEFAULT_CONF = "/etc/default/grub"
+GRUB_THEME_INSTALL_DIR = "vimix"
 
 
 def gtk_settings_ini(include_gtk3: bool) -> str:
@@ -83,6 +94,31 @@ def copy_theme_tree(src_dir: str, dest_dir: str) -> None:
             shutil.copy2(s, d)
 
 
+def set_grub_option(path: str, key: str, value: str) -> bool:
+    """Fija KEY=value en /etc/default/grub, AÑADIENDOLA si no existe.
+
+    Ubuntu no trae GRUB_THEME en /etc/default/grub, asi que reemplazarla con sed
+    era un no-op silencioso: el tema de GRUB nunca se activaba.
+    """
+    try:
+        with open(path) as f:
+            lines = f.read().splitlines()
+    except OSError:
+        return False
+    pattern = re.compile(rf"^\s*#?\s*{re.escape(key)}\s*=")
+    for i, line in enumerate(lines):
+        if pattern.match(line):
+            lines[i] = f"{key}={value}"
+            break
+    else:
+        lines.append(f"{key}={value}")
+    try:
+        with open(path, "w") as f:
+            f.write("\n".join(lines) + "\n")
+        return True
+    except OSError:
+        return False
+
 class AppearanceStep(BaseStep):
     number = 4
     title = "Apariencia"
@@ -126,8 +162,21 @@ class AppearanceStep(BaseStep):
                 _fail(desc, f"{type(e).__name__}: {e}")
                 return False
 
+        def _register_plymouth_fallback(plymouth_file: str) -> None:
+            """Registra el tema como default sin plymouth-set-default-theme.
+
+            Ubuntu moderno puede no traer ese binario; se replica su efecto:
+            symlink de default.plymouth + regeneracion del initramfs.
+            """
+            _run("plymouth default symlink", "ln", "-sf", plymouth_file,
+                 PLYMOUTH_DEFAULT_LINK, sudo=True)
+            if shutil.which("update-initramfs"):
+                _run("update-initramfs", "update-initramfs", "-u", sudo=True)
+            else:
+                _fail("update-initramfs", "initramfs-tools no instalado")
+
         # ── Catppuccin cursors (asset local zip) ──
-        if not os.path.exists(f"/usr/share/icons/{CURSOR_THEME_NAME}"):
+        if not os.path.exists(f"{SYSTEM_ICONS}/{CURSOR_THEME_NAME}"):
             if not os.path.isfile(CURSOR_THEME_SRC):
                 _fail(f"cursores {CURSOR_THEME_NAME}", "no estan en assets")
             elif not shutil.which("unzip"):
@@ -138,7 +187,7 @@ class AppearanceStep(BaseStep):
                 try:
                     shutil.copy(CURSOR_THEME_SRC, f"{tmpdir}/cursors.zip")
                     _run("extract cursors", "unzip", "-q",
-                         f"{tmpdir}/cursors.zip", "-d", "/usr/share/icons/",
+                         f"{tmpdir}/cursors.zip", "-d", f"{SYSTEM_ICONS}/",
                          sudo=True)
                 finally:
                     shutil.rmtree(tmpdir, ignore_errors=True)
@@ -155,13 +204,13 @@ class AppearanceStep(BaseStep):
         if not icon_variants:
             _fail("icon theme Pure", f"no hay variantes en {ICON_THEME_SRC}")
         for variant in icon_variants:
-            icon_dest = f"/usr/share/icons/{variant}"
+            icon_dest = f"{SYSTEM_ICONS}/{variant}"
             if not os.path.exists(icon_dest):
                 copy_theme_local(os.path.join(ICON_THEME_SRC, variant),
                                  icon_dest, f"Pure icons {variant}")
         if shutil.which("gtk-update-icon-cache"):
             for variant in icon_variants:
-                icon_dest = f"/usr/share/icons/{variant}"
+                icon_dest = f"{SYSTEM_ICONS}/{variant}"
                 if os.path.isdir(icon_dest):
                     _run(f"icon cache {variant}",
                          "gtk-update-icon-cache", "-f", icon_dest, sudo=True)
@@ -172,34 +221,53 @@ class AppearanceStep(BaseStep):
             copy_theme_local(JUNO_THEME_SRC, juno_dest, "Juno GTK theme")
 
         # ── Plymouth theme (asset local; requiere el paquete plymouth) ──
-        # Plymouth resuelve el tema como <dir>/<nombre>.plymouth, y el asset ya
-        # se llama PLYMOUTH_THEME_NAME con ImageDir apuntando a esa ruta.
-        plymouth_dest = f"/usr/share/plymouth/themes/{PLYMOUTH_THEME_NAME}"
+        # Plymouth resuelve el tema como <dir>/<nombre>.plymouth: el asset ya se
+        # llama PLYMOUTH_THEME_NAME con ImageDir apuntando a esa ruta.
+        plymouth_dest = f"{PLYMOUTH_THEMES}/{PLYMOUTH_THEME_NAME}"
+        plymouth_file = os.path.join(plymouth_dest, f"{PLYMOUTH_THEME_NAME}.plymouth")
         if not os.path.exists(plymouth_dest):
-            if copy_theme_local(PLYMOUTH_THEME_SRC, plymouth_dest, "Plymouth theme v0x3l"):
-                if shutil.which("plymouth-set-default-theme"):
-                    _run("plymouth set default",
-                         "plymouth-set-default-theme", PLYMOUTH_THEME_NAME, "-R", sudo=True)
-                else:
-                    _fail("plymouth set default",
-                          "plymouth no instalado (plymouth-set-default-theme ausente)")
+            copy_theme_local(PLYMOUTH_THEME_SRC, plymouth_dest, "Plymouth theme v0x3l")
+        if not os.path.isfile(plymouth_file):
+            _fail("Plymouth theme", f"falta {plymouth_file}")
+        elif shutil.which("plymouth-set-default-theme"):
+            if not _run("plymouth set default", "plymouth-set-default-theme",
+                        PLYMOUTH_THEME_NAME, "-R", sudo=True):
+                _register_plymouth_fallback(plymouth_file)
+        else:
+            log("WARN paso 4: plymouth-set-default-theme ausente; "
+                "registrando con symlink + update-initramfs")
+            _register_plymouth_fallback(plymouth_file)
 
         # ── GRUB Vimix theme (asset local grub-vimix) ──
-        grub_dest = "/usr/share/grub/themes/vimix"
+        grub_dest = f"{GRUB_THEMES}/{GRUB_THEME_INSTALL_DIR}"
         if not os.path.exists(grub_dest):
-            if copy_theme_local(GRUB_THEME_SRC, grub_dest, "GRUB Vimix theme"):
-                grub_conf = "/etc/default/grub"
-                if os.path.exists(grub_conf):
-                    _run("grub theme config", "sed", "-i",
-                         's/^#*GRUB_THEME=.*/GRUB_THEME="\\/usr\\/share\\/grub\\/themes\\/vimix\\/theme.txt"/',
-                         grub_conf, sudo=True)
-                    _run("grub resolution", "sed", "-i",
-                         's/^#*GRUB_GFXMODE=.*/GRUB_GFXMODE=1920x1080/',
-                         grub_conf, sudo=True)
-                    if shutil.which("update-grub"):
-                        _run("update-grub", "update-grub", sudo=True)
-                    else:
-                        _fail("update-grub", "update-grub no instalado")
+            copy_theme_local(GRUB_THEME_SRC, grub_dest, "GRUB Vimix theme")
+        grub_conf = GRUB_DEFAULT_CONF
+        if not os.path.isdir(grub_dest):
+            _fail("GRUB Vimix theme", f"no existe {grub_dest}")
+        elif not os.path.exists(grub_conf):
+            _fail("grub theme config", f"no existe {grub_conf}")
+        else:
+            # Ubuntu NO trae GRUB_THEME en /etc/default/grub: hay que anadirlo.
+            if set_grub_option(grub_conf, "GRUB_THEME", f'"{grub_dest}/theme.txt"'):
+                log("INFO paso 4: GRUB_THEME configurado")
+            else:
+                _fail("grub theme config", grub_conf)
+            set_grub_option(grub_conf, "GRUB_GFXMODE", "1920x1080")
+            if shutil.which("update-grub"):
+                _run("update-grub", "update-grub", sudo=True)
+            else:
+                _fail("update-grub", "update-grub no instalado (grub2-common)")
+            # Plymouth solo se dibuja si el kernel arranca con 'splash'.
+            try:
+                with open(grub_conf) as f:
+                    conf_text = f.read()
+                if not re.search(r"^GRUB_CMDLINE_LINUX_DEFAULT=.*\bsplash\b",
+                                 conf_text, re.M):
+                    log("WARN paso 4: GRUB_CMDLINE_LINUX_DEFAULT no incluye "
+                        "'splash': el tema de Plymouth no se vera en el arranque")
+            except OSError:
+                pass
 
         # ── Activar temas GTK para el usuario ──
         # 1) settings.ini: fallback para apps GTK sin portal (se mezcla con lo
@@ -220,6 +288,20 @@ class AppearanceStep(BaseStep):
                                     os.path.dirname(gtk_path)], check=False)
                 log(f"INFO paso 4: GTK settings activados: {gtk_path}")
 
+            # Cursor por defecto para apps X11/legacy (Wayland lo fija Umbriel).
+            cursor_index = os.path.join(TARGET_HOME, ".icons", "default", "index.theme")
+            if not os.path.exists(cursor_index):
+                try:
+                    os.makedirs(os.path.dirname(cursor_index), exist_ok=True)
+                    with open(cursor_index, "w") as f:
+                        f.write(f"[Icon Theme]\nInherits={CURSOR_THEME_NAME}\n")
+                    if os.geteuid() == 0:
+                        subprocess.run(["chown", "-R", f"{TARGET_USER}:",
+                                        os.path.dirname(cursor_index)], check=False)
+                    log(f"INFO paso 4: cursor por defecto: {cursor_index}")
+                except Exception as e:
+                    _fail(f"cursor index {cursor_index}", f"{type(e).__name__}: {e}")
+
             gsettings_bin = shutil.which("gsettings")
             dbus_bin = shutil.which("dbus-run-session")
             if gsettings_bin and dbus_bin:
@@ -239,9 +321,9 @@ class AppearanceStep(BaseStep):
 
         # ── Resumen ──
         missing = [name for path, name in (
-            (f"/usr/share/icons/{CURSOR_THEME_NAME}", "Cursors"),
-            (f"/usr/share/icons/{ICON_THEME_NAME}", "Pure icons"),
-            (f"/usr/share/themes/{JUNO_THEME_NAME}", "Juno GTK"),
+            (f"{SYSTEM_ICONS}/{CURSOR_THEME_NAME}", "Cursors"),
+            (f"{SYSTEM_ICONS}/{ICON_THEME_NAME}", "Pure icons"),
+            (f"{SYSTEM_THEMES}/{JUNO_THEME_NAME}", "Juno GTK"),
             (plymouth_dest, "Plymouth v0x3l"),
             (grub_dest, "GRUB Vimix"),
         ) if not os.path.exists(path)]

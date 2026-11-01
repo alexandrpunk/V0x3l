@@ -37,6 +37,20 @@ def ensure_urwid() -> bool:
     return False
 
 
+def _ensure_sbin_in_path() -> None:
+    """Garantiza /usr/sbin y /sbin en PATH.
+
+    Las herramientas de administracion (update-grub, update-initramfs,
+    plymouth-set-default-theme) viven ahi; si el entorno de sudo recorta el
+    PATH, shutil.which() y los subprocess no las encuentran y el paso las omite.
+    """
+    parts = [p for p in os.environ.get("PATH", "").split(":") if p]
+    for extra in ("/usr/local/sbin", "/usr/sbin", "/sbin"):
+        if extra not in parts:
+            parts.append(extra)
+    os.environ["PATH"] = ":".join(parts)
+
+
 def main():
     # Modo no-interactivo para apt/dpkg/nala: evita que tomen el tty (dialogos,
     # barras de progreso de dpkg) y corrompan la pantalla de la TUI con escapes
@@ -46,6 +60,7 @@ def main():
     os.environ.setdefault("APT_LISTCHANGES_FRONTEND", "none")
     os.environ.setdefault("NEEDRESTART_MODE", "a")
     os.environ.setdefault("NEEDRESTART_SUSPEND", "1")
+    _ensure_sbin_in_path()
 
     os.makedirs(os.path.dirname(LOG_FILE) or ".", exist_ok=True)
     with open(LOG_FILE, "w") as f:
