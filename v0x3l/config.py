@@ -78,8 +78,10 @@ CURSOR_THEME_NAME = env("CURSOR_THEME_NAME", "catppuccin-mocha-dark-cursors")
 CURSOR_THEME_SRC = str(CURSORS_DIR / f"{CURSOR_THEME_NAME}.zip")
 GRUB_THEME_NAME = env("GRUB_THEME_NAME", "grub-theme-vimix-very-dark-blue")
 GRUB_THEME_SRC = str(THEMES_DIR / "grub-vimix")
-COLLOID_THEME_NAME = env("COLLOID_THEME_NAME", "Colloid-Green-Catppuccin-Dark")
-COLLOID_DIR = str(THEMES_DIR / "colloid-icon-theme")
+# Icon theme Pure (vendorizado en assets/themes/pure-icon-theme/src).
+# Variantes: Pure, Pure-Dark, Pure-Light; Pure-Dark hereda de Pure.
+ICON_THEME_NAME = env("ICON_THEME_NAME", "Pure-Dark")
+ICON_THEME_SRC = str(THEMES_DIR / "pure-icon-theme" / "src")
 
 # Juno GTK theme (vendorizado en assets/themes/juno-gtk)
 JUNO_THEME_NAME = env("JUNO_THEME_NAME", "Juno")

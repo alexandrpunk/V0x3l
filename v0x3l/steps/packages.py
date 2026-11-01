@@ -28,6 +28,7 @@ class SoftwareStep(BaseStep):
             "thunar", "thunar-volman", "gvfs-backends", "gvfs-fuse", "udisks2", "polkitd", "seatd", "ly",
             "ntfs-3g", "exfatprogs", "libglib2.0-bin",
             "unzip", "neovim", "tmux", "fastfetch", "geany",
+            "plymouth", "gtk-update-icon-cache",
             "nwg-look", "dialog", "apt-utils",
             "libheif-plugin-libde265", "ufw", "gnome-sushi", "xdg-user-dirs",
             "pipewire", "wireplumber", "libpipewire-0.3-0",

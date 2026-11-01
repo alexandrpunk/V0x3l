@@ -1,0 +1,66 @@
+# Pure-icon-theme
+Mac-Like icon theme for Linux Desktops
+
+## Features
+
+* Mac-Like Designs
+* KDE 6 Support
+* iOS18-Style Dark Mode icons
+* Folder Color Support
+
+## Based On
+
+* Fluent-icon-theme by vinceliuice - almost symbolic icons
+* Stylish-icon-theme by mjkim0727
+
+## To-Dos
+
+- [x] Full-Support KDE Color Scheme
+
+ - [x] Folder Color
+
+- [ ] Packaging Icon Theme
+
+- [ ] GNOME Extensions for Colored Folder icons
+
+- [x] Improve Compatiblity for KDE 6 (22~24px symbolic icons)
+
+- [x] iOS18+ Style Dark Mode icon (Out-of-Box apps almost applied)
+
+## Install
+
+### via sources
+
+Open terminal, and run install-user.sh or install-system.sh file.
+
+```
+# Install on user directory
+
+$ ./install-user.sh
+```
+
+```
+# Install on System directory
+
+$ ./install-system.sh
+```
+
+### via AUR
+
+Coming Soon
+
+## Preview
+
+![preview](images/icon-preview.png)
+
+## Screenshot
+
+* ![kde_icon](src/Pure/22/apps/desktop-environment-kde.svg) KDE
+
+![kde](images/screenshot_kde.png)
+
+* ![gnome_icon](src/Pure/22/apps/desktop-environment-gnome.svg) GNOME
+
+![gnome](images/screenshot_gnome.png)
+
+* ![xfce_icon](src/Pure/22/apps/desktop-environment-xfce.svg) Xfce
