@@ -36,6 +36,34 @@ def confirm_dialog(title: str, message: str, on_yes: Callable,
     return _make_dialog(body, title)
 
 
+def success_dialog(title: str, message: str, on_reboot: Callable,
+                   on_exit: Callable, log_path: str | None = None):
+    """Pantalla de exito con opciones de reiniciar o salir."""
+    body = [
+        urwid.Text(""),
+        urwid.Text(("ok", "  \u2714 Instalacion completada  "), align="center"),
+        urwid.Text(""),
+        urwid.Text(message, align="center"),
+    ]
+    if log_path:
+        body += [
+            urwid.Text(""),
+            urwid.Text(f"  Log: {log_path}"),
+        ]
+    body += [
+        urwid.Text(""),
+        urwid.Columns([
+            ("pack", urwid.Text("  ")),
+            urwid.Button("  Reiniciar ahora  ", on_press=lambda _: on_reboot()),
+            ("pack", urwid.Text("   ")),
+            urwid.Button("  Salir  ", on_press=lambda _: on_exit()),
+            ("pack", urwid.Text("  ")),
+        ]),
+        urwid.Text(""),
+    ]
+    return _make_dialog(body, title)
+
+
 def input_dialog(title: str, prompt: str, on_submit: Callable,
                  on_cancel: Callable | None = None):
     """Dialogo de entrada de texto."""

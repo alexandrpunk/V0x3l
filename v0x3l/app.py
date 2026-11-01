@@ -11,7 +11,8 @@ from v0x3l.ui.menu import MainMenu
 from v0x3l.ui.progress import ProgressScreen
 from v0x3l.ui.execution_screen import ExecutionScreen
 from v0x3l.ui.layout import V0x3lLayout
-from v0x3l.ui.dialogs import message_dialog, error_dialog
+from v0x3l.ui.dialogs import (message_dialog, error_dialog,
+                              success_dialog, confirm_dialog)
 
 
 class V0x3lApp:
@@ -24,6 +25,8 @@ class V0x3lApp:
         self.runner = StepRunner(self, self)
         self._register_steps()
         self.current_progress: ProgressScreen | None = None
+        self._modal = False
+        self._success = False
 
     # ===================== Shell callbacks =====================
 
@@ -126,6 +129,16 @@ class V0x3lApp:
 
 
     def _unhandled_key(self, key):
+        # Pantalla de exito: solo R (reiniciar) y S/Q (salir)
+        if self._success:
+            if key in ("r", "R"):
+                self._on_reboot_pressed()
+            elif key in ("s", "S", "q", "Q"):
+                raise urwid.ExitMainLoop()
+            return
+        # Con un dialogo abierto solo actuan sus botones
+        if self._modal:
+            return
         # Atajos numericos directos sin navegar con flechas
         if key in ("1", "2", "3", "4", "5", "6"):
             self._on_menu_choice(key)
@@ -134,6 +147,8 @@ class V0x3lApp:
             raise urwid.ExitMainLoop()
 
     def _show_menu(self):
+        self._modal = False
+        self._success = False
         menu = MainMenu(on_choice=self._on_menu_choice)
         self.layout.show_menu(menu.get_widget())
 
@@ -182,6 +197,8 @@ class V0x3lApp:
 
     def _prepare_execution(self):
         """Prepara la pantalla de ejecucion con los pasos."""
+        self._modal = False
+        self._success = False
         self.exec_screen = ExecutionScreen()
         # Marcar todos como pending
         for i in range(TOTAL_STEPS + 1):
@@ -201,6 +218,8 @@ class V0x3lApp:
     def _show_message(self, text: str, title: str = None):
         if title is None:
             title = PROJECT_NAME
+        self._modal = True
+
         def close():
             self._show_menu()
             if self.loop:
@@ -275,13 +294,84 @@ class V0x3lApp:
         return ok
 
     def on_all_done(self):
-        """Called when all steps complete."""
+        """Todos los pasos completados: pantalla de exito con opcion de reiniciar."""
+        log("OK: instalacion completada (todos los pasos)")
+        if not self.loop:
+            self._text_success()
+            return
+        self.loop.draw_screen()
+        self.loop.set_alarm_in(0.5, lambda loop, data: self._show_success())
+
+    def _show_success(self):
+        """Pantalla de exito tras completar todos los pasos."""
+        self._success = True
+        self._modal = True
+        self.layout.set_header("Instalacion completada")
+        self.layout.set_footer("R Reiniciar \u2502 S Salir")
+        msg = ("\n  Todos los pasos se completaron correctamente.\n\n"
+               "  Reinicia para aplicar kernel, drivers, grupos y sesion grafica.\n")
+        dialog = success_dialog(
+            "Instalacion completada", msg,
+            on_reboot=self._on_reboot_pressed,
+            on_exit=lambda: exit_app(self.loop),
+            log_path=LOG_FILE,
+        )
+        self.layout.set_body(urwid.Overlay(
+            dialog, urwid.SolidFill(" "),
+            align="center", width=("relative", 70),
+            valign="middle", height=("relative", 55),
+        ))
         if self.loop:
             self.loop.draw_screen()
-            self.loop.set_alarm_in(1.5, lambda loop, data: self._show_menu())
+
+    def _on_reboot_pressed(self):
+        """Pide confirmacion antes de reiniciar el sistema."""
+        def do_reboot():
+            if self._reboot_system():
+                raise urwid.ExitMainLoop()
+            self._show_message(
+                "\n  No se pudo reiniciar automaticamente.\n\n"
+                "  Ejecuta manualmente:  sudo reboot\n",
+                "Reinicio no disponible")
+
+        dialog = confirm_dialog(
+            "Reiniciar sistema",
+            "\u00bfReiniciar el sistema ahora?\n  La instalacion ya termino.",
+            on_yes=do_reboot, on_no=self._show_success)
+        self.layout.set_body(urwid.Overlay(
+            dialog, urwid.SolidFill(" "),
+            align="center", width=("relative", 56),
+            valign="middle", height=("relative", 40),
+        ))
+        if self.loop:
+            self.loop.draw_screen()
+
+    def _reboot_system(self) -> bool:
+        """Solicita un reinicio. Devuelve True si el comando fue aceptado."""
+        log("USER: reinicio del sistema solicitado")
+        try:
+            return run("reboot", "systemctl", "reboot", sudo=True)
+        except Exception as e:
+            log(f"ERROR reboot: {type(e).__name__}: {e}")
+            return False
+
+    def _text_success(self):
+        """Pantalla de exito en modo texto (sin TTY/urwid)."""
+        print(f"\n  {chr(27)}[1;32m{chr(9670)} Instalacion completada{chr(27)}[0m\n")
+        print("  Todos los pasos se completaron correctamente.")
+        print(f"  Log: {LOG_FILE}\n")
+        try:
+            ans = input("  \u00bfReiniciar el sistema ahora? [s/N]: ").strip().lower()
+        except (EOFError, KeyboardInterrupt):
+            print()
+            return
+        if ans in ("s", "si", "s\u00ed", "y", "yes"):
+            if not self._reboot_system():
+                print("\n  No se pudo reiniciar. Ejecuta manualmente: sudo reboot\n")
 
     def _show_error(self, failed_step: int):
         """Muestra dialogo de error cuando un paso falla."""
+        self._modal = True
 
         # Copiar log al home del usuario
         home_dir = TARGET_HOME
