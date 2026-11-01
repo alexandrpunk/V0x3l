@@ -11,7 +11,7 @@ from v0x3l.ui.menu import MainMenu
 from v0x3l.ui.progress import ProgressScreen
 from v0x3l.ui.execution_screen import ExecutionScreen
 from v0x3l.ui.layout import V0x3lLayout
-from v0x3l.ui.dialogs import (message_dialog, error_dialog,
+from v0x3l.ui.dialogs import (message_dialog, error_dialog, report_dialog,
                               success_dialog, confirm_dialog)
 
 
@@ -27,6 +27,7 @@ class V0x3lApp:
         self.current_progress: ProgressScreen | None = None
         self._modal = False
         self._success = False
+        self._report_open = False
 
     # ===================== Shell callbacks =====================
 
@@ -105,8 +106,9 @@ class V0x3lApp:
             print(f"  {chr(27)}[1;37m(3){chr(27)}[0m Ejecutar paso especifico")
             print(f"  {chr(27)}[1;37m(4){chr(27)}[0m Ejecutar rango de pasos")
             print(f"  {chr(27)}[1;37m(5){chr(27)}[0m Ver estado actual")
-            print(f"  {chr(27)}[1;37m(6){chr(27)}[0m Salir")
-            print(f"\n  {chr(27)}[2;37mSelecciona una opcion [1-6]:{chr(27)}[0m")
+            print(f"  {chr(27)}[1;37m(6){chr(27)}[0m Comprobar la instalacion")
+            print(f"  {chr(27)}[1;37m(7){chr(27)}[0m Salir")
+            print(f"\n  {chr(27)}[2;37mSelecciona una opcion [1-7]:{chr(27)}[0m")
             try:
                 choice = input().strip()
             except (EOFError, KeyboardInterrupt):
@@ -123,6 +125,8 @@ class V0x3lApp:
             elif choice == "5":
                 self._show_status()
             elif choice == "6":
+                self._run_checks()
+            elif choice == "7":
                 break
             else:
                 print("  Opcion no valida")
@@ -136,11 +140,16 @@ class V0x3lApp:
             elif key in ("s", "S", "q", "Q"):
                 raise urwid.ExitMainLoop()
             return
+        # Informe del doctor: se cierra con q o Esc
+        if self._report_open:
+            if key in ("q", "Q", "esc", "escape"):
+                self._show_menu()
+            return
         # Con un dialogo abierto solo actuan sus botones
         if self._modal:
             return
         # Atajos numericos directos sin navegar con flechas
-        if key in ("1", "2", "3", "4", "5", "6"):
+        if key in ("1", "2", "3", "4", "5", "6", "7"):
             self._on_menu_choice(key)
             return
         if key in ("q", "Q"):
@@ -149,6 +158,7 @@ class V0x3lApp:
     def _show_menu(self):
         self._modal = False
         self._success = False
+        self._report_open = False
         menu = MainMenu(on_choice=self._on_menu_choice)
         self.layout.show_menu(menu.get_widget())
 
@@ -159,11 +169,41 @@ class V0x3lApp:
             "3": self._run_specific,
             "4": self._run_range,
             "5": self._show_status,
-            "6": lambda: exit_app(self.loop),
+            "6": self._run_checks,
+            "7": lambda: exit_app(self.loop),
         }
         action = actions.get(key)
         if action:
             action()
+
+    def _run_checks(self):
+        """Comprobacion de la instalacion (utilidad del doctor)."""
+        from v0x3l.doctor import format_report, run_checks, summarize
+
+        checks = run_checks()
+        ok, warn, fail = summarize(checks)
+        log(f"CHECK: {len(checks)} comprobaciones - "
+            f"{ok} ok, {warn} avisos, {fail} fallos")
+        report = format_report(checks)
+        if self.loop:
+            self._show_report("Comprobacion de la instalacion", report)
+        else:
+            print("\n" + report + "\n")
+
+    def _show_report(self, title: str, text: str):
+        """Muestra un informe largo con scroll."""
+        self._modal = True
+        self._report_open = True
+        self.layout.set_header(title)
+        self.layout.set_footer("flechas para desplazar \u2502 Cerrar")
+        self.layout.set_body(urwid.Overlay(
+            report_dialog(title, text, self._show_menu),
+            urwid.SolidFill(" "),
+            align="center", width=("relative", 80),
+            valign="middle", height=("relative", 85),
+        ))
+        if self.loop:
+            self.loop.draw_screen()
 
     def _run_all(self):
         self._prepare_execution()
@@ -199,6 +239,7 @@ class V0x3lApp:
         """Prepara la pantalla de ejecucion con los pasos."""
         self._modal = False
         self._success = False
+        self._report_open = False
         self.exec_screen = ExecutionScreen()
         # Marcar todos como pending
         for i in range(TOTAL_STEPS + 1):

@@ -39,7 +39,7 @@ class MenuButton(urwid.WidgetWrap):
 
 
 class MainMenu:
-    """Menu principal con 6 opciones en un panel con borde."""
+    """Menu principal con opciones en un panel con borde."""
 
     def __init__(self, on_choice):
         self.on_choice = on_choice
@@ -49,7 +49,8 @@ class MainMenu:
             ("3", "Ejecutar paso especifico"),
             ("4", "Ejecutar rango de pasos"),
             ("5", "Ver estado actual"),
-            ("6", "Salir"),
+            ("6", "Comprobar la instalacion"),
+            ("7", "Salir"),
         ]
 
         buttons = []

@@ -8,6 +8,34 @@ from v0x3l.steps.base import BaseStep
 from v0x3l.config import TARGET_USER, TARGET_HOME
 
 
+# Fuente unica de verdad de lo que instala el paso: la usan el propio paso y
+# v0x3l/doctor.py para comprobar que no falto nada.
+MEGA_PACKAGES = (
+    "wayland-protocols", "libwayland-dev", "libegl1",
+    "libgl1-mesa-dri", "mesa-vulkan-drivers", "xwayland",
+    "thunar", "thunar-volman", "gvfs-backends", "gvfs-fuse", "udisks2",
+    "polkitd", "seatd", "ly",
+    "ntfs-3g", "exfatprogs", "libglib2.0-bin",
+    "unzip", "neovim", "tmux", "fastfetch", "geany",
+    "plymouth", "gtk-update-icon-cache",
+    "nwg-look", "dialog", "apt-utils",
+    "libheif-plugin-libde265", "ufw", "tumbler", "xdg-user-dirs",
+    "pipewire", "wireplumber", "libpipewire-0.3-0",
+    "libwireplumber-0.5-0",
+    "dbus-user-session", "dbus-x11", "network-manager", "libnm0",
+    "xdg-desktop-portal-wlr", "xdg-dbus-proxy",
+    "bluez", "bluez-tools", "pipewire-pulse",
+    "ubuntu-restricted-extras", "gstreamer1.0-plugins-bad",
+    "gstreamer1.0-libav", "ffmpegthumbnailer",
+    "floorp", "flatpak", "tlp", "tlp-rdw",
+    "fonts-powerline", "fonts-noto", "fonts-noto-mono",
+    "cups-pk-helper", "kimageformat-plugins",
+)
+
+# Compositor + shell + portal XDG.
+UMBRIEL_PACKAGES = ("noctalia", "umbriel", "xdg-desktop-portal-umbriel")
+
+
 
 class SoftwareStep(BaseStep):
     number = 2
@@ -23,29 +51,12 @@ class SoftwareStep(BaseStep):
         # disponible, el paso no falla entero y flatpak se instala igual.
         ok &= self.runner.ui.run_cmd("mega-install base",
             "nala", "install", "--no-install-recommends", "-y",
-            "wayland-protocols", "libwayland-dev", "libegl1",
-            "libgl1-mesa-dri", "mesa-vulkan-drivers", "xwayland",
-            "thunar", "thunar-volman", "gvfs-backends", "gvfs-fuse", "udisks2", "polkitd", "seatd", "ly",
-            "ntfs-3g", "exfatprogs", "libglib2.0-bin",
-            "unzip", "neovim", "tmux", "fastfetch", "geany",
-            "plymouth", "gtk-update-icon-cache",
-            "nwg-look", "dialog", "apt-utils",
-            "libheif-plugin-libde265", "ufw", "gnome-sushi", "xdg-user-dirs",
-            "pipewire", "wireplumber", "libpipewire-0.3-0",
-            "libwireplumber-0.5-0",
-            "dbus-user-session", "dbus-x11", "network-manager", "libnm0",
-            "xdg-desktop-portal-wlr", "xdg-dbus-proxy",
-            "bluez", "bluez-tools", "pipewire-pulse",
-            "ubuntu-restricted-extras", "gstreamer1.0-plugins-bad",
-            "gstreamer1.0-libav", "ffmpegthumbnailer",
-            "floorp", "flatpak", "tlp", "tlp-rdw", "fonts-powerline", "fonts-noto", "fonts-noto-mono",
-            "cups-pk-helper", "kimageformat-plugins",
-            sudo=True)
+            *MEGA_PACKAGES, sudo=True)
 
         # ── Noctalia + Umbriel ──
         # Repositorio oficial Noctalia: compositor Umbriel, shell Noctalia
         # y portal XDG para Umbriel.
-        umbriel_pkgs = ["noctalia", "umbriel", "xdg-desktop-portal-umbriel"]
+        umbriel_pkgs = UMBRIEL_PACKAGES
         if not self.runner.ui.run_cmd("install noctalia + umbriel",
                 "nala", "install", "--no-install-recommends", "-y",
                 *umbriel_pkgs, sudo=True):

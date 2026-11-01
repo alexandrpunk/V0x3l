@@ -38,8 +38,9 @@ curl -fsSL https://raw.githubusercontent.com/alexandrpunk/V0x3l/optimizacion/ins
 - **6 secciones modulares**: Preparación, Rendimiento, Software, Configuración, Apariencia, Entorno
 - **Checkpoint reanudable**: continúa desde donde quedó si falla
 - **Monitor de paquetes**: barra de progreso, velocidad, contador durante instalaciones
-- **Navegación**: teclas 1-6 para acciones directas, flechas para navegar
+- **Navegación**: teclas 1-7 para acciones directas, flechas para navegar
 - **.env configurable**: nombre del proyecto, versión, rutas, repositorio desde archivo central
+- **Comprobación de la instalación**: verifica que nada haya faltado (opción 6 del menú o `--check`)
 
 ## Uso
 
@@ -50,6 +51,18 @@ sudo python3 -m v0x3l
 # Demo de la interfaz (no modifica el sistema)
 python3 demo_ui.py
 ```
+
+### Comprobar la instalación
+
+Utilidad de solo lectura: revisa paquetes, servicios, temas y dotfiles y dice
+qué falta y cómo arreglarlo. No necesita root ni TTY.
+
+```bash
+# Informe por consola (exit 1 si hay fallos)
+python3 -m v0x3l --check
+```
+
+Desde la TUI: opción **6 — Comprobar la instalacion** (<code>q</code>/<code>Esc</code> para cerrar).
 
 ## Secciones
 

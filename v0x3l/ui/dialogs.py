@@ -64,6 +64,22 @@ def success_dialog(title: str, message: str, on_reboot: Callable,
     return _make_dialog(body, title)
 
 
+def report_dialog(title: str, text: str, on_close: Callable):
+    """Dialogo con un informe largo: lista con scroll y boton de cerrar."""
+    lines = [urwid.Text(line) for line in text.splitlines()] or [urwid.Text("")]
+    footer = urwid.Pile([
+        ("pack", urwid.Text("")),
+        ("pack", urwid.Padding(
+            urwid.Button("  Cerrar  ", on_press=lambda _: on_close()),
+            align="center", width=12)),
+    ])
+    frame = urwid.Frame(
+        urwid.ListBox(urwid.SimpleFocusListWalker(lines)),
+        footer=footer,
+    )
+    return _make_dialog([frame], title)
+
+
 def input_dialog(title: str, prompt: str, on_submit: Callable,
                  on_cancel: Callable | None = None):
     """Dialogo de entrada de texto."""

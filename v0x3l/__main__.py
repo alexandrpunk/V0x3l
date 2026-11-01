@@ -69,6 +69,17 @@ def main():
 
     log(f"Iniciando {PROJECT_NAME} v{VERSION}")
 
+    # Utilidad de verificacion: no requiere root ni TTY.
+    #   python3 -m v0x3l --check
+    if "--check" in sys.argv[1:]:
+        from v0x3l.doctor import format_report, run_checks, summarize
+
+        checks = run_checks()
+        print(format_report(checks))
+        _, _, failures = summarize(checks)
+        log(f"CHECK: {len(checks)} comprobaciones, {failures} fallos")
+        sys.exit(1 if failures else 0)
+
     if os.geteuid() != 0:
         print(f"{PROJECT_NAME} requiere permisos de administrador (sudo).")
         sys.exit(1)

@@ -288,20 +288,6 @@ class AppearanceStep(BaseStep):
                                     os.path.dirname(gtk_path)], check=False)
                 log(f"INFO paso 4: GTK settings activados: {gtk_path}")
 
-            # Cursor por defecto para apps X11/legacy (Wayland lo fija Umbriel).
-            cursor_index = os.path.join(TARGET_HOME, ".icons", "default", "index.theme")
-            if not os.path.exists(cursor_index):
-                try:
-                    os.makedirs(os.path.dirname(cursor_index), exist_ok=True)
-                    with open(cursor_index, "w") as f:
-                        f.write(f"[Icon Theme]\nInherits={CURSOR_THEME_NAME}\n")
-                    if os.geteuid() == 0:
-                        subprocess.run(["chown", "-R", f"{TARGET_USER}:",
-                                        os.path.dirname(cursor_index)], check=False)
-                    log(f"INFO paso 4: cursor por defecto: {cursor_index}")
-                except Exception as e:
-                    _fail(f"cursor index {cursor_index}", f"{type(e).__name__}: {e}")
-
             gsettings_bin = shutil.which("gsettings")
             dbus_bin = shutil.which("dbus-run-session")
             if gsettings_bin and dbus_bin:
