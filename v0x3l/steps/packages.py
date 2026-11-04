@@ -13,7 +13,7 @@ from v0x3l.config import TARGET_USER, TARGET_HOME
 MEGA_PACKAGES = (
     "wayland-protocols", "libwayland-dev", "libegl1",
     "libgl1-mesa-dri", "mesa-vulkan-drivers", "xwayland",
-    "thunar", "thunar-volman", "gvfs", "gvfs-backends", "gvfs-fuse", "udisks2",
+    "thunar", "thunar-volman", "thunar-archive-plugin", "gvfs", "gvfs-backends",
     "polkitd", "seatd", "ly",
     "ntfs-3g", "exfatprogs", "libglib2.0-bin",
     "unzip", "neovim", "tmux", "fastfetch", "geany",
