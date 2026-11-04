@@ -41,16 +41,20 @@ def run(
     """
     log(f"CMD: pid={os.getpid()} desc='{description}' sudo={sudo} -> {' '.join(args)}")
 
+    env = os.environ.copy()
+
+    # Asegurate de que /usr/sbin y /sbin estan en PATH (para sudo y para
+    # subprocess directos). update-initramfs, plymouth-set-default-theme y
+    # update-grub viven ahi.
+    path_parts = [p for p in env.get("PATH", "").split(":") if p]
+    for extra in ("/usr/local/sbin", "/usr/sbin", "/sbin"):
+        if extra not in path_parts:
+            path_parts.append(extra)
+    env["PATH"] = ":".join(path_parts)
+
     cmd = list(args)
     if sudo and os.geteuid() != 0:
-        # Asegurar que sudo tenga /usr/sbin y /sbin en PATH (update-initramfs,
-        # plymouth-set-default-theme, etc. viven ahi y secure_path los omite).
-        env = os.environ.copy()
-        path_parts = [p for p in env.get("PATH", "").split(":") if p]
-        for extra in ("/usr/local/sbin", "/usr/sbin", "/sbin"):
-            if extra not in path_parts:
-                path_parts.append(extra)
-        env["PATH"] = ":".join(path_parts)
+        # Pasar PATH extendido a sudo via env -c (sudo secure_path lo omite).
         cmd = ["sudo", "env", "PATH=" + env["PATH"]] + cmd
 
     try:
@@ -72,10 +76,29 @@ def run(
             env=env,
         )
 
-        # Si capture_output, leer linea a linea para mostrar en vivo
         if capture_output and process.stdout:
-            for raw in process.stdout:
-                on_stdout_line(raw)
+            # Leer linea a linea respetando el timeout, incluso si el proceso
+            # no genera salida (sleep, etc.).
+            deadline = (started + timeout) if timeout else None
+            while True:
+                if deadline is not None:
+                    remaining = deadline - time.monotonic()
+                    if remaining <= 0:
+                        raise subprocess.TimeoutExpired(cmd, timeout)
+                    rlist, _, _ = select.select([process.stdout], [], [], remaining)
+                else:
+                    rlist, _, _ = select.select([process.stdout], [], [], 0.1)
+
+                if rlist:
+                    raw = process.stdout.readline()
+                    if not raw:
+                        break
+                    on_stdout_line(raw)
+                elif process.poll() is not None:
+                    break
+
+                if on_tick:
+                    on_tick()
 
         ok = process.wait() == 0
         elapsed = time.monotonic() - started
