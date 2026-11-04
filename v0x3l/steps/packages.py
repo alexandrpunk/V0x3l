@@ -21,6 +21,7 @@ MEGA_PACKAGES = (
     "nwg-look", "dialog", "apt-utils",
     "unattended-upgrades", "apparmor", "wget", "nano", "htop",
     "libheif-plugin-libde265", "ufw", "tumbler", "xdg-user-dirs",
+    "viewnior", "qpdfview", "xarchiver",
     "pipewire", "wireplumber", "libpipewire-0.3-0",
     "libwireplumber-0.5-0",
     "dbus-user-session", "dbus-x11", "network-manager", "libnm0",
@@ -117,7 +118,7 @@ class SoftwareStep(BaseStep):
         # Antes: 3 `flatpak list` + hasta 3 `flatpak install` separados.
         # flatpak install acepta varios refs en una sola transaccion y es
         # idempotente (las ya instaladas se reportan y no se re-descargan).
-        FLATHUB_APPS = ("org.gnome.Papers", "net.nokyan.Resources",
+        FLATHUB_APPS = ("net.nokyan.Resources",
                         "io.github.diegopvlk.Cine", "org.atheme.audacious")
         if not shutil.which("flatpak"):
             # Flatpak es opcional: no fallar si no esta disponible en el
