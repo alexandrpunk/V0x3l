@@ -6,7 +6,7 @@
 import os
 import shutil
 import tempfile
-import subprocess
+import re
 from v0x3l.config import (TARGET_USER, TARGET_HOME,
                           DOTFILES_DIR, DOTFILES_MAP, OMP_HARNESS_REPO,
                           WALLPAPERS_DIR, WALLPAPER_DEST_DIR)
@@ -318,6 +318,7 @@ class DesktopStep(BaseStep):
                             or os.environ.get("HAS_AMD_GPU", "0") == "1"))
         results = {
             "dotfiles": ok,
+            "ohmyzsh": self._install_ohmyzsh(),
             "lazyvim": self._install_zsh_lazyvim(),
             "omp": self._install_omp_harness(),
             "optimus-plugin": self._install_optimus_plugin() if has_optimus else True,
@@ -478,6 +479,97 @@ class DesktopStep(BaseStep):
     # ── Original return ok movido arriba ──
 
         return True
+
+    def _install_ohmyzsh(self) -> bool:
+        """Instala Oh My Zsh con tema agnoster de forma idempotente.
+
+        Usa el instalador oficial en modo no interactivo (RUNZSH=no).
+        Si ya existe ~/.oh-my-zsh, se considera instalado y no se reinstala.
+        """
+        user = TARGET_USER
+        home = TARGET_HOME
+        if not user or user == "root" or not home or home == "/root":
+            log("ERROR ohmyzsh: TARGET_USER/TARGET_HOME invalido")
+            return False
+
+        ohmyzsh_dir = os.path.join(home, ".oh-my-zsh")
+        zshrc_path = os.path.join(home, ".zshrc")
+
+        # Idempotente: si ya existe, verificar que tenga el tema correcto
+        if os.path.isdir(ohmyzsh_dir):
+            if os.path.exists(zshrc_path):
+                with open(zshrc_path, "r", encoding="utf-8", errors="replace") as f:
+                    content = f.read()
+                # Si no tiene agnoster, actualizarlo
+                if 'ZSH_THEME="agnoster"' not in content:
+                    content = re.sub(
+                        r'ZSH_THEME="[^"]*"',
+                        'ZSH_THEME="agnoster"',
+                        content
+                    )
+                    with open(zshrc_path, "w", encoding="utf-8") as f:
+                        f.write(content)
+                    log("INFO ohmyzsh: tema actualizado a agnoster")
+            return True
+
+        # Instalar Oh My Zsh en modo no interactivo
+        import urllib.request
+        import tempfile
+
+        try:
+            # Descargar instalador
+            installer_url = "https://raw.githubusercontent.com/ohmyzsh/ohmyzsh/master/tools/install.sh"
+            with tempfile.NamedTemporaryFile(mode="w", suffix=".sh", delete=False) as tmp:
+                tmp.write(urllib.request.urlopen(installer_url).read().decode("utf-8"))
+                installer_path = tmp.name
+
+            # Ejecutar instalador como el usuario destino
+            cmd = [
+                "runuser", "-u", user, "--",
+                "env", f"HOME={home}",
+                "sh", installer_path,
+                "--unattended",
+            ]
+            result = subprocess.run(cmd, capture_output=True, text=True, check=False)
+
+            # Limpiar instalador temporal
+            try:
+                os.unlink(installer_path)
+            except OSError:
+                pass
+
+            if result.returncode != 0:
+                log(f"ERROR ohmyzsh: instalador falló: {result.stderr}")
+                return False
+
+            # Configurar tema agnoster en .zshrc
+            if os.path.exists(zshrc_path):
+                with open(zshrc_path, "r", encoding="utf-8") as f:
+                    content = f.read()
+                content = re.sub(
+                    r'ZSH_THEME="[^"]*"',
+                    'ZSH_THEME="agnoster"',
+                    content
+                )
+                with open(zshrc_path, "w", encoding="utf-8") as f:
+                    f.write(content)
+
+            # Cambiar shell del usuario a zsh
+            zsh_bin = shutil.which("zsh")
+            if zsh_bin and os.geteuid() == 0:
+                subprocess.run(
+                    ["chsh", "-s", zsh_bin, user],
+                    capture_output=True, check=False
+                )
+                log(f"INFO ohmyzsh: shell de {user} cambiado a {zsh_bin}")
+
+            log("INFO ohmyzsh: instalado con tema agnoster")
+            return True
+
+        except Exception as e:
+            log(f"ERROR ohmyzsh: {type(e).__name__}: {e}")
+            return False
+
 
     def _install_zsh_lazyvim(self) -> bool:
         """Instala el starter oficial de LazyVim de forma idempotente.
