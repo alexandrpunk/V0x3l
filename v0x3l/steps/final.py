@@ -7,9 +7,9 @@ import os
 import shutil
 import tempfile
 import subprocess
-from v0x3l.steps.base import BaseStep
 from v0x3l.config import (TARGET_USER, TARGET_HOME,
-                          DOTFILES_DIR, DOTFILES_MAP, OMP_HARNESS_REPO)
+                          DOTFILES_DIR, DOTFILES_MAP, OMP_HARNESS_REPO,
+                          WALLPAPERS_DIR, WALLPAPER_DEST_DIR)
 from v0x3l.shell import log
 
 OMP_HARNESS_KEEP = ("config.yml", "models.yml", ".env")
@@ -328,6 +328,101 @@ class DesktopStep(BaseStep):
                 "(el resto si se aplico; re-ejecutar el paso es idempotente)")
         else:
             log("INFO paso 5: entorno completo")
+
+        # ── Wallpapers (vendorizados en assets/wallpapers/) ──
+        # Copia las imagenes a ~/.config/Pictures/v0x3l-wallpapers/ y configura
+        # Noctalia para rotar aleatoriamente entre ellas cada hora mediante
+        # swww + systemd user timer.
+        ok &= self._deploy_wallpapers()
+
+        return ok
+
+    def _deploy_wallpapers(self) -> bool:
+        """Instala wallpapers y activa rotacion aleatoria cada hora."""
+        if not WALLPAPERS_DIR.is_dir():
+            log(f"WARN wallpapers: origen no existe: {WALLPAPERS_DIR}")
+            return True
+
+        wall_dest = os.path.join(home, WALLPAPER_DEST_DIR)
+        try:
+            os.makedirs(wall_dest, exist_ok=True)
+            images = sorted(
+                f for f in os.listdir(WALLPAPERS_DIR)
+                if f.lower().endswith((".jpg", ".jpeg", ".png", ".webp"))
+            )
+            if not images:
+                log(f"WARN wallpapers: no hay imagenes en {WALLPAPERS_DIR}")
+                return True
+
+            for name in images:
+                src = os.path.join(str(WALLPAPERS_DIR), name)
+                dst = os.path.join(wall_dest, name)
+                if not os.path.exists(dst):
+                    shutil.copy2(src, dst)
+                    log(f"INFO wallpaper copiado: {name}")
+
+            # Config de Noctalia para wallpaper con rotacion aleatoria.
+            noctalia_dir = os.path.join(home, ".config", "noctalia")
+            noctalia_cfg = os.path.join(noctalia_dir, "settings.toml")
+            wallpaper_cfg = (
+                "[wallpaper]\n"
+                "enabled = true\n"
+                'fill_mode = "crop"\n'
+                f'directory = "{wall_dest}"\n'
+                "transition = \"fade\"\n"
+                "transition_duration = 1500\n"
+                "transition_on_startup = false\n"
+            )
+            os.makedirs(noctalia_dir, exist_ok=True)
+            with open(noctalia_cfg, "w") as f:
+                f.write(wallpaper_cfg)
+            log(f"INFO wallpaper config: {noctalia_cfg}")
+
+            # systemd user timer: rotacion aleatoria cada hora.
+            systemd_user_dir = os.path.join(home, ".config", "systemd", "user")
+            timer_path = os.path.join(systemd_user_dir, WALLPAPER_TIMER_NAME)
+            service_path = timer_path.replace(".timer", ".service")
+            timer_cfg = (
+                "[Unit]\n"
+                "Description=Rotar wallpaper aleatoriamente (V0x3l)\n"
+                "\n"
+                "[Timer]\n"
+                "OnCalendar=*:0/15\n"
+                "Persistent=true\n"
+                "\n"
+                "[Install]\n"
+                "WantedBy=timers.target\n"
+            )
+            service_cfg = (
+                "[Unit]\n"
+                "Description=Establecer wallpaper aleatorio (V0x3l)\n"
+                "\n"
+                "[Service]\n"
+                "Type=oneshot\n"
+                f"ExecStart=/usr/bin/swww img \"$(shuf -n1 {wall_dest}/*.{'' if False else 'jpg png jpeg webp'.split()[0]})\"\n"
+            )
+            os.makedirs(systemd_user_dir, exist_ok=True)
+            with open(timer_path, "w") as f:
+                f.write(timer_cfg)
+            with open(service_path, "w") as f:
+                f.write(service_cfg)
+            log(f"INFO wallpaper timer: {timer_path}")
+
+            if os.geteuid() == 0:
+                subprocess.run(
+                    ["chown", "-R", f"{user}:", wall_dest], capture_output=True,
+                    check=False)
+                subprocess.run(
+                    ["chown", "-R", f"{user}:", systemd_user_dir],
+                    capture_output=True, check=False)
+
+        except Exception as e:
+            log(f"ERROR wallpapers: {type(e).__name__}: {e}")
+            return False
+        return True
+
+    # ── Original return ok movido arriba ──
+
         return True
 
     def _install_zsh_lazyvim(self) -> bool:

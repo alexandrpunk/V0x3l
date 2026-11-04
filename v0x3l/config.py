@@ -87,6 +87,14 @@ ICON_THEME_SRC = str(THEMES_DIR / "pure-icon-theme" / "src")
 JUNO_THEME_NAME = env("JUNO_THEME_NAME", "Juno")
 JUNO_THEME_SRC = str(THEMES_DIR / "juno-gtk")
 
+# Wallpapers (vendorizados en assets/wallpapers/).
+# Variantes: archivos .jpg/.png/.jpeg. El desplegado rota aleatoriamente entre
+# ellos via Noctalia [wallpaper] + servicio systemd/user.
+WALLPAPERS_DIR = ASSETS_DIR / "wallpapers"
+WALLPAPER_DEST_DIR = "Pictures/v0x3l-wallpapers"
+WALLPAPER_TIMER_NAME = "v0x3l-wallpaper.timer"
+WALLPAPER_TIMER_PATH = f"~/.config/systemd/user/{WALLPAPER_TIMER_NAME}"
+
 # Umbriel: config de referencia vendorizado (defaults de Umbriel + keybinds).
 # El step de Configuracion parte del config empaquetado del sistema
 # (/usr/share/umbriel/config.toml) y cae a este template si no existe.
