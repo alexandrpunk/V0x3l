@@ -31,8 +31,9 @@ GRUB_THEME_INSTALL_DIR = "vimix"
 def gtk_settings_ini(include_gtk3: bool) -> str:
     """Contenido de ~/.config/gtk-3.0|gtk-4.0/settings.ini.
 
-    Activa los temas instalados (Juno GTK, Pure icons, cursores Catppuccin);
-    los nombres salen de config (.env) para no divergir de lo instalado.
+    El tema GTK aplicado es el vendorizado (Juno); la paleta Sonokai entra
+    como override en ~/.config/gtk-3.0/gtk.css (ver sonokai_gtk_css), porque
+    Sonokai no es un tema GTK instalado, solo una paleta de colores.
     """
     ini = (
         "[Settings]\n"
@@ -42,6 +43,10 @@ def gtk_settings_ini(include_gtk3: bool) -> str:
         "gtk-cursor-theme-size=24\n"
         "gtk-font-name=Noto Sans 11\n"
         "gtk-application-prefer-dark-theme=1\n"
+        "gtk-xft-antialias=1\n"
+        "gtk-xft-hinting=1\n"
+        "gtk-xft-hintstyle=hintslight\n"
+        "gtk-xft-rgba=rgb\n"
     )
     if include_gtk3:
         ini += (
@@ -51,12 +56,112 @@ def gtk_settings_ini(include_gtk3: bool) -> str:
             "gtk-menu-images=1\n"
             "gtk-enable-event-sounds=1\n"
             "gtk-enable-input-feedback-sounds=0\n"
-            "gtk-xft-antialias=1\n"
-            "gtk-xft-hinting=1\n"
-            "gtk-xft-hintstyle=hintslight\n"
-            "gtk-xft-rgba=rgb\n"
         )
     return ini
+
+
+def sonokai_colors() -> dict[str, str]:
+    """Paleta Sonokai (fuente: Gogh-Co/Gogh themes/Sonokai.yml)."""
+    return {
+        "background": "#2C2E34",
+        "foreground": "#E2E2E3",
+        "cursor": "#E2E2E3",
+        "color0": "#181819",
+        "color1": "#FC5D7C",
+        "color2": "#9ED072",
+        "color3": "#E7C664",
+        "color4": "#76CCE0",
+        "color5": "#B39DF3",
+        "color6": "#F39660",
+        "color7": "#E2E2E3",
+        "color8": "#7F8490",
+        "color9": "#FC5D7C",
+        "color10": "#9ED072",
+        "color11": "#E7C664",
+        "color12": "#76CCE0",
+        "color13": "#B39DF3",
+        "color14": "#F39660",
+        "color15": "#E2E2E3",
+    }
+
+
+def sonokai_gtk_css() -> str:
+    """Override GTK (~/.config/gtk-4.0/gtk.css y gtk-3.0/gtk.css).
+
+    Solo recolorea superficies, texto, seleccion y foco; no toca metricas de
+    widgets para no romper el tema Juno. La paleta es Sonokai.
+    """
+    c = sonokai_colors()
+    bg, fg = c["background"], c["foreground"]
+    alt, dim = c["color0"], c["color8"]
+    blue, teal, violet = c["color4"], c["color6"], c["color5"]
+    return f"""/* Sonokai — paleta aplicada por V0x3l sobre el tema {JUNO_THEME_NAME}. */
+@define-color bg_color {bg};
+@define-color fg_color {fg};
+@define-color base_color {alt};
+@define-color text_color {fg};
+@define-color insensitive_bg_color {bg};
+@define-color insensitive_fg_color {dim};
+@define-color border_color {c['color12']};
+@define-color theme_bg_color {bg};
+@define-color theme_fg_color {fg};
+@define-color theme_base_color {alt};
+@define-color theme_text_color {fg};
+@define-color theme_selected_bg_color {blue};
+@define-color theme_selected_fg_color {bg};
+@define-color error_color {c['color1']};
+@define-color warning_color {c['color3']};
+@define-color success_color {c['color2']};
+@define-color link_color {teal};
+
+window, .background {{
+    background-color: {bg};
+    color: {fg};
+}}
+
+textview text, entry, spinbutton, combobox, list, treeview.view {{
+    background-color: {alt};
+    color: {fg};
+}}
+
+textview text selection, entry selection, label selection {{
+    background-color: {blue};
+    color: {bg};
+}}
+
+button:focus, entry:focus, spinbutton:focus {{
+    outline-color: {violet};
+    border-color: {violet};
+}}
+
+link {{ color: {teal}; }}
+
+window:backdrop {{ background-color: {bg}; }}
+"""
+SONOKAI_CSS_MARKER = "Sonokai — paleta aplicada por V0x3l"
+
+
+def write_sonokai_css(path: str) -> bool:
+    """Escribe/actualiza el override Sonokai en un gtk.css.
+
+    Devuelve True si el archivo quedó con la paleta. No toca un gtk.css
+    ajeno (sin marcador): esa config es del usuario y tiene prioridad.
+    """
+    try:
+        if os.path.exists(path):
+            with open(path, encoding="utf-8", errors="replace") as f:
+                existing = f.read()
+            if SONOKAI_CSS_MARKER not in existing:
+                log(f"WARN paso 4: {path} tiene CSS propio; no se toca")
+                return False
+        os.makedirs(os.path.dirname(path), exist_ok=True)
+        with open(path, "w", encoding="utf-8") as f:
+            f.write(sonokai_gtk_css())
+        return True
+    except OSError as exc:
+        log(f"ERROR paso 4: escribiendo {path}: {exc}")
+        return False
+
 
 def merge_gtk_settings(path: str, content: str) -> bool:
     """Escribe/actualiza settings.ini sin pisar claves ajenas del usuario."""
@@ -287,6 +392,17 @@ class AppearanceStep(BaseStep):
                     subprocess.run(["chown", "-R", f"{TARGET_USER}:",
                                     os.path.dirname(gtk_path)], check=False)
                 log(f"INFO paso 4: GTK settings activados: {gtk_path}")
+
+            # Paleta Sonokai como override CSS (gtk-3.0 y gtk-4.0).
+            # Se escribe solo si el usuario no tiene un gtk.css propio, para
+            # no pisar su configuracion; idempotente via marcador.
+            for gtk_dir in (".config/gtk-3.0", ".config/gtk-4.0"):
+                css_path = os.path.join(TARGET_HOME, gtk_dir, "gtk.css")
+                if write_sonokai_css(css_path):
+                    if os.geteuid() == 0:
+                        subprocess.run(["chown", "-R", f"{TARGET_USER}:",
+                                        os.path.dirname(css_path)], check=False)
+                    log(f"INFO paso 4: paleta Sonokai aplicada en {css_path}")
 
             gsettings_bin = shutil.which("gsettings")
             dbus_bin = shutil.which("dbus-run-session")

@@ -335,6 +335,11 @@ class DesktopStep(BaseStep):
         # swww + systemd user timer.
         ok &= self._deploy_wallpapers()
 
+        # ── Paleta Sonokai para Noctalia y Neovim ──
+        ok &= self._deploy_noctalia_palette()
+        ok &= self._deploy_nvim_sonokai()
+
+
         return ok
 
     def _deploy_wallpapers(self) -> bool:
@@ -399,7 +404,7 @@ class DesktopStep(BaseStep):
                 "\n"
                 "[Service]\n"
                 "Type=oneshot\n"
-                f"ExecStart=/usr/bin/swww img \"$(shuf -n1 {wall_dest}/*.{'' if False else 'jpg png jpeg webp'.split()[0]})\"\n"
+                f"ExecStart=/bin/sh -c 'swww img \"$(find {wall_dest} -type f \\\\( -name '*.jpg' -o -name '*.jpeg' -o -name '*.png' -o -name '*.webp' \\\\) | shuf -n1)\"'\n"
             )
             os.makedirs(systemd_user_dir, exist_ok=True)
             with open(timer_path, "w") as f:
@@ -420,6 +425,55 @@ class DesktopStep(BaseStep):
             log(f"ERROR wallpapers: {type(e).__name__}: {e}")
             return False
         return True
+
+    def _deploy_noctalia_palette(self) -> bool:
+        """Despliega paleta Sonokai en ~/.config/noctalia/palettes/."""
+        user = TARGET_USER
+        home = TARGET_HOME
+        if not user or user == "root" or not home or home == "/root":
+            log("ERROR noctalia: TARGET_USER/TARGET_HOME invalido")
+            return False
+
+        palette_src = DOTFILES_DIR / "noctalia" / "palettes" / "Sonokai.json"
+        palette_dest = os.path.join(home, ".config", "noctalia", "palettes", "Sonokai.json")
+
+        try:
+            os.makedirs(os.path.dirname(palette_dest), exist_ok=True)
+            shutil.copy2(str(palette_src), palette_dest)
+            if os.geteuid() == 0:
+                subprocess.run(
+                    ["chown", "-R", f"{user}:", os.path.dirname(palette_dest)],
+                    capture_output=True, check=False)
+            log(f"INFO noctalia: paleta Sonokai desplegada en {palette_dest}")
+            return True
+        except Exception as e:
+            log(f"ERROR noctalia: {type(e).__name__}: {e}")
+            return False
+
+    def _deploy_nvim_sonokai(self) -> bool:
+        """Despliega plugin Sonokai en ~/.config/nvim/lua/plugins/."""
+        user = TARGET_USER
+        home = TARGET_HOME
+        if not user or user == "root" or not home or home == "/root":
+            log("ERROR nvim: TARGET_USER/TARGET_HOME invalido")
+            return False
+
+        plugin_src = DOTFILES_DIR / "nvim" / "lua" / "plugins" / "sonokai.lua"
+        plugin_dest = os.path.join(home, ".config", "nvim", "lua", "plugins", "sonokai.lua")
+
+        try:
+            os.makedirs(os.path.dirname(plugin_dest), exist_ok=True)
+            shutil.copy2(str(plugin_src), plugin_dest)
+            if os.geteuid() == 0:
+                subprocess.run(
+                    ["chown", "-R", f"{user}:", os.path.dirname(plugin_dest)],
+                    capture_output=True, check=False)
+            log(f"INFO nvim: plugin Sonokai desplegado en {plugin_dest}")
+            return True
+        except Exception as e:
+            log(f"ERROR nvim: {type(e).__name__}: {e}")
+            return False
+
 
     # ── Original return ok movido arriba ──
 
