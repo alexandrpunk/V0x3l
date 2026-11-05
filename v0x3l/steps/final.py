@@ -483,9 +483,7 @@ class DesktopStep(BaseStep):
             return False
 
 
-    # ── Original return ok movido arriba ──
 
-        return True
 
     def _install_ohmyzsh(self) -> bool:
         """Instala Oh My Zsh con tema agnoster de forma idempotente.
