@@ -369,8 +369,17 @@ class AppearanceStep(BaseStep):
                     conf_text = f.read()
                 if not re.search(r"^GRUB_CMDLINE_LINUX_DEFAULT=.*\bsplash\b",
                                  conf_text, re.M):
-                    log("WARN paso 4: GRUB_CMDLINE_LINUX_DEFAULT no incluye "
-                        "'splash': el tema de Plymouth no se vera en el arranque")
+                    log("WARN paso 4: agregando 'splash' a GRUB_CMDLINE_LINUX_DEFAULT")
+                    new_text = re.sub(
+                        r'^(GRUB_CMDLINE_LINUX_DEFAULT="[^"]*)"',
+                        r'\1 splash"',
+                        conf_text, flags=re.M
+                    )
+                    if new_text != conf_text:
+                        with open(grub_conf, "w") as fw:
+                            fw.write(new_text)
+                        _run("update-grub", "update-grub", sudo=True)
+                        log("INFO paso 4: splash activado; Plymouth se vera en el arranque")
             except OSError:
                 pass
 
