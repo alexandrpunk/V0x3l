@@ -334,7 +334,7 @@ class DesktopStep(BaseStep):
         # ── Wallpapers (vendorizados en assets/wallpapers/) ──
         # Copia las imagenes a ~/.config/Pictures/v0x3l-wallpapers/ y configura
         # Noctalia para rotar aleatoriamente entre ellas cada hora mediante
-        # swww + systemd user timer.
+        # awww + systemd user timer.
         ok &= self._deploy_wallpapers()
 
         # ── Paleta Sonokai para Noctalia y Neovim ──
