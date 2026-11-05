@@ -58,10 +58,15 @@ class SoftwareStep(BaseStep):
                 *MEGA_PACKAGES, sudo=True):
             log("WARN mega-install fallo (held broken packages?); instalando "
                 "paquete por paquete")
+            failed_pkgs = []
             for pkg in MEGA_PACKAGES:
-                ok &= self.runner.ui.run_cmd(f"install {pkg}",
-                    "nala", "install", "--no-install-recommends", "-y",
-                    pkg, sudo=True)
+                if not self.runner.ui.run_cmd(f"install {pkg}",
+                        "nala", "install", "--no-install-recommends", "-y",
+                        pkg, sudo=True):
+                    failed_pkgs.append(pkg)
+                    ok = False
+            if failed_pkgs:
+                log(f"ERROR paquetes no instalados: {', '.join(failed_pkgs)}")
         # ── Noctalia + Umbriel ──
         # Repositorio oficial Noctalia: compositor Umbriel, shell Noctalia
         # y portal XDG para Umbriel.
