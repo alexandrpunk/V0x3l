@@ -528,6 +528,7 @@ class DesktopStep(BaseStep):
             with tempfile.NamedTemporaryFile(mode="w", suffix=".sh", delete=False) as tmp:
                 tmp.write(urllib.request.urlopen(installer_url).read().decode("utf-8"))
                 installer_path = tmp.name
+            os.chmod(installer_path, 0o644)
 
             # Ejecutar instalador como el usuario destino
             cmd = [
