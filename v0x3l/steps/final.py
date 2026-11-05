@@ -5,6 +5,7 @@
 
 import os
 import shutil
+import subprocess
 import tempfile
 import re
 from v0x3l.steps.base import BaseStep
@@ -346,10 +347,15 @@ class DesktopStep(BaseStep):
 
     def _deploy_wallpapers(self) -> bool:
         """Instala wallpapers y activa rotacion aleatoria cada hora."""
+        user = TARGET_USER
+        home = TARGET_HOME
+        if not user or user == "root" or not home or home == "/root":
+            log("ERROR wallpapers: TARGET_USER/TARGET_HOME invalido")
+            return False
+
         if not WALLPAPERS_DIR.is_dir():
             log(f"WARN wallpapers: origen no existe: {WALLPAPERS_DIR}")
             return True
-
         wall_dest = os.path.join(home, WALLPAPER_DEST_DIR)
         try:
             os.makedirs(wall_dest, exist_ok=True)
