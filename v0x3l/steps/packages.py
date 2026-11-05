@@ -16,7 +16,7 @@ MEGA_PACKAGES = (
     "thunar", "thunar-volman", "thunar-archive-plugin", "thunar-vcs-plugin",
     "polkitd", "seatd", "ly",
     "ntfs-3g", "exfatprogs", "libglib2.0-bin",
-    "unzip", "neovim", "tmux", "fastfetch", "geany",
+    "unzip", "neovim", "tmux", "fastfetch",
     "plymouth", "gtk-update-icon-cache",
     "nwg-look", "dialog", "apt-utils",
     "unattended-upgrades", "apparmor", "wget", "nano", "htop",
