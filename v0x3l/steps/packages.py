@@ -21,7 +21,7 @@ MEGA_PACKAGES = (
     "nwg-look", "dialog", "apt-utils",
     "unattended-upgrades", "apparmor", "wget", "nano", "htop",
     "libheif-plugin-libde265", "ufw", "tumbler", "xdg-user-dirs",
-    "viewnior", "qpdfview", "xarchiver", "swww",
+    "viewnior", "qpdfview", "xarchiver", "awww",
     "pipewire", "wireplumber", "libpipewire-0.3-0",
     "libwireplumber-0.5-0",
     "dbus-user-session", "dbus-x11", "network-manager", "libnm0",

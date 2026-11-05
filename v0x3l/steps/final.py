@@ -406,7 +406,7 @@ class DesktopStep(BaseStep):
                 "\n"
                 "[Service]\n"
                 "Type=oneshot\n"
-                f"ExecStart=/bin/sh -c 'swww img \"$(find {wall_dest} -type f \\\\( -name '*.jpg' -o -name '*.jpeg' -o -name '*.png' -o -name '*.webp' \\\\) | shuf -n1)\"'\n"
+                f"ExecStart=/bin/sh -c 'awww img \"$(find {wall_dest} -type f \\\\( -name '*.jpg' -o -name '*.jpeg' -o -name '*.png' -o -name '*.webp' \\\\) | shuf -n1)\"'\n"
             )
             os.makedirs(systemd_user_dir, exist_ok=True)
             with open(timer_path, "w") as f:
