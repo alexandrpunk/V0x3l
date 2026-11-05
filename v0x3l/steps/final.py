@@ -7,6 +7,7 @@ import os
 import shutil
 import tempfile
 import re
+from v0x3l.steps.base import BaseStep
 from v0x3l.config import (TARGET_USER, TARGET_HOME,
                           DOTFILES_DIR, DOTFILES_MAP, OMP_HARNESS_REPO,
                           WALLPAPERS_DIR, WALLPAPER_DEST_DIR)
