@@ -14,7 +14,7 @@ MEGA_PACKAGES = (
     "wayland-protocols", "libwayland-dev", "libegl1",
     "libgl1-mesa-dri", "mesa-vulkan-drivers", "xwayland",
     "thunar", "thunar-volman", "thunar-archive-plugin", "thunar-vcs-plugin",
-    "polkitd", "seatd", "ly",
+    "polkitd", "seatd", "ly", "udisks2",
     "ntfs-3g", "exfatprogs", "libglib2.0-bin",
     "unzip", "neovim", "tmux", "fastfetch",
     "plymouth", "gtk-update-icon-cache",
