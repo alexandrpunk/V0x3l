@@ -60,12 +60,14 @@ def run(
     try:
         started = time.monotonic()
         stdout = subprocess.PIPE if capture_output else None
+        output_lines: list[str] = []
 
         def on_stdout_line(line: bytes):
             try:
                 text = line.decode("utf-8", errors="replace").rstrip("\n")
             except Exception:
                 text = str(line)
+            output_lines.append(text)
             if on_line:
                 on_line(text)
 
@@ -105,8 +107,12 @@ def run(
         log(
             f"RESULT: pid={os.getpid()} rc={process.returncode} "
             f"elapsed={elapsed:.2f}s "
-            f"{'OK' if ok else 'FAIL(' + str(process.returncode) + ')'}"
-        )
+            f"{'OK' if ok else 'FAIL(' + str(process.returncode) + ')'}")
+        if not ok and output_lines:
+            log("--- stdout/stderr ---")
+            for line in output_lines[-100:]:
+                log(f"  {line}")
+            log("--- end ---")
         return ok
     except subprocess.TimeoutExpired:
         elapsed = time.monotonic() - started if "started" in locals() else 0.0
