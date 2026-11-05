@@ -2,7 +2,9 @@
 
 import shutil
 import os
+import shlex
 import subprocess
+import tempfile
 from v0x3l.shell import log
 from v0x3l.steps.base import BaseStep
 from v0x3l.config import TARGET_USER, TARGET_HOME
@@ -31,6 +33,7 @@ MEGA_PACKAGES = (
     "gstreamer1.0-libav", "ffmpegthumbnailer",
     "floorp", "flatpak", "tlp", "tlp-rdw",
     "cups-pk-helper", "kimageformat-plugins",
+    "cargo", "libgtk-4-dev", "libadwaita-1-dev",
 )
 
 # Compositor + shell + portal XDG.
@@ -126,7 +129,38 @@ class SoftwareStep(BaseStep):
                     "ln", "-sf", f"{kitty_home}/.local/kitty.app/bin/kitten",
                     "/usr/local/bin/kitten", sudo=True)
 
-        # ── Flatpak: 1 remote + 1 transaccion para todas las apps ──
+        # ── xdg-mime-gui (gestor grafico de aplicaciones por defecto) ──
+        # Rust + GTK4 + libadwaita. Se compila desde fuente y se instala
+        # en /usr/local/bin. Idempotente: si el binario ya existe, se salta.
+        if TARGET_USER and shutil.which("cargo"):
+            mime_bin = "/usr/local/bin/xdg-mime-gui"
+            if not os.path.exists(mime_bin):
+                mime_tmp = tempfile.mkdtemp(prefix="v0x3l-mime-")
+                mime_ok = self.runner.ui.run_cmd("clone xdg-mime-gui",
+                    "git", "clone", "--depth", "1",
+                    "https://github.com/tomas-barros1/xdg-mime-gui.git",
+                    mime_tmp)
+                if mime_ok:
+                    mime_ok &= self.runner.ui.run_cmd("build xdg-mime-gui",
+                        "runuser", "-u", TARGET_USER, "--", "env",
+                        f"HOME={TARGET_HOME}",
+                        "bash", "-c", f"cd {shlex.quote(mime_tmp)} && cargo build --release")
+                if mime_ok:
+                    mime_ok &= self.runner.ui.run_cmd("install xdg-mime-gui",
+                        "bash", "-c", f"cd {shlex.quote(mime_tmp)} && make install", sudo=True)
+                # Limpiar
+                try:
+                    shutil.rmtree(mime_tmp)
+                except OSError:
+                    pass
+                if mime_ok:
+                    log("INFO xdg-mime-gui instalado en /usr/local/bin")
+                else:
+                    log("WARN xdg-mime-gui: fallo la compilacion/instalacion")
+            else:
+                log("INFO xdg-mime-gui ya instalado; se omite")
+
+         # ── Flatpak: 1 remote + 1 transaccion para todas las apps ──
         # Antes: 3 `flatpak list` + hasta 3 `flatpak install` separados.
         # flatpak install acepta varios refs en una sola transaccion y es
         # idempotente (las ya instaladas se reportan y no se re-descargan).
