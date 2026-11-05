@@ -119,7 +119,7 @@ class SoftwareStep(BaseStep):
         # idempotente (las ya instaladas se reportan y no se re-descargan).
         FLATHUB_APPS = ("net.nokyan.Resources",
                         "io.github.diegopvlk.Cine", "org.atheme.audacious")
-        if not shutil.which("flatpak"):
+        if not (shutil.which("flatpak") or os.path.exists("/usr/bin/flatpak")):
             # Flatpak es opcional: no fallar si no esta disponible en el
             # entorno de ejecucion.
             log("INFO flatpak no instalado; se omite la configuracion de flatpak")
