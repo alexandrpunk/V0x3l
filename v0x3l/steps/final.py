@@ -11,7 +11,8 @@ import re
 from v0x3l.steps.base import BaseStep
 from v0x3l.config import (TARGET_USER, TARGET_HOME,
                           DOTFILES_DIR, DOTFILES_MAP, OMP_HARNESS_REPO,
-                          WALLPAPERS_DIR, WALLPAPER_DEST_DIR)
+                          WALLPAPERS_DIR, WALLPAPER_DEST_DIR,
+                          WALLPAPER_TIMER_NAME)
 from v0x3l.shell import log
 
 OMP_HARNESS_KEEP = ("config.yml", "models.yml", ".env")
