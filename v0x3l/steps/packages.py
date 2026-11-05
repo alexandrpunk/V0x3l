@@ -45,15 +45,23 @@ class SoftwareStep(BaseStep):
 
     def run(self) -> bool:
         ok = True
+        # ── Reparar estado roto de dpkg/apt (herencia de ejecuciones previas) ──
+        self.runner.ui.run_cmd("apt fix-broken (pre-mega)",
+            "apt", "install", "--fix-broken", "-y", sudo=True)
 
         # ── Mega-install de paquetes base ──
-        # Paquetes del sistema (sistema base + flatpak). Esta transaccion es
-        # independiente del stack Noctalia/Umbriel: si algun paquete no esta
-        # disponible, el paso no falla entero y flatpak se instala igual.
-        ok &= self.runner.ui.run_cmd("mega-install base",
-            "nala", "install", "--no-install-recommends", "-y",
-            *MEGA_PACKAGES, sudo=True)
-
+        # Paquetes del sistema (sistema base + flatpak). Si la transaccion grupal
+        # falla (held broken packages, conflictos de dependencia), se intentan
+        # instalar uno por uno.
+        if not self.runner.ui.run_cmd("mega-install base",
+                "nala", "install", "--no-install-recommends", "-y",
+                *MEGA_PACKAGES, sudo=True):
+            log("WARN mega-install fallo (held broken packages?); instalando "
+                "paquete por paquete")
+            for pkg in MEGA_PACKAGES:
+                ok &= self.runner.ui.run_cmd(f"install {pkg}",
+                    "nala", "install", "--no-install-recommends", "-y",
+                    pkg, sudo=True)
         # ── Noctalia + Umbriel ──
         # Repositorio oficial Noctalia: compositor Umbriel, shell Noctalia
         # y portal XDG para Umbriel.
