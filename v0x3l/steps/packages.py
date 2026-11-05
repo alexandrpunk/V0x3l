@@ -2,12 +2,10 @@
 
 import shutil
 import os
-import shlex
 import subprocess
-import tempfile
 from v0x3l.shell import log
 from v0x3l.steps.base import BaseStep
-from v0x3l.config import TARGET_USER, TARGET_HOME
+from v0x3l.config import TARGET_USER, TARGET_HOME, BIN_DIR
 
 
 # Fuente unica de verdad de lo que instala el paso: la usan el propio paso y
@@ -33,7 +31,7 @@ MEGA_PACKAGES = (
     "gstreamer1.0-libav", "ffmpegthumbnailer",
     "floorp", "flatpak", "tlp", "tlp-rdw",
     "cups-pk-helper", "kimageformat-plugins",
-    "cargo", "libgtk-4-dev", "libadwaita-1-dev",
+    "libgtk-4-1", "libadwaita-1-0",
 )
 
 # Compositor + shell + portal XDG.
@@ -129,38 +127,29 @@ class SoftwareStep(BaseStep):
                     "ln", "-sf", f"{kitty_home}/.local/kitty.app/bin/kitten",
                     "/usr/local/bin/kitten", sudo=True)
 
-        # ── xdg-mime-gui (gestor grafico de aplicaciones por defecto) ──
-        # Rust + GTK4 + libadwaita. Se compila desde fuente y se instala
-        # en /usr/local/bin. Idempotente: si el binario ya existe, se salta.
-        if TARGET_USER and shutil.which("cargo"):
-            mime_bin = "/usr/local/bin/xdg-mime-gui"
-            if not os.path.exists(mime_bin):
-                mime_tmp = tempfile.mkdtemp(prefix="v0x3l-mime-")
-                mime_ok = self.runner.ui.run_cmd("clone xdg-mime-gui",
-                    "git", "clone", "--depth", "1",
-                    "https://github.com/tomas-barros1/xdg-mime-gui.git",
-                    mime_tmp)
-                if mime_ok:
-                    mime_ok &= self.runner.ui.run_cmd("build xdg-mime-gui",
-                        "runuser", "-u", TARGET_USER, "--", "env",
-                        f"HOME={TARGET_HOME}",
-                        "bash", "-c", f"cd {shlex.quote(mime_tmp)} && cargo build --release")
-                if mime_ok:
-                    mime_ok &= self.runner.ui.run_cmd("install xdg-mime-gui",
-                        "bash", "-c", f"cd {shlex.quote(mime_tmp)} && make install", sudo=True)
-                # Limpiar
-                try:
-                    shutil.rmtree(mime_tmp)
-                except OSError:
-                    pass
-                if mime_ok:
-                    log("INFO xdg-mime-gui instalado en /usr/local/bin")
-                else:
-                    log("WARN xdg-mime-gui: fallo la compilacion/instalacion")
+        # ── xdg-mime-gui (gestor grafico de apps por defecto) ──
+        # Binario precompilado en assets/bin/. Solo se copia a /usr/local/bin.
+        mime_bin = "/usr/local/bin/xdg-mime-gui"
+        if not os.path.exists(mime_bin):
+            mime_src = os.path.join(str(BIN_DIR), "xdg-mime-gui")
+            mime_desktop_src = os.path.join(str(BIN_DIR),
+                "io.github.tomas_barros1.DefaultApps.desktop")
+            if os.path.isfile(mime_src):
+                ok &= self.runner.ui.run_cmd("install xdg-mime-gui",
+                    "install", "-Dm755", mime_src, mime_bin, sudo=True)
+                ok &= self.runner.ui.run_cmd("install xdg-mime-gui desktop",
+                    "install", "-Dm644", mime_desktop_src,
+                    "/usr/local/share/applications/"
+                    "io.github.tomas_barros1.DefaultApps.desktop",
+                    sudo=True)
+                log("INFO xdg-mime-gui instalado (binario precompilado)")
             else:
-                log("INFO xdg-mime-gui ya instalado; se omite")
+                log("WARN xdg-mime-gui: binario precompilado no encontrado "
+                    "en assets/bin/")
+        else:
+            log("INFO xdg-mime-gui ya instalado; se omite")
 
-         # ── Flatpak: 1 remote + 1 transaccion para todas las apps ──
+        # ── Flatpak: 1 remote + 1 transaccion para todas las apps ──
         # Antes: 3 `flatpak list` + hasta 3 `flatpak install` separados.
         # flatpak install acepta varios refs en una sola transaccion y es
         # idempotente (las ya instaladas se reportan y no se re-descargan).

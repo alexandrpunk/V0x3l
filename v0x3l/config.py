@@ -41,7 +41,7 @@ ASSETS_DIR = BASE_DIR / "assets"
 THEMES_DIR = ASSETS_DIR / "themes"
 CURSORS_DIR = ASSETS_DIR / "cursors"
 FONTS_DIR = ASSETS_DIR / "fonts"
-DOTFILES_DIR = ASSETS_DIR / "dotfiles"
+BIN_DIR = ASSETS_DIR / "bin"
 
 # Mapeo de dotfiles: nombre en assets/dotfiles/ -> ruta destino relativa a $HOME
 # Kitty usa la configuracion de Butter; la fuente se mantiene en Fira Code

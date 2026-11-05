@@ -1,0 +1,14 @@
+[Desktop Entry]
+Name=Default Applications
+Name[pt_BR]=Aplicativos Padrão
+Comment=Manage your default applications
+Comment[pt_BR]=Gerencie seus aplicativos padrão
+Exec=xdg-mime-gui
+Icon=preferences-desktop-default-applications
+Terminal=false
+Type=Application
+Categories=Settings;Utility;GNOME;GTK;
+StartupNotify=true
+DBusActivatable=false
+Keywords=default;app;mime;settings;xdg;
+Keywords[pt_BR]=padrão;aplicativo;mime;configurações;
