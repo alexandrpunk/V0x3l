@@ -348,9 +348,10 @@ class ConfigurationStep(BaseStep):
         # arranca de forma independiente. seatd SÍ necesita systemd para
         # dar acceso a dispositivos de asiento (input/GPU) sin root.
         if user:
+            run_nonfatal("ensure seat group exists",
+                "bash", "-c", "getent group seat >/dev/null || groupadd -r seat", sudo=True)
             run_nonfatal("usermod seat group",
                 "usermod", "-aG", "seat", user, sudo=True)
-
         ok_seatd = run_critical("enable seatd",
             "systemctl", "enable", "--now", "seatd.service", sudo=True)
         if not ok_seatd:
