@@ -30,7 +30,6 @@ MEGA_PACKAGES = (
     "ubuntu-restricted-extras", "gstreamer1.0-plugins-bad",
     "gstreamer1.0-libav", "ffmpegthumbnailer",
     "floorp", "flatpak", "tlp", "tlp-rdw",
-    "swww",
     "cups-pk-helper", "kimageformat-plugins",
 )
 
