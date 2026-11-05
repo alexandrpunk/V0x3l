@@ -18,7 +18,7 @@ MEGA_PACKAGES = (
     "ntfs-3g", "exfatprogs", "libglib2.0-bin",
     "unzip", "neovim", "tmux", "fastfetch",
     "plymouth", "gtk-update-icon-cache",
-    "nwg-look", "dialog", "apt-utils",
+    "nwg-look", "dialog", "apt-utils", "mate-control-center",
     "unattended-upgrades", "apparmor", "wget", "nano", "htop",
     "libheif-plugin-libde265", "ufw", "tumbler", "xdg-user-dirs",
     "viewnior", "qpdfview", "xarchiver", "awww",
