@@ -289,17 +289,32 @@ class AppearanceStep(BaseStep):
             else:
                 _fail("update-initramfs", "initramfs-tools no instalado")
 
-        # Escribir plymouthd.conf para que Plymouth espere a la GPU real
-        # (simpledrm no es suficiente para temas con animaciones; DeviceTimeout
-        # alto evita que Plymouth caiga a modo texto cuando el driver tarda).
-        plymouth_conf = "/etc/plymouth/plymouthd.conf"
-        plymouth_conf_content = "[Daemon]\nShowDelay=0\nDeviceTimeout=20\nUseSimpledrm=0\n"
+        # En GPUs AMD, simpledrm (1 plano) no basta para el tema two-step.
+        # Plymouth cae a modo texto hasta que amdgpu carga (7-10s despues).
+        # UseSimpledrm=0 + DeviceTimeout=20: espera la GPU real.
+        # En Intel/NVIDIA, el default del sistema funciona; no se toca.
+        _has_amd = False
         try:
-            with open(plymouth_conf, "w") as f:
-                f.write(plymouth_conf_content)
-            log("INFO paso 4: plymouthd.conf configurado (UseSimpledrm=0)")
-        except OSError as e:
-            _fail("plymouthd.conf", str(e))
+            _lspci = subprocess.run(
+                ["lspci", "-nn"], capture_output=True, text=True
+            ).stdout.lower()
+            _gpu_lines = [l for l in _lspci.splitlines()
+                          if any(t in l for t in ("vga", "3d", "display"))]
+            _has_amd = any("amd" in l or "ati" in l for l in _gpu_lines)
+        except (OSError, subprocess.SubprocessError):
+            pass
+
+        if _has_amd:
+            plymouth_conf = "/etc/plymouth/plymouthd.conf"
+            plymouth_conf_content = (
+                "[Daemon]\nShowDelay=0\nDeviceTimeout=20\nUseSimpledrm=0\n"
+            )
+            try:
+                with open(plymouth_conf, "w") as f:
+                    f.write(plymouth_conf_content)
+                log("INFO paso 4: plymouthd.conf (AMD: UseSimpledrm=0)")
+            except OSError as e:
+                _fail("plymouthd.conf", str(e))
 
         # ── Catppuccin cursors (asset local zip) ──
         if not os.path.exists(f"{SYSTEM_ICONS}/{CURSOR_THEME_NAME}"):
