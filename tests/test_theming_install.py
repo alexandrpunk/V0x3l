@@ -99,8 +99,8 @@ class ThemeInstallTests(unittest.TestCase):
         self.assertTrue(theme_file.is_file(), "no se copio el tema de Plymouth")
 
         calls = {c[0]: c[1] for c in runner.ui.calls}
-        self.assertIn("plymouth default symlink", calls)
-        self.assertEqual(calls["plymouth default symlink"][2], str(theme_file))
+        self.assertIn("plymouth alternatives install", calls)
+        self.assertEqual(calls["plymouth alternatives install"][4], str(theme_file))
         self.assertIn("update-initramfs", calls)
 
     def test_plymouth_usa_plymouth_set_default_theme_si_existe(self):

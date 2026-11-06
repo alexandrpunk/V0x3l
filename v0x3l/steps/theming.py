@@ -271,14 +271,35 @@ class AppearanceStep(BaseStep):
             """Registra el tema como default sin plymouth-set-default-theme.
 
             Ubuntu moderno puede no traer ese binario; se replica su efecto:
-            symlink de default.plymouth + regeneracion del initramfs.
+            update-alternatives (mas robusto que ln -sf) + update-initramfs.
             """
-            _run("plymouth default symlink", "ln", "-sf", plymouth_file,
-                 PLYMOUTH_DEFAULT_LINK, sudo=True)
+            if shutil.which("update-alternatives"):
+                _run("plymouth alternatives install",
+                     "update-alternatives", "--install",
+                     PLYMOUTH_DEFAULT_LINK, "default.plymouth",
+                     plymouth_file, "100", sudo=True)
+                _run("plymouth alternatives set",
+                     "update-alternatives", "--set",
+                     "default.plymouth", plymouth_file, sudo=True)
+            else:
+                _run("plymouth default symlink", "ln", "-sf", plymouth_file,
+                     PLYMOUTH_DEFAULT_LINK, sudo=True)
             if shutil.which("update-initramfs"):
                 _run("update-initramfs", "update-initramfs", "-u", sudo=True)
             else:
                 _fail("update-initramfs", "initramfs-tools no instalado")
+
+        # Escribir plymouthd.conf para que Plymouth espere a la GPU real
+        # (simpledrm no es suficiente para temas con animaciones; DeviceTimeout
+        # alto evita que Plymouth caiga a modo texto cuando el driver tarda).
+        plymouth_conf = "/etc/plymouth/plymouthd.conf"
+        plymouth_conf_content = "[Daemon]\nShowDelay=0\nDeviceTimeout=20\nUseSimpledrm=0\n"
+        try:
+            with open(plymouth_conf, "w") as f:
+                f.write(plymouth_conf_content)
+            log("INFO paso 4: plymouthd.conf configurado (UseSimpledrm=0)")
+        except OSError as e:
+            _fail("plymouthd.conf", str(e))
 
         # ── Catppuccin cursors (asset local zip) ──
         if not os.path.exists(f"{SYSTEM_ICONS}/{CURSOR_THEME_NAME}"):
@@ -359,6 +380,8 @@ class AppearanceStep(BaseStep):
             else:
                 _fail("grub theme config", grub_conf)
             set_grub_option(grub_conf, "GRUB_GFXMODE", "1920x1080")
+            set_grub_option(grub_conf, "GRUB_TIMEOUT_STYLE", "menu")
+            set_grub_option(grub_conf, "GRUB_TIMEOUT", "5")
             if shutil.which("update-grub"):
                 _run("update-grub", "update-grub", sudo=True)
             else:
