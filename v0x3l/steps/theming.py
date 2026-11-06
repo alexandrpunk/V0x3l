@@ -363,23 +363,23 @@ class AppearanceStep(BaseStep):
                 _run("update-grub", "update-grub", sudo=True)
             else:
                 _fail("update-grub", "update-grub no instalado (grub2-common)")
-            # Plymouth solo se dibuja si el kernel arranca con 'splash'.
+            # Plymouth solo se dibuja si el kernel arranca con 'quiet splash'.
             try:
                 with open(grub_conf) as f:
                     conf_text = f.read()
-                if not re.search(r"^GRUB_CMDLINE_LINUX_DEFAULT=.*\bsplash\b",
+                if not re.search(r"^GRUB_CMDLINE_LINUX_DEFAULT=.*\bquiet splash\b",
                                  conf_text, re.M):
-                    log("WARN paso 4: agregando 'splash' a GRUB_CMDLINE_LINUX_DEFAULT")
+                    log("WARN paso 4: agregando 'quiet splash' a GRUB_CMDLINE_LINUX_DEFAULT")
                     new_text = re.sub(
                         r'^(GRUB_CMDLINE_LINUX_DEFAULT="[^"]*)"',
-                        r'\1 splash"',
+                        r'\1 quiet splash"',
                         conf_text, flags=re.M
                     )
                     if new_text != conf_text:
-                        with open(grub_conf, "w") as fw:
-                            fw.write(new_text)
+                        with open(grub_conf, "w") as f:
+                            f.write(new_text)
                         _run("update-grub", "update-grub", sudo=True)
-                        log("INFO paso 4: splash activado; Plymouth se vera en el arranque")
+                        log("INFO paso 4: quiet splash activado; Plymouth se vera en el arranque")
             except OSError:
                 pass
 
