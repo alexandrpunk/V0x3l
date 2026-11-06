@@ -17,7 +17,7 @@ MEGA_PACKAGES = (
     "polkitd", "seatd", "ly", "udisks2", "gvfs", "gvfs-backends",
     "ntfs-3g", "exfatprogs", "libglib2.0-bin",
     "unzip", "neovim", "tmux", "fastfetch",
-    "plymouth", "gtk-update-icon-cache",
+    "plymouth", "plymouth-themes", "gtk-update-icon-cache",
     "nwg-look", "dialog", "apt-utils",
     "unattended-upgrades", "apparmor", "wget", "nano", "htop",
     "libheif-plugin-libde265", "ufw", "tumbler", "xdg-user-dirs",
