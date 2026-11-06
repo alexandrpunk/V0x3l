@@ -95,6 +95,7 @@ WALLPAPER_DEST_DIR = "Pictures/v0x3l-wallpapers"
 WALLPAPER_TIMER_NAME = "v0x3l-wallpaper.timer"
 WALLPAPER_TIMER_PATH = f"~/.config/systemd/user/{WALLPAPER_TIMER_NAME}"
 
+DOTFILES_DIR = ASSETS_DIR / "dotfiles"
 # Umbriel: config de referencia vendorizado (defaults de Umbriel + keybinds).
 # El step de Configuracion parte del config empaquetado del sistema
 # (/usr/share/umbriel/config.toml) y cae a este template si no existe.
