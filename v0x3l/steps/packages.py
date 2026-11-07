@@ -21,7 +21,7 @@ MEGA_PACKAGES = (
     "nwg-look", "dialog", "apt-utils",
     "unattended-upgrades", "apparmor", "wget", "nano", "htop",
     "libheif-plugin-libde265", "ufw", "tumbler", "xdg-user-dirs",
-    "viewnior", "qpdfview", "xarchiver", "awww",
+    "viewnior", "qpdfview", "xarchiver", "awww", "mousepad",
     "pipewire", "wireplumber", "libpipewire-0.3-0",
     "libwireplumber-0.5-0",
     "dbus-user-session", "dbus-x11", "network-manager", "libnm0",
@@ -30,13 +30,15 @@ MEGA_PACKAGES = (
     "ubuntu-restricted-extras", "gstreamer1.0-plugins-bad",
     "gstreamer1.0-libav", "ffmpegthumbnailer",
     "floorp", "flatpak", "tlp", "tlp-rdw",
-    "cups-pk-helper", "kimageformat-plugins",
     "libgtk-4-1", "libadwaita-1-0",
 )
 
 # Compositor + shell + portal XDG.
 UMBRIEL_PACKAGES = ("noctalia", "umbriel", "xdg-desktop-portal-umbriel")
 
+# Extras no criticos: su descarga (SourceForge, en el caso de las fuentes)
+# puede fallar y no debe abortar la instalacion.
+EXTRA_PACKAGES = ("ttf-mscorefonts-installer",)
 
 
 class SoftwareStep(BaseStep):
@@ -49,6 +51,15 @@ class SoftwareStep(BaseStep):
         # ── Reparar estado roto de dpkg/apt (herencia de ejecuciones previas) ──
         self.runner.ui.run_cmd("apt fix-broken (pre-mega)",
             "apt", "install", "--fix-broken", "-y", sudo=True)
+
+
+        # ── EULA de ttf-mscorefonts-installer ──
+        # Sin el preseed, nala/apt abre un dialogo debconf interactivo en la
+        # TUI y la transaccion queda colgada.
+        self.runner.ui.run_cmd("preseed mscorefonts EULA", "bash", "-c",
+            "echo 'ttf-mscorefonts-installer "
+            "msttcorefonts/accepted-mscorefonts-eula select true' | "
+            "debconf-set-selections", sudo=True)
 
         # ── Mega-install de paquetes base ──
         # Paquetes del sistema (sistema base + flatpak). Si la transaccion grupal
@@ -82,6 +93,14 @@ class SoftwareStep(BaseStep):
                     "nala", "install", "--no-install-recommends", "-y",
                     pkg, sudo=True)
 
+
+        # Extras no criticos (fuentes MS core). Si falla la descarga, se
+        # registra y la instalacion continua.
+        for pkg in EXTRA_PACKAGES:
+            if not self.runner.ui.run_cmd(f"install {pkg}",
+                    "nala", "install", "-y", pkg, sudo=True):
+                log(f"WARN {pkg}: no se pudo instalar (descarga); "
+                    f"reintentar: sudo apt install {pkg}")
 
         # Umbriel es el compositor; Noctalia el shell. Su repo se agrega en
         # Step 0; aqui solo se instalan los paquetes.

@@ -17,7 +17,8 @@ from v0x3l.config import (
     CURSOR_THEME_NAME, ICON_THEME_NAME, JUNO_THEME_NAME,
     PLYMOUTH_THEME_NAME, TARGET_HOME, TARGET_USER, TLP_CONF_NAME,
 )
-from v0x3l.steps.packages import MEGA_PACKAGES, UMBRIEL_PACKAGES
+from v0x3l.steps.packages import (EXTRA_PACKAGES, MEGA_PACKAGES,
+                                  UMBRIEL_PACKAGES)
 from v0x3l.steps.system import section_key
 from v0x3l.steps.theming import (
     GRUB_DEFAULT_CONF, GRUB_THEMES, GRUB_THEME_INSTALL_DIR,
@@ -117,6 +118,11 @@ def _check_software(home: str) -> list[Check]:
     for pkg in (*UMBRIEL_PACKAGES, *MEGA_PACKAGES):
         installed = _package_installed(pkg)
         out.append(Check("Software", pkg, OK if installed else FAIL,
+                         "" if installed else "no instalado",
+                         f"sudo nala install {pkg}"))
+    for pkg in EXTRA_PACKAGES:
+        installed = _package_installed(pkg)
+        out.append(Check("Software", pkg, OK if installed else WARN,
                          "" if installed else "no instalado",
                          f"sudo nala install {pkg}"))
 

@@ -3,19 +3,24 @@
 # dotfiles/zsh/lazyvim/omp al final para evitar conflictos con instaladores
 # que tocan ~/.config y ~/.local)
 
+import json
 import os
 import shutil
 import subprocess
 import tempfile
 import re
 from v0x3l.steps.base import BaseStep
-from v0x3l.config import (TARGET_USER, TARGET_HOME,
+from v0x3l.config import (TARGET_USER, TARGET_HOME, PROJECT_NAME,
                           DOTFILES_DIR, DOTFILES_MAP, OMP_HARNESS_REPO,
                           WALLPAPERS_DIR, WALLPAPER_DEST_DIR,
-                          WALLPAPER_TIMER_NAME)
+                          NOCTALIA_WALLPAPER_CFG, WALLPAPER_ROTATION_SECONDS)
 from v0x3l.shell import log
 
 OMP_HARNESS_KEEP = ("config.yml", "models.yml", ".env")
+
+# Enfoque anterior del fondo (awww + systemd user timer): solo se usa para
+# borrar sus restos en equipos que ya ejecutaron esa version.
+LEGACY_WALLPAPER_TIMER = "v0x3l-wallpaper.timer"
 
 # Plugin Noctalia: Optimus GPU Manager (Luau)
 OPTIMUS_PLUGIN_FILES = {
@@ -334,9 +339,8 @@ class DesktopStep(BaseStep):
             log("INFO paso 5: entorno completo")
 
         # ── Wallpapers (vendorizados en assets/wallpapers/) ──
-        # Copia las imagenes a ~/.config/Pictures/v0x3l-wallpapers/ y configura
-        # Noctalia para rotar aleatoriamente entre ellas cada hora mediante
-        # awww + systemd user timer.
+        # Copia las imagenes a ~/Pictures/v0x3l-wallpapers/ y escribe el
+        # fragmento de Noctalia con fondo por defecto + rotacion aleatoria.
         ok &= self._deploy_wallpapers()
 
         # ── Paleta Sonokai para Noctalia y Neovim ──
@@ -347,7 +351,16 @@ class DesktopStep(BaseStep):
         return ok
 
     def _deploy_wallpapers(self) -> bool:
-        """Instala wallpapers y activa rotacion aleatoria cada hora."""
+        """Copia los wallpapers y los declara en Noctalia.
+
+        Noctalia v5 pinta y rota el fondo por si mismo: el fragmento
+        ~/.config/noctalia/<NOCTALIA_WALLPAPER_CFG> fija un fondo por defecto
+        ([wallpaper.default]) y activa la rotacion aleatoria cada
+        WALLPAPER_ROTATION_SECONDS segundos ([wallpaper.automation]). Se escribe
+        en un `*.toml` propio y NO en `settings.toml`: ese archivo lo gestiona la
+        GUI en ~/.local/state/noctalia/, carga al final y debe seguir ganando
+        para que una seleccion manual del usuario se respete.
+        """
         user = TARGET_USER
         home = TARGET_HOME
         if not user or user == "root" or not home or home == "/root":
@@ -375,65 +388,96 @@ class DesktopStep(BaseStep):
                     shutil.copy2(src, dst)
                     log(f"INFO wallpaper copiado: {name}")
 
-            # Config de Noctalia para wallpaper con rotacion aleatoria.
             noctalia_dir = os.path.join(home, ".config", "noctalia")
-            noctalia_cfg = os.path.join(noctalia_dir, "settings.toml")
-            wallpaper_cfg = (
+            os.makedirs(noctalia_dir, exist_ok=True)
+            self._drop_legacy_wallpaper_artifacts(home, wall_dest, noctalia_dir)
+
+            default_wall = os.path.join(wall_dest, images[0])
+            cfg_path = os.path.join(noctalia_dir, NOCTALIA_WALLPAPER_CFG)
+            cfg = (
+                f"# Generado por {PROJECT_NAME}; se reescribe en cada ejecucion\n"
+                "# del instalador. La GUI de Noctalia guarda en\n"
+                "# ~/.local/state/noctalia/settings.toml, que carga al final\n"
+                "# y tiene prioridad sobre este archivo.\n"
                 "[wallpaper]\n"
                 "enabled = true\n"
                 'fill_mode = "crop"\n'
-                f'directory = "{wall_dest}"\n'
-                "transition = \"fade\"\n"
+                f"directory = {json.dumps(wall_dest)}\n"
+                'transition = ["fade"]\n'
                 "transition_duration = 1500\n"
                 "transition_on_startup = false\n"
-            )
-            os.makedirs(noctalia_dir, exist_ok=True)
-            with open(noctalia_cfg, "w") as f:
-                f.write(wallpaper_cfg)
-            log(f"INFO wallpaper config: {noctalia_cfg}")
-
-            # systemd user timer: rotacion aleatoria cada hora.
-            systemd_user_dir = os.path.join(home, ".config", "systemd", "user")
-            timer_path = os.path.join(systemd_user_dir, WALLPAPER_TIMER_NAME)
-            service_path = timer_path.replace(".timer", ".service")
-            timer_cfg = (
-                "[Unit]\n"
-                "Description=Rotar wallpaper aleatoriamente (V0x3l)\n"
                 "\n"
-                "[Timer]\n"
-                "OnCalendar=*:0/15\n"
-                "Persistent=true\n"
+                "[wallpaper.default]\n"
+                f"path = {json.dumps(default_wall)}\n"
                 "\n"
-                "[Install]\n"
-                "WantedBy=timers.target\n"
+                "[wallpaper.automation]\n"
+                "enabled = true\n"
+                f"interval_seconds = {WALLPAPER_ROTATION_SECONDS}\n"
+                'order = "random"\n'
             )
-            service_cfg = (
-                "[Unit]\n"
-                "Description=Establecer wallpaper aleatorio (V0x3l)\n"
-                "\n"
-                "[Service]\n"
-                "Type=oneshot\n"
-                f"ExecStart=/bin/sh -c 'awww img \"$(find {wall_dest} -type f \\\\( -name '*.jpg' -o -name '*.jpeg' -o -name '*.png' -o -name '*.webp' \\\\) | shuf -n1)\"'\n"
-            )
-            os.makedirs(systemd_user_dir, exist_ok=True)
-            with open(timer_path, "w") as f:
-                f.write(timer_cfg)
-            with open(service_path, "w") as f:
-                f.write(service_cfg)
-            log(f"INFO wallpaper timer: {timer_path}")
+            with open(cfg_path, "w") as f:
+                f.write(cfg)
+            log(f"INFO wallpaper config: {cfg_path} "
+                f"(rotacion aleatoria cada {WALLPAPER_ROTATION_SECONDS}s)")
 
             if os.geteuid() == 0:
-                subprocess.run(
-                    ["chown", "-R", f"{user}:", wall_dest], capture_output=True,
-                    check=False)
-                subprocess.run(
-                    ["chown", "-R", f"{user}:", systemd_user_dir],
-                    capture_output=True, check=False)
+                for path in (wall_dest, noctalia_dir):
+                    subprocess.run(["chown", "-R", f"{user}:", path],
+                                   capture_output=True, check=False)
 
         except Exception as e:
             log(f"ERROR wallpapers: {type(e).__name__}: {e}")
             return False
         return True
+
+    def _drop_legacy_wallpaper_artifacts(self, home: str, wall_dest: str,
+                                         noctalia_dir: str) -> None:
+        """Borra los restos del enfoque anterior: settings.toml + timer awww.
+
+        Solo elimina `settings.toml` si su contenido es exactamente el que
+        generaba la version previa; un archivo distinto se conserva y se avisa.
+        """
+        legacy_cfg = (
+            "[wallpaper]\n"
+            "enabled = true\n"
+            'fill_mode = "crop"\n'
+            f'directory = "{wall_dest}"\n'
+            'transition = "fade"\n'
+            "transition_duration = 1500\n"
+            "transition_on_startup = false\n"
+        )
+        legacy_settings = os.path.join(noctalia_dir, "settings.toml")
+        try:
+            with open(legacy_settings) as f:
+                is_ours = f.read() == legacy_cfg
+        except OSError:
+            is_ours = False
+        if is_ours:
+            try:
+                os.remove(legacy_settings)
+                log(f"INFO wallpaper: eliminado config obsoleto {legacy_settings}")
+            except OSError as e:
+                log(f"WARN wallpaper: no se pudo borrar {legacy_settings}: {e}")
+        elif os.path.exists(legacy_settings):
+            log(f"WARN wallpaper: {legacy_settings} no lo genero este script; "
+                "revisar que no duplique [wallpaper]")
+
+        systemd_user_dir = os.path.join(home, ".config", "systemd", "user")
+        stale = (
+            os.path.join(systemd_user_dir, LEGACY_WALLPAPER_TIMER),
+            os.path.join(systemd_user_dir,
+                         LEGACY_WALLPAPER_TIMER.replace(".timer", ".service")),
+            os.path.join(systemd_user_dir, "timers.target.wants",
+                         LEGACY_WALLPAPER_TIMER),
+        )
+        for path in stale:
+            try:
+                os.remove(path)
+                log(f"INFO wallpaper: eliminado timer obsoleto {path}")
+            except FileNotFoundError:
+                pass
+            except OSError as e:
+                log(f"WARN wallpaper: no se pudo borrar {path}: {e}")
 
     def _deploy_noctalia_palette(self) -> bool:
         """Despliega paleta Sonokai en ~/.config/noctalia/palettes/."""

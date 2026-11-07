@@ -8,6 +8,9 @@ El nombre del proyecto, versión, repo y rutas se configuran desde `.env`.
 - Gestor de archivos: **Thunar** con **thunar-volman** (automontaje de unidades USB mediante gvfs + udisks2 + polkit; usuario destino en grupo `plugdev`).
 - Stack de escritorio: **Noctalia + Umbriel + ly** (display manager TUI; se eliminaron sysc-greet/greetd y referencias a Niri/DANKInstall).
 - Terminal: **Kitty** (reemplazó a Foot).
+- Aplicaciones por defecto en `~/.config/mimeapps.list` (paso 3): Floorp (navegador), mousepad (texto plano), viewnior (imágenes), qpdfview (PDF) y Cine (vídeo, Flatpak del paso 2).
+- Umbriel (`UMBRIEL_PREFS` en `steps/system.py`, sobre el config empaquetado): barra de título `forced` con minimizar/maximizar/cerrar, Alt+Tab → selector de ventanas de Noctalia limitado al workspace actual, cheatsheet desactivado al arrancar (`Mod+F2`).
+- Thunar: kitty como terminal predeterminada vía `~/.config/xfce4/helpers.rc` (exo 4.20 resuelve el valor con `g_find_program_in_path`).
 
 ```
 V0x3l/
@@ -52,6 +55,7 @@ Editar `.env` para cambiar:
 - `PLYMOUTH_THEME_NAME` — nombre del tema Plymouth
 - `REPO_URL` — URL del repositorio git
 - `REPO_BRANCH` — rama por defecto (mantener sincronizada con la rama de trabajo actual en `install.sh` y la URL del one-liner)
+- `WALLPAPER_ROTATION_SECONDS` — intervalo de rotacion aleatoria del fondo (por defecto 900)
 
 ## Verification
 

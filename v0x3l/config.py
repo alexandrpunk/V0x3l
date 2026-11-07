@@ -88,18 +88,24 @@ JUNO_THEME_NAME = env("JUNO_THEME_NAME", "Juno")
 JUNO_THEME_SRC = str(THEMES_DIR / "juno-gtk")
 
 # Wallpapers (vendorizados en assets/wallpapers/).
-# Variantes: archivos .jpg/.png/.jpeg. El desplegado rota aleatoriamente entre
-# ellos via Noctalia [wallpaper] + servicio systemd/user.
+# Noctalia v5 pinta y rota el fondo por si mismo: el step 5 declara
+# [wallpaper.default] + [wallpaper.automation] en
+# ~/.config/noctalia/90-v0x3l-wallpaper.toml. La GUI guarda sus cambios en
+# ~/.local/state/noctalia/settings.toml, que carga al final y tiene prioridad.
 WALLPAPERS_DIR = ASSETS_DIR / "wallpapers"
 WALLPAPER_DEST_DIR = "Pictures/v0x3l-wallpapers"
-WALLPAPER_TIMER_NAME = "v0x3l-wallpaper.timer"
-WALLPAPER_TIMER_PATH = f"~/.config/systemd/user/{WALLPAPER_TIMER_NAME}"
+NOCTALIA_WALLPAPER_CFG = "90-v0x3l-wallpaper.toml"
+WALLPAPER_ROTATION_SECONDS = int(env("WALLPAPER_ROTATION_SECONDS", "900"))
 
 DOTFILES_DIR = ASSETS_DIR / "dotfiles"
 # Umbriel: config de referencia vendorizado (defaults de Umbriel + keybinds).
 # El step de Configuracion parte del config empaquetado del sistema
 # (/usr/share/umbriel/config.toml) y cae a este template si no existe.
 UMBRIEL_CONFIG_TEMPLATE = str(DOTFILES_DIR / "umbriel" / "config.toml")
+
+# Shell Noctalia: fragmento declarativo propio (selector de ventanas de
+# Alt+Tab). Nunca se escribe en settings.toml, que gestiona la GUI.
+NOCTALIA_SHELL_CFG = "90-v0x3l-shell.toml"
 
 # ── Resolucion centralizada del usuario destino ──
 # Todos los steps usan TARGET_USER y TARGET_HOME en vez de resolver

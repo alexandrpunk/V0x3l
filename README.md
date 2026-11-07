@@ -39,6 +39,8 @@ curl -fsSL https://raw.githubusercontent.com/alexandrpunk/V0x3l/main/install.sh 
 - **Checkpoint reanudable**: continúa desde donde quedó si falla
 - **Monitor de paquetes**: barra de progreso, velocidad, contador durante instalaciones
 - **Navegación**: teclas 1-7 para acciones directas, flechas para navegar
+- **Aplicaciones por defecto**: Floorp, mousepad, viewnior, qpdfview y Cine (`mimeapps.list`)
+- **Umbriel**: botones de ventana, Alt+Tab con el selector de Noctalia, cheatsheet bajo demanda
 - **.env configurable**: nombre del proyecto, versión, rutas, repositorio desde archivo central
 - **Comprobación de la instalación**: verifica que nada haya faltado (opción 6 del menú o `--check`)
 
@@ -64,14 +66,39 @@ python3 -m v0x3l --check
 
 Desde la TUI: opción **6 — Comprobar la instalacion** (<code>q</code>/<code>Esc</code> para cerrar).
 
+### Wallpapers
+
+El paso 5 copia `assets/wallpapers/` a `~/Pictures/v0x3l-wallpapers/` y deja
+Noctalia configurado: fondo por defecto desde el primer arranque
+(`[wallpaper.default]`) y rotación aleatoria cada 15 min
+(`[wallpaper.automation]`; intervalo en `WALLPAPER_ROTATION_SECONDS` del `.env`).
+
+La configuración vive en `~/.config/noctalia/90-v0x3l-wallpaper.toml`. Lo que
+se elija desde la GUI se guarda en `~/.local/state/noctalia/settings.toml`, que
+carga al final y tiene prioridad.
+
+### Aplicaciones por defecto
+
+El paso 3 escribe `~/.config/mimeapps.list`: Floorp (navegador; `http(s)` y
+HTML), mousepad (texto plano), viewnior (imágenes), qpdfview (PDF) y Cine
+(vídeo, el Flatpak que instala el paso 2).
+
+### Escritorio (Umbriel)
+
+El paso 3 completa `~/.config/umbriel/config.toml` partiendo del config
+empaquetado: barra de título con minimizar/maximizar/cerrar (`mode = "forced"`),
+Alt+Tab abre el selector de ventanas de Noctalia limitado al workspace actual, y
+el cheatsheet de atajos ya no aparece en cada arranque (se abre con `Mod+F2`).
+Thunar usa kitty como terminal (`~/.config/xfce4/helpers.rc`).
+
 ## Secciones
 
 | # | Sección | Descripción |
 |---|---------|-------------|
 | 0 | Preparación del sistema | herramientas base, repos Noctalia, locale, zona horaria |
 | 1 | Rendimiento y drivers | kernel XanMod Edge + GPU NVIDIA |
-| 2 | Software | Wayland, Thunar, PipeWire, Flatpak, Noctalia, Umbriel, Kitty |
-| 3 | Configuración | Polkit, UFW, red, servicios, TLP, Umbriel floating + ly |
+| 2 | Software | Wayland, Thunar, PipeWire, Flatpak, Noctalia, Umbriel, Kitty, codecs y fuentes MS core |
+| 3 | Configuración | Polkit, UFW, red, servicios, TLP, Umbriel (botones/Alt+Tab), terminal de Thunar, apps por defecto, ly |
 | 4 | Apariencia | Juno GTK, Pure icons, Plymouth, GRUB Vimix |
 | 5 | Entorno | Oh My Zsh, LazyVim, harness OMP, dotfiles (kitty/tmux/fastfetch) |
 

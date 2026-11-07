@@ -6,7 +6,8 @@ import shutil
 import subprocess
 from v0x3l.steps.base import BaseStep
 from v0x3l.config import (TLP_CONF_NAME, CURSOR_THEME_NAME, TARGET_USER,
-                          TARGET_HOME, UMBRIEL_CONFIG_TEMPLATE)
+                          TARGET_HOME, UMBRIEL_CONFIG_TEMPLATE,
+                          NOCTALIA_SHELL_CFG)
 from v0x3l.shell import log
 
 
@@ -23,10 +24,186 @@ UMBRIEL_PREFS = (
     ("layout", "mode", '"stacking"'),          # ventanas flotantes
     ("general", "autostart", '["noctalia"]'),  # sin kitty al arrancar
     ("general", "xwayland", "true"),           # XWayland cuando se necesite
+    # El cheatsheet de atajos ya no se abre en cada arranque (default true);
+    # se muestra y se cierra con Mod+F2 o `umbriel msg cheatsheet-toggle`.
+    ("general", "show_cheatsheet", "false"),
+    # Los clientes que negocian decoracion usan la barra de Umbriel en vez de
+    # dibujar su propio headerbar (default true; se fija por si el config
+    # empaquetado o una edicion previa lo desactivo).
+    ("appearance", "prefer_no_csd", "true"),
+    # Barra de titulo con los tres botones en el borde de la ventana. El
+    # default es mode = "off" (sin barra); "forced" la dibuja tambien para
+    # clientes que prefieren CSD, que es justo lo que faltaba.
+    ("appearance.title_bar", "mode", '"forced"'),
+    # Layout macOS: los tres botones a la izquierda del titulo. La lista va
+    # "desde el titulo hacia el borde", asi que el ultimo (close) queda en el
+    # extremo izquierdo: [close][minimize][maximize] Titulo.
+    ("appearance.title_bar", "button_position", '"left"'),
+    ("appearance.title_bar", "buttons", '["maximize", "minimize", "close"]'),
+    ("appearance.title_bar", "button_size", "12"),
+    ("appearance.title_bar", "button_corner_radius", "100"),
+    ("appearance.title_bar", "button_glyph", '"hover"'),
+    # Alt+Tab abre el selector de ventanas de Noctalia (con previsualizacion)
+    # limitado al workspace actual; mientras se mantiene Alt, Tab/Shift+Tab
+    # recorren la lista y al soltar se enfoca la elegida. repeat = false para
+    # no relanzar el selector con cada autorepeat.
+    ("keybinds", '"Alt+Tab"',
+     '{ action = "spawn noctalia msg window-switcher hold current", repeat = false }'),
+    ("keybinds", '"Alt+Shift+Tab"',
+     '{ action = "spawn noctalia msg window-switcher hold current", repeat = false }'),
+    ("keybinds", '"Mod+F2"', '{ action = "cheatsheet-toggle", repeat = false }'),
     # Cursor del compositor: en Wayland lo fija Umbriel, no GTK.
     ("input.cursor", "theme", f'"{CURSOR_THEME_NAME}"'),
     ("input.cursor", "size", "24"),
 )
+
+# ── Aplicaciones por defecto ──
+# xdg-open, Thunar y Noctalia resuelven "abrir con" por ~/.config/mimeapps.list
+# (INI, sin espacios alrededor del '='). Los tipos van explicitos porque
+# mimeapps.list no admite comodines.
+DEFAULT_MIME_APPS = (
+    # Navegador: Floorp (repo oficial que anade el paso 0)
+    ("text/html", "floorp.desktop"),
+    ("x-scheme-handler/http", "floorp.desktop"),
+    ("x-scheme-handler/https", "floorp.desktop"),
+    # Editor de texto plano
+    ("text/plain", "mousepad.desktop"),
+    # Visor de imagenes
+    ("image/png", "viewnior.desktop"),
+    ("image/jpeg", "viewnior.desktop"),
+    ("image/gif", "viewnior.desktop"),
+    ("image/webp", "viewnior.desktop"),
+    ("image/bmp", "viewnior.desktop"),
+    ("image/tiff", "viewnior.desktop"),
+    # PDF
+    ("application/pdf", "qpdfview.desktop"),
+    # Video: Cine (Flatpak del sistema que instala el paso 2)
+    ("video/mp4", "io.github.diegopvlk.Cine.desktop"),
+    ("video/x-matroska", "io.github.diegopvlk.Cine.desktop"),
+    ("video/webm", "io.github.diegopvlk.Cine.desktop"),
+    ("video/x-msvideo", "io.github.diegopvlk.Cine.desktop"),
+    ("video/quicktime", "io.github.diegopvlk.Cine.desktop"),
+    ("video/mpeg", "io.github.diegopvlk.Cine.desktop"),
+    ("video/ogg", "io.github.diegopvlk.Cine.desktop"),
+    ("video/x-flv", "io.github.diegopvlk.Cine.desktop"),
+    ("video/x-m4v", "io.github.diegopvlk.Cine.desktop"),
+    ("video/3gpp", "io.github.diegopvlk.Cine.desktop"),
+    ("video/mp2t", "io.github.diegopvlk.Cine.desktop"),
+)
+
+
+def set_ini_key(text: str, section: str, key: str, value: str) -> str:
+    """Fija `key=value` en [section]; formato mimeapps.list (sin espacios)."""
+    lines = text.splitlines()
+    header = f"[{section}]"
+    start = next((i for i, l in enumerate(lines) if l.strip() == header), None)
+    if start is None:
+        body = text.rstrip()
+        prefix = f"{body}\n\n" if body else ""
+        return f"{prefix}{header}\n{key}={value}\n"
+    end = next((i for i in range(start + 1, len(lines))
+                if lines[i].strip().startswith("[")), len(lines))
+    for i in range(start + 1, end):
+        if re.match(rf"^{re.escape(key)}\s*=", lines[i].strip()):
+            lines[i] = f"{key}={value}"
+            break
+    else:
+        lines.insert(start + 1, f"{key}={value}")
+    return "\n".join(lines) + "\n"
+
+
+def apply_default_apps(home: str) -> bool:
+    """Marca navegador/editor/imagenes/PDF/video por defecto en mimeapps.list."""
+    path = os.path.join(home, ".config", "mimeapps.list")
+    try:
+        text = ""
+        if os.path.exists(path):
+            with open(path) as f:
+                text = f.read()
+        for mime, desktop in DEFAULT_MIME_APPS:
+            text = set_ini_key(text, "Default Applications", mime,
+                               f"{desktop};")
+        os.makedirs(os.path.dirname(path), exist_ok=True)
+        with open(path, "w") as f:
+            f.write(text)
+        log(f"INFO apps: {len(DEFAULT_MIME_APPS)} tipos MIME por defecto en "
+            f"{path}")
+        return True
+    except OSError as e:
+        log(f"ERROR apps: {path}: {type(e).__name__}: {e}")
+        return False
+
+
+def configure_thunar_terminal(home: str) -> bool:
+    """Registra kitty como terminal predeterminada de Thunar/exo.
+
+    Thunar 4.20 lanza "Abrir terminal aqui" como
+    `exo-open --working-directory %f --launch TerminalEmulator`. exo lee
+    ~/.config/xfce4/helpers.rc SIN cabecera de seccion: sin
+    xfce4-mime-helper (lo normal en este stack) resuelve el valor con
+    g_find_program_in_path, y con el helper instalado lo usa como id de
+    ~/.local/share/xfce4/helpers/<id>.desktop. Se cubren ambos casos, asi que
+    la accion deja de caer en xfce4-terminal (que no esta instalado).
+    """
+    path = os.path.join(home, ".config", "xfce4", "helpers.rc")
+    try:
+        text = ""
+        if os.path.exists(path):
+            with open(path) as f:
+                text = f.read()
+        lines = [l for l in text.splitlines()
+                 if not re.match(r"^\s*TerminalEmulator\s*=", l)]
+        lines.append("TerminalEmulator=kitty")
+        os.makedirs(os.path.dirname(path), exist_ok=True)
+        with open(path, "w") as f:
+            f.write("\n".join(lines) + "\n")
+
+        helper_dir = os.path.join(home, ".local", "share", "xfce4", "helpers")
+        helper = os.path.join(helper_dir, "kitty.desktop")
+        os.makedirs(helper_dir, exist_ok=True)
+        with open(helper, "w") as f:
+            f.write(
+                "[Desktop Entry]\n"
+                "Version=1.0\n"
+                "Type=X-XFCE-Helper\n"
+                "Name=kitty\n"
+                "Icon=kitty\n"
+                "X-XFCE-Category=TerminalEmulator\n"
+                f"X-XFCE-Binaries={home}/.local/kitty.app/bin/kitty;\n"
+                "X-XFCE-Commands=%B;\n"
+                "X-XFCE-CommandsWithParameter=%B %s;\n"
+            )
+        log(f"INFO thunar: kitty como terminal predeterminada ({path})")
+        return True
+    except OSError as e:
+        log(f"ERROR thunar: {path}: {type(e).__name__}: {e}")
+        return False
+
+
+def apply_noctalia_switcher(home: str) -> bool:
+    """Configura el selector de ventanas de Noctalia (Alt+Tab).
+
+    Se escribe en un fragmento *.toml propio (no en settings.toml, que
+    gestiona la GUI en ~/.local/state/noctalia/): el selector recorre solo el
+    workspace actual del monitor y usa orden MRU como un Alt+Tab clasico.
+    """
+    path = os.path.join(home, ".config", "noctalia", NOCTALIA_SHELL_CFG)
+    content = (
+        "# Generado por V0x3l; se reescribe en cada ejecucion del instalador.\n"
+        "[shell.window_switcher]\n"
+        "current_workspace_only = true\n"
+        "show_all_outputs = false\n"
+        "mru = true\n"
+    )
+    try:
+        os.makedirs(os.path.dirname(path), exist_ok=True)
+        with open(path, "w") as f:
+            f.write(content)
+        log(f"INFO noctalia: selector de ventanas configurado ({path})")
+        return True
+    except OSError as e:
+        log(f"ERROR noctalia: {path}: {type(e).__name__}: {e}")
+        return False
 
 
 def section_key(text: str, section: str, key: str):
@@ -333,11 +510,31 @@ class ConfigurationStep(BaseStep):
                 ok &= seed_umbriel_config(umbriel_config)
             ensure_user_ownership(umbriel_dir)
 
+        # ---- Aplicaciones por defecto (mimeapps.list) ----
+        # Floorp (navegador), mousepad (texto plano), viewnior (imagenes),
+        # qpdfview (PDF) y Cine (video).
+        if user:
+            if apply_default_apps(home):
+                ensure_user_ownership(os.path.join(home, ".config",
+                                                   "mimeapps.list"))
+            else:
+                log("WARN apps: no se pudieron fijar las aplicaciones por defecto")
+
+        # ---- Thunar: kitty como terminal + selector de ventanas (Alt+Tab) ----
+        if user:
+            ok &= configure_thunar_terminal(home)
+            ok &= apply_noctalia_switcher(home)
+            ensure_user_ownership(os.path.join(home, ".config", "xfce4"))
+            ensure_user_ownership(os.path.join(home, ".config", "noctalia"))
+            ensure_user_ownership(os.path.join(home, ".local", "share",
+                                               "xfce4"))
+
         # Verificación post-escritura: validar config.toml
         if os.path.exists(umbriel_config):
             try:
                 subprocess.run(
-                    ["sudo", "-u", user, "-H", "umbriel", "config", "validate", umbriel_config],
+                    ["sudo", "-u", user, "-H", "umbriel", "config",
+                     "validate", "-c", umbriel_config],
                     capture_output=True, check=False
                 )
             except Exception:
